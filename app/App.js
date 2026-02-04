@@ -2,14 +2,21 @@ import { useEffect, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
 import * as LocalAuthentication from "expo-local-authentication";
 import CameraScreen from "./src/screens/CameraScreen";
+import VideoSplashScreen from "./src/screens/VideoSplashScreen";
+import { ImageBackground } from "react-native";
+import DashboardScreen from "./src/screens/DashboardScreen";
+
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
+  const [route, setRoute] = useState("dashboard"); // "dashboard" | "camera"
 
   useEffect(() => {
-    authenticate();
-  }, []);
+    if (!showSplash) authenticate();
+  }, [showSplash]);
+
 
   const authenticate = async () => {
     try {
@@ -36,14 +43,25 @@ export default function App() {
     }
   };
 
+  if (showSplash) {
+    return <VideoSplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text style={styles.text}>Authenticating…</Text>
-      </View>
+      <ImageBackground
+        source={require("./assets/bg-auth.jpg")}
+        style={styles.bg}
+        resizeMode="cover"
+      >
+        <View style={styles.overlay}>
+          <ActivityIndicator size="large" />
+          <Text style={styles.text}>Authenticating…</Text>
+        </View>
+      </ImageBackground>
     );
   }
+
 
   if (!authenticated) {
     return (
@@ -53,7 +71,18 @@ export default function App() {
     );
   }
 
-  return <CameraScreen />;
+  if (route === "camera") {
+    return <CameraScreen />;
+  }
+
+  return (
+    <DashboardScreen
+      onTranslate={() => setRoute("camera")}
+      onTutorial={() => console.log("Tutorial")}
+      onSettings={() => console.log("Settings")}
+    />
+  );
+
 }
 
 const styles = StyleSheet.create({
@@ -68,4 +97,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 14,
   },
+  bg: { flex: 1 },
+    overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.55)", // darken image
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
 });
