@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+.expo
+.expo-shared
+*.log
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+dataset
+**/dataset
+src/server
+server
+app/src/server
