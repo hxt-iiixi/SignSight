@@ -1,14 +1,48 @@
-node_modules
-**/node_modules
-.expo
-.expo-shared
-*.log
-.venv
-**/.venv
-__pycache__
-**/__pycache__
-dataset
-**/dataset
-src/server
-server
-app/src/server
+# --- BIG folders (never upload) ---
+node_modules/
+.expo/
+.expo-shared/
+android/.gradle/
+android/app/build/
+android/build/
+ios/build/
+
+# --- caches / temp ---
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.cache/
+**/tmp/
+**/*.log
+
+# --- local envs ---
+.venv/
+venv/
+**/.venv/
+
+# --- datasets / ML artifacts (DO NOT ship in app build) ---
+**/dataset/
+**/datasets/
+**/landmarks/
+**/*.joblib
+**/*.pkl
+**/*.pt
+**/*.onnx
+
+# --- media / recordings ---
+**/*.mp4
+**/*.mkv
+**/*.mov
+**/*.avi
+**/*.wav
+**/*.aac
+**/*.zip
+**/*.tar
+**/*.gz
+**/*.7z
+
+# --- misc ---
+.DS_Store
+.git/
+.gitignore

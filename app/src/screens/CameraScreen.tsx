@@ -17,7 +17,7 @@ import { getClipCounts, getDatasetRoot } from "../ml/dataset";
 import { WebView } from "react-native-webview";
 import Svg, { Circle } from "react-native-svg";
 
-const SERVER_URL = "http://192.168.1.7:8000";
+const SERVER_URL = "http://10.100.74.147:8000";
 const ACCENT = "#2EE6A6";
 
 export default function CameraScreen() {
@@ -27,7 +27,7 @@ export default function CameraScreen() {
   const cameraRef = useRef<any>(null);
   const lastSpokenRef = useRef<string>("");
   const recognizerRef = useRef(new SignRecognizer());
-  const smootherRef = useRef(new MajorityVoteSmoother(5));
+  const smootherRef = useRef(new MajorityVoteSmoother(3));
   const inFlightRef = useRef(false);
 
   const [lastText, setLastText] = useState("Ready");
@@ -51,7 +51,15 @@ export default function CameraScreen() {
   const liveTimerRef = useRef<any>(null);
   const webReadyRef = useRef(false);
   const [webReady, setWebReady] = useState(false);
-  
+  const [isLiveMode, setIsLiveMode] = useState(true);
+
+  const shouldRunLive = isLiveMode && !isDatasetMode;
+  const fpsMsRef = useRef(130); // try 120–140
+  const liveLoopRef = useRef<any>(null);
+  const lastPredictAtRef = useRef(0);
+  const PREDICT_MIN_MS = 120; // try 120–200
+
+
   const refreshCounts = async () => {
     try {
       setIsLoadingCounts(true);
@@ -65,44 +73,64 @@ export default function CameraScreen() {
     refreshCounts();
   }, []);
 
- const startLiveHandTracking = () => {
+ const liveTick = async () => {
+    if (!isLiveRunningRef.current) return;
+
+    try {
+      if (!webReadyRef.current) return;
+      if (!cameraRef.current) return;
+      if (inFlightRef.current) return;
+      if (isDatasetMode) return;
+
+      inFlightRef.current = true;
+
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.12,
+        skipProcessing: true,
+        base64: true,
+      });
+
+      const b64 = photo?.base64;
+      if (!b64) return;
+
+      pendingActionRef.current = "predict";
+      webviewRef.current?.injectJavaScript(`window.processImage("${b64}"); true;`);
+    } catch {
+      // ignore occasional frame errors
+    } finally {
+      inFlightRef.current = false;
+
+      // schedule next tick
+      liveLoopRef.current = setTimeout(liveTick, fpsMsRef.current);
+    }
+  };
+
+  const startLiveHandTracking = () => {
     if (isLiveRunningRef.current) return;
     isLiveRunningRef.current = true;
-
-    liveTimerRef.current = setInterval(async () => {
-      try {
-        if (!webReadyRef.current) return;
-
-        const cam = cameraRef.current;
-        if (!cam) return;
-        if (inFlightRef.current) return;
-
-        inFlightRef.current = true;
-
-        const photo = await cam.takePictureAsync({
-          quality: 0.15,
-          skipProcessing: true,
-          base64: true,
-        });
-
-        const b64 = photo?.base64;
-        if (!b64) return;
-
-        // ONLY landmarks. No predict/upload here.
-        webviewRef.current?.injectJavaScript(`window.processImage("${b64}"); true;`);
-      } catch (e) {
-        // ignore occasional frame errors
-      } finally {
-        inFlightRef.current = false;
-      }
-    }, 180); // 180ms ~= ~5fps (adjust 120-250)
+    liveTick();
   };
 
   const stopLiveHandTracking = () => {
     isLiveRunningRef.current = false;
-    if (liveTimerRef.current) clearInterval(liveTimerRef.current);
-    liveTimerRef.current = null;
+    if (liveLoopRef.current) clearTimeout(liveLoopRef.current);
+    liveLoopRef.current = null;
   };
+
+  
+
+  useEffect(() => {
+    if (!permission?.granted) return;
+    if (!webReady) return;
+
+    if (shouldRunLive) {
+      startLiveHandTracking();
+    } else {
+      stopLiveHandTracking();
+    }
+
+    return () => stopLiveHandTracking();
+  }, [permission?.granted, webReady, isDatasetMode, isLiveMode]);
 
   
   if (!permission) {
@@ -194,7 +222,7 @@ export default function CameraScreen() {
       setIsSaving(true);
 
       const photo = await cam.takePictureAsync({
-        quality: 0.35,
+        quality: 0.12,
         skipProcessing: true,
         base64: true,
       });
@@ -369,6 +397,11 @@ export default function CameraScreen() {
               setLastText(`Landmarks saved (${selectedLabel})`);
               await refreshCounts();
             } else {
+              const now = Date.now();
+                if (now - lastPredictAtRef.current < PREDICT_MIN_MS) {
+                  return;
+                }
+                lastPredictAtRef.current = now;
               const res = await fetch(`${SERVER_URL}/predict_landmarks`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -377,10 +410,12 @@ export default function CameraScreen() {
               const data = await res.json();
               recognizerRef.current.lastConfidence = data.confidence ?? 0;
 
-              if ((data.confidence ?? 0) < 0.6) {
+             if ((data.confidence ?? 0) < 0.6) {
+                smootherRef.current.reset();   
                 setLastText("No clear sign");
                 return;
               }
+
 
               smootherRef.current.push(data.label);
               setLastText(smootherRef.current.getStableLabel());

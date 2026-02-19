@@ -1,105 +1,107 @@
-export const handLandmarksHtml = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
-    />
-    <style>
-      html, body { margin:0; padding:0; background:#000; }
-      video, canvas { display:none; }
-    </style>
+import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
-    <!-- MediaPipe Hands -->
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
-  </head>
+export type HandPoint = { x: number; y: number; z: number };
+export type HandResult = { landmarks: HandPoint[] | null; handedness?: string | null };
 
-  <body>
-    <canvas id="c"></canvas>
+export type HandWebViewHandle = {
+  process: (base64Jpeg: string) => Promise<HandResult>;
+};
 
-    <script>
-      const canvas = document.getElementById("c");
-      const ctx = canvas.getContext("2d");
+type Pending = {
+  resolve: (r: HandResult) => void;
+  reject: (e: any) => void;
+  timeout: any;
+};
 
-      let hands = null;
-      let isReady = false;
-      let busy = false;
+type Props = {
+  html: string;
+  debug?: boolean;
+  timeoutMs?: number;
+};
 
-      function post(obj) {
-        window.ReactNativeWebView?.postMessage(JSON.stringify(obj));
-      }
+export const HandLandmarksWebView = forwardRef<HandWebViewHandle, Props>(
+  ({ html, debug = false, timeoutMs = 2500 }, ref) => {
+    const webViewRef = useRef<any>(null);
 
-      function init() {
-        hands = new Hands({
-          locateFile: (file) => \`https://cdn.jsdelivr.net/npm/@mediapipe/hands/\${file}\`,
+    const reqIdRef = useRef(1);
+    const pendingRef = useRef<Map<number, Pending>>(new Map());
+
+    // ✅ READY tracking (prevents missed READY)
+    const isReadyRef = useRef(false);
+
+    const pingReady = () => {
+      try {
+        webViewRef.current?.postMessage(JSON.stringify({ type: "PING_READY" }));
+      } catch {}
+    };
+
+    useImperativeHandle(ref, () => ({
+      process: (base64Jpeg: string) => {
+        return new Promise((resolve, reject) => {
+          const reqId = reqIdRef.current++;
+          const dataUrl = `data:image/jpeg;base64,${base64Jpeg}`;
+
+          const timeout = setTimeout(() => {
+            pendingRef.current.delete(reqId);
+            reject(new Error("WebView MediaPipe timeout"));
+          }, timeoutMs);
+
+          pendingRef.current.set(reqId, { resolve, reject, timeout });
+
+          // ✅ If READY was missed, re-ping before sending PROCESS
+          if (!isReadyRef.current) pingReady();
+
+          const msg = JSON.stringify({ type: "PROCESS", reqId, dataUrl });
+          webViewRef.current?.postMessage(msg);
         });
+      },
+    }));
 
-        hands.setOptions({
-          maxNumHands: 1,
-          modelComplexity: 1,
-          minDetectionConfidence: 0.6,
-          minTrackingConfidence: 0.6,
-        });
+    const onMessage = (ev: WebViewMessageEvent) => {
+      try {
+        const msg = JSON.parse(ev.nativeEvent.data);
+        if (debug) console.log("[HandWebView]", msg);
 
-        hands.onResults((results) => {
-          busy = false;
+        if (msg.type === "READY") {
+          isReadyRef.current = true;
+          return;
+        }
 
-          const lm = results?.multiHandLandmarks?.[0];
-          if (!lm) {
-            post({ type: "landmarks", ok: false, reason: "no_hand" });
-            return;
+        if (msg.type === "RESULT") {
+          const reqId: number = msg.reqId;
+          const pending = pendingRef.current.get(reqId);
+          if (!pending) return;
+
+          clearTimeout(pending.timeout);
+          pendingRef.current.delete(reqId);
+
+          if (msg.ok) {
+            pending.resolve({
+              landmarks: msg.landmarks ?? null,
+              handedness: msg.handedness ?? null,
+            });
+          } else {
+            pending.reject(new Error(msg.error || "MediaPipe error"));
           }
-
-          // 21 landmarks: each has x,y,z in [0..1] (z is relative depth)
-          post({ type: "landmarks", ok: true, landmarks: lm });
-        });
-
-        isReady = true;
-        post({ type: "ready" });
+        }
+      } catch {
+        // ignore parse errors
       }
+    };
 
-      async function processBase64(dataUrl) {
-        if (!isReady || !hands) return;
-        if (busy) return;
+    return React.createElement(WebView as any, {
+      ref: webViewRef,
+      originWhitelist: ["*"],
+      javaScriptEnabled: true,
+      domStorageEnabled: true,
+      onMessage,
+      // ✅ onLoadEnd is the best moment to re-ping READY
+      onLoadEnd: pingReady,
+      source: { html },
+      style: { width: 1, height: 1, opacity: 0, position: "absolute", left: -9999 },
+    });
+  }
+);
 
-        busy = true;
-
-        const img = new Image();
-        img.onload = async () => {
-          canvas.width = img.width;
-          canvas.height = img.height;
-          ctx.drawImage(img, 0, 0);
-
-          try {
-            await hands.send({ image: canvas });
-          } catch (e) {
-            busy = false;
-            post({ type: "landmarks", ok: false, reason: "hands_error" });
-          }
-        };
-        img.onerror = () => {
-          busy = false;
-          post({ type: "landmarks", ok: false, reason: "bad_image" });
-        };
-
-        img.src = dataUrl;
-      }
-
-      window.addEventListener("message", (ev) => {
-        try {
-          const msg = JSON.parse(ev.data);
-          if (msg.type === "frame" && msg.dataUrl) {
-            processBase64(msg.dataUrl);
-          }
-        } catch {}
-      });
-
-      init();
-    </script>
-  </body>
-</html>
-`;
-
+HandLandmarksWebView.displayName = "HandLandmarksWebView";
