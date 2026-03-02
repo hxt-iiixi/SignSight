@@ -82,9 +82,7 @@ function Login({ onSuccess }: { onSuccess: (t: string) => void }) {
             {loading ? "Signing in…" : "Login"}
           </button>
 
-          <div className="text-xs text-white/45 mt-2">
-            Uses your FastAPI endpoint <span className="text-white/70">/admin/login</span>
-          </div>
+
         </div>
       </div>
     </div>

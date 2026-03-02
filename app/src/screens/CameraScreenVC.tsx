@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
-
+import { Ionicons } from "@expo/vector-icons";
 import {
   Camera,
   useCameraDevice,
@@ -30,9 +30,9 @@ type DetectMode = "LETTERS" | "WORDS";
 
 const API_BASE = "http://192.168.1.7:8000"; // ✅ your IP here
 const ACCENT = "#2EE6A6";
-const WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE"] as const;
+const WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE", "PAKYU"] as const;
 
-export default function CameraScreenVC() {
+export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const { width, height } = useWindowDimensions();
   const isSmall = width < 360;
   const isTablet = width >= 768;
@@ -98,7 +98,7 @@ export default function CameraScreenVC() {
   // gesture sliding window
   const GESTURE_FRAMES = 12;
   const lastGestureAtRef = useRef(0);
-  const GESTURE_MIN_MS = 80; // slightly slower than 60 to reduce spam; UI still feels fast
+  const GESTURE_MIN_MS = 60; // slightly slower than 60 to reduce spam; UI still feels fast
   const gestureStrideRef = useRef(0);
 
   // ---- tick counters (JS thread) ----
@@ -526,6 +526,11 @@ export default function CameraScreenVC() {
 
       {/* ✅ Top-left small debug chips (still nice) */}
       <View style={[styles.topHud, { top: TOP, left: PAD, right: PAD }]}>
+      <Pressable onPress={onBack} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={18} color="#fff" />
+            <Text style={styles.backText}>Back</Text>
+          </Pressable>
+
         <Text style={styles.h1}>SignSight (MediaPipe)</Text>
 
         <View style={styles.chipsRow}>
@@ -765,7 +770,19 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   text: { color: "#fff" },
-
+  backBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+    backgroundColor: "rgba(255,255,255,0.08)",
+  },
+  backText: { color: "#fff", fontWeight: "900" },
+  title: { color: "#fff", fontWeight: "900", fontSize: 16 },
   // --- Top HUD ---
   topHud: { position: "absolute" },
   h1: { color: "#fff", fontSize: 18, fontWeight: "900" },

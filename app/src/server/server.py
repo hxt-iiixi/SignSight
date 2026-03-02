@@ -7,7 +7,9 @@ from typing import Optional, Tuple
 import cv2
 import joblib
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import FileResponse
+
 from pydantic import BaseModel
 from PIL import Image
 
@@ -22,6 +24,8 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from datetime import datetime, timedelta
 from jose import jwt, JWTError
 import csv
+
+
 # =========================
 # Paths / Config
 # =========================
@@ -33,13 +37,22 @@ os.makedirs(LANDMARKS_DIR, exist_ok=True)
 
 MODEL_PATH = os.path.join(BASE_DIR, "asl_model.joblib")
 LANDMARKS_MODEL_PATH = os.path.join(BASE_DIR, "asl_landmarks_model.joblib")
+# =========================
+# Uploads (feedback/audit images)
+# =========================
+UPLOADS_DIR = os.path.join(BASE_DIR, "uploads")
+FEEDBACK_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "feedback")
+AUDIT_UPLOAD_DIR = os.path.join(UPLOADS_DIR, "audit")
+os.makedirs(FEEDBACK_UPLOAD_DIR, exist_ok=True)
+os.makedirs(AUDIT_UPLOAD_DIR, exist_ok=True)
+
 
 GESTURES_DIR = os.path.join(BASE_DIR, "gestures")
 os.makedirs(GESTURES_DIR, exist_ok=True)
 
 GESTURE_MODEL_PATH = os.path.join(BASE_DIR, "asl_gesture_model.joblib")
 
-WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE"]
+WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE", "PAKYU"]
 GESTURE_FRAMES = 12
 gesture_model = None
 
@@ -80,6 +93,7 @@ ADMIN_PASS = os.getenv("ADMIN_PASS", "admin123")
 mongo_client = AsyncIOMotorClient(MONGO_URI)
 mongo_db = mongo_client[MONGO_DB]
 feedback_col = mongo_db["feedback"]
+audit_col = mongo_db["audit"]
 
 def _create_admin_token():
     payload = {
@@ -88,6 +102,66 @@ def _create_admin_token():
         "exp": datetime.utcnow() + timedelta(hours=12),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
+def _safe_join(base_dir: str, filename: str) -> str:
+    # prevent path traversal
+    filename = os.path.basename(filename)
+    return os.path.join(base_dir, filename)
+
+async def _save_uploads(files: Optional[list[UploadFile]], target_dir: str) -> list:
+    """
+    Saves uploaded images to disk and returns metadata list.
+    """
+    if not files:
+        return []
+
+    saved = []
+    for f in files:
+        try:
+            if not f:
+                continue
+            # basic content-type gate (optional but recommended)
+            ct = (f.content_type or "").lower()
+            if not ct.startswith("image/"):
+                continue
+
+            ext = os.path.splitext(f.filename or "")[1].lower()
+            if ext not in [".jpg", ".jpeg", ".png", ".webp", ".heic"]:
+                # allow anyway if ct is image/* (some phones)
+                ext = ext if ext else ".jpg"
+
+            name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S_%f')}{ext}"
+            path = _safe_join(target_dir, name)
+
+            data = await f.read()
+            with open(path, "wb") as out:
+                out.write(data)
+
+            saved.append({
+                "filename": name,
+                "content_type": f.content_type,
+                "path": path,
+            })
+        except Exception:
+            # ignore single file failure
+            pass
+
+    return saved
+
+
+@app.get("/uploads/{kind}/{filename}")
+def get_upload(kind: str, filename: str):
+    """
+    Serves saved images. kind: feedback|audit
+    """
+    if kind not in ["feedback", "audit"]:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    base = FEEDBACK_UPLOAD_DIR if kind == "feedback" else AUDIT_UPLOAD_DIR
+    path = _safe_join(base, filename)
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    return FileResponse(path)
 
 def _require_admin(authorization: str | None):
     if not authorization or not authorization.startswith("Bearer "):
@@ -138,6 +212,12 @@ class AdminLoginIn(BaseModel):
     username: str
     password: str
 
+AUDIT_CATEGORIES = ["ui", "bug", "performance", "feature", "security", "other"]
+
+class AuditIn(BaseModel):
+    title: str
+    details: Optional[str] = None
+    category: str = "other"
 # =========================
 # Pixel model (unchanged)
 # =========================
@@ -496,6 +576,9 @@ async def _startup_indexes():
     await feedback_col.create_index([("resolved", 1), ("created_at", -1)])
     await feedback_col.create_index([("category", 1), ("created_at", -1)])
     await feedback_col.create_index([("message", "text")])  # for search
+    await audit_col.create_index([("created_at", -1)])
+    await audit_col.create_index([("category", 1), ("created_at", -1)])
+    await audit_col.create_index([("title", "text"), ("details", "text")])
 
 # =========================
 # Anonymous Feedback System (MongoDB)
@@ -516,10 +599,41 @@ async def create_feedback(body: FeedbackIn):
         "platform": body.platform,
         "resolved": False,
         "status": "open",
+        "images": [],  
     }
     res = await feedback_col.insert_one(doc)
     return {"ok": True, "id": str(res.inserted_id)}
 
+@app.post("/feedback_multipart")
+async def create_feedback_multipart(
+    message: str = Form(...),
+    category: str = Form("general"),
+    rating: Optional[int] = Form(None),
+    device: Optional[str] = Form(None),
+    app_version: Optional[str] = Form(None),
+    platform: Optional[str] = Form(None),
+    images: Optional[list[UploadFile]] = File(None),
+):
+    msg = (message or "").strip()
+    if len(msg) < 3:
+        return {"ok": False, "error": "Message too short"}
+
+    saved = await _save_uploads(images, FEEDBACK_UPLOAD_DIR)
+
+    doc = {
+        "created_at": datetime.utcnow(),
+        "message": msg,
+        "category": (category or "general").strip().lower(),
+        "rating": rating,
+        "device": device,
+        "app_version": app_version,
+        "platform": platform,
+        "resolved": False,
+        "status": "open",
+        "images": saved,  # ✅ metadata
+    }
+    res = await feedback_col.insert_one(doc)
+    return {"ok": True, "id": str(res.inserted_id), "images": [s["filename"] for s in saved]}
 
 @app.post("/admin/login")
 def admin_login(body: AdminLoginIn):
@@ -558,6 +672,12 @@ async def list_feedback(
         # ISO string for frontend
         if doc.get("created_at"):
             doc["created_at"] = doc["created_at"].isoformat()
+            imgs = doc.get("images") or []
+            doc["image_urls"] = [
+                f"/uploads/feedback/{os.path.basename(i.get('filename',''))}"
+                for i in imgs
+                if i and i.get("filename")
+            ]
         rows.append(doc)
 
     return rows
@@ -582,9 +702,106 @@ async def resolve_feedback(
     )
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Not found")
-
+        # optional: audit trail for resolving feedback
+        
+    await audit_col.insert_one({
+        "created_at": datetime.utcnow(),
+        "title": "Resolved feedback",
+        "details": f"Feedback ID: {feedback_id}",
+        "category": "other",
+        "images": [],
+    })
     return {"ok": True}
 
+@app.post("/admin/audit")
+async def create_audit(
+    body: AuditIn,
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+
+    cat = (body.category or "other").strip().lower()
+    if cat not in AUDIT_CATEGORIES:
+        cat = "other"
+
+    doc = {
+        "created_at": datetime.utcnow(),
+        "title": (body.title or "").strip(),
+        "details": (body.details or "").strip() if body.details else None,
+        "category": cat,
+        "images": [],
+    }
+    if len(doc["title"]) < 2:
+        return {"ok": False, "error": "Title too short"}
+
+    res = await audit_col.insert_one(doc)
+    return {"ok": True, "id": str(res.inserted_id)}
+
+
+@app.post("/admin/audit_multipart")
+async def create_audit_multipart(
+    title: str = Form(...),
+    details: Optional[str] = Form(None),
+    category: str = Form("other"),
+    images: Optional[list[UploadFile]] = File(None),
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+
+    t = (title or "").strip()
+    if len(t) < 2:
+        return {"ok": False, "error": "Title too short"}
+
+    cat = (category or "other").strip().lower()
+    if cat not in AUDIT_CATEGORIES:
+        cat = "other"
+
+    saved = await _save_uploads(images, AUDIT_UPLOAD_DIR)
+
+    doc = {
+        "created_at": datetime.utcnow(),
+        "title": t,
+        "details": (details or "").strip() if details else None,
+        "category": cat,
+        "images": saved,
+    }
+    res = await audit_col.insert_one(doc)
+    return {"ok": True, "id": str(res.inserted_id), "images": [s["filename"] for s in saved]}
+
+
+@app.get("/admin/audit")
+async def list_audit(
+    q: Optional[str] = None,
+    category: Optional[str] = None,
+    limit: int = 200,
+    authorization: Optional[str] = Header(None),
+):
+    _require_admin(authorization)
+
+    query: dict = {}
+    if category:
+        query["category"] = category.strip().lower()
+
+    if q and q.strip():
+        query["$text"] = {"$search": q.strip()}
+
+    cursor = audit_col.find(query).sort("created_at", -1).limit(min(limit, 500))
+    rows = []
+    async for doc in cursor:
+        doc["id"] = str(doc.pop("_id"))
+        if doc.get("created_at"):
+            doc["created_at"] = doc["created_at"].isoformat()
+
+        imgs = doc.get("images") or []
+        doc["image_urls"] = [
+            f"/uploads/audit/{os.path.basename(i.get('filename',''))}"
+            for i in imgs
+            if i and i.get("filename")
+        ]
+
+        rows.append(doc)
+
+    return rows
 
 @app.get("/admin/export.csv")
 async def export_feedback_csv(authorization: Optional[str] = Header(None)):
