@@ -10,12 +10,17 @@ import {
   Platform,
   ActivityIndicator,
   Image,
+  ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const ACCENT = "#2EE6A6";
+const PRIMARY = "#E66E19";
+const BG = "#F8F7F6";
+const CARD = "#FFFFFF";
+const BORDER = "#E7D9D0";
+const MUTED = "#976D4E";
+const TEXT = "#1B130E";
 
-// ✅ make sure this matches your backend IP
 const API_BASE = "http://192.168.1.7:8000";
 
 const CATEGORIES = ["general", "bug", "feature", "ui"] as const;
@@ -24,31 +29,38 @@ type Category = (typeof CATEGORIES)[number];
 export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState<Category>("general");
-  const [rating, setRating] = useState<number | null>(null);
+  const [rating, setRating] = useState<number | null>(4);
 
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState("");
-    const [images, setImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [images, setImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
+  const [showCategories, setShowCategories] = useState(false);
 
   const pickImages = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setStatus("Permission denied: Photos access needed to attach images.");
-      return;
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!perm.granted) {
+        setStatus("Permission denied: Photos access needed to attach images.");
+        return;
+      }
+
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: true,
+        quality: 0.9,
+        selectionLimit: 3,
+      });
+
+      if (res.canceled) return;
+
+      setImages((prev) => {
+        const next = [...prev, ...(res.assets || [])];
+        return next.slice(0, 3);
+      });
+    } catch (e: any) {
+      setStatus(`Image picker error: ${e?.message ?? "Unknown error"}`);
     }
-
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.9,
-      selectionLimit: 3, // ✅ keep small
-    });
-
-    if (res.canceled) return;
-    setImages((prev) => {
-      const next = [...prev, ...(res.assets || [])];
-      return next.slice(0, 3);
-    });
   };
 
   const removeImage = (uri: string) => {
@@ -64,10 +76,9 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
       setLoading(true);
       setStatus("");
 
-          let res: Response;
+      let res: Response;
 
       if (images.length === 0) {
-        // ✅ original JSON path
         res = await fetch(`${API_BASE}/feedback`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -81,7 +92,6 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
           }),
         });
       } else {
-        // ✅ multipart path with optional images
         const fd = new FormData();
         fd.append("message", message.trim());
         fd.append("category", category);
@@ -90,15 +100,21 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
         fd.append("app_version", "1.0.0");
         fd.append("device", "unknown");
 
-        images.forEach((img, idx) => {
-          const uri = img.uri;
-          const name = `feedback_${Date.now()}_${idx}.jpg`;
-          fd.append("images", {
-            uri,
-            name,
-            type: "image/jpeg",
-          } as any);
-        });
+      images.forEach((img, idx) => {
+        const uri = img.uri;
+
+        const fileName =
+          img.fileName ||
+          `feedback_${Date.now()}_${idx}.${(img.mimeType || "image/jpeg").split("/")[1] || "jpg"}`;
+
+        const mimeType = img.mimeType || "image/jpeg";
+
+        fd.append("images", {
+          uri,
+          name: fileName,
+          type: mimeType,
+        } as any);
+      });
 
         res = await fetch(`${API_BASE}/feedback_multipart`, {
           method: "POST",
@@ -127,271 +143,449 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Pressable onPress={onBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={18} color="#fff" />
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
+      <View style={styles.header}>
+        <Pressable onPress={onBack} style={styles.iconBtn}>
+          <Ionicons name="arrow-back" size={22} color={TEXT} />
+        </Pressable>
 
-          <Text style={styles.title}>Anonymous Feedback</Text>
-          <View style={{ width: 70 }} />
+        <Text style={styles.headerTitle}>Feedback</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headBlock}>
+          <Text style={styles.title}>Share your thoughts</Text>
+          <Text style={styles.subtitle}>
+            Your feedback helps us grow and improve our service.
+          </Text>
         </View>
 
-        {/* Card */}
-        <View style={styles.card}>
-          <View style={styles.cardTopRow}>
-            <View style={styles.iconBubble}>
-              <Ionicons name="chatbubble-ellipses-outline" size={18} color={ACCENT} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>Tell us what you think</Text>
-              <Text style={styles.cardSub}>
-                No name, no account — your message is stored anonymously.
-              </Text>
-            </View>
-          </View>
-
-          {/* Category */}
+        {/* Category */}
+        <View style={styles.fieldWrap}>
           <Text style={styles.label}>Category</Text>
-          <View style={styles.rowWrap}>
-            {CATEGORIES.map((c) => {
-              const active = c === category;
-              return (
+
+          <Pressable
+            style={styles.selectBox}
+            onPress={() => setShowCategories((v) => !v)}
+          >
+            <Text style={[styles.selectText, !category && styles.placeholderText]}>
+              {category ? category[0].toUpperCase() + category.slice(1) : "Select a category"}
+            </Text>
+            <Ionicons name="chevron-down" size={18} color={MUTED} />
+          </Pressable>
+
+          {showCategories && (
+            <View style={styles.dropdown}>
+              {CATEGORIES.map((c) => (
                 <Pressable
                   key={c}
-                  onPress={() => setCategory(c)}
-                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => {
+                    setCategory(c);
+                    setShowCategories(false);
+                  }}
+                  style={styles.dropdownItem}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                    {c.toUpperCase()}
+                  <Text style={styles.dropdownText}>
+                    {c[0].toUpperCase() + c.slice(1)}
                   </Text>
                 </Pressable>
-              );
-            })}
-          </View>
+              ))}
+            </View>
+          )}
+        </View>
 
-          {/* Rating */}
-          <Text style={[styles.label, { marginTop: 12 }]}>Rating (optional)</Text>
-          <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+        {/* Rating */}
+        <View style={styles.ratingCard}>
+          <Text style={styles.ratingTitle}>RATE YOUR EXPERIENCE</Text>
+          <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((n) => {
-              const active = rating === n;
+              const active = (rating ?? 0) >= n;
               return (
-                <Pressable
-                  key={n}
-                  onPress={() => setRating(active ? null : n)}
-                  style={[styles.starBtn, active && styles.starBtnActive]}
-                >
+                <Pressable key={n} onPress={() => setRating(n)}>
                   <Ionicons
                     name={active ? "star" : "star-outline"}
-                    size={18}
-                    color={active ? "#0B0F14" : "rgba(255,255,255,0.85)"}
+                    size={34}
+                    color={active ? PRIMARY : "#D8C9BF"}
                   />
                 </Pressable>
               );
             })}
           </View>
-
-          {/* Message */}
-          <Text style={[styles.label, { marginTop: 12 }]}>Message</Text>
-          <View style={styles.inputWrap}>
-            <TextInput
-              value={message}
-              onChangeText={setMessage}
-              placeholder="Describe a bug, request a feature, or share feedback..."
-              placeholderTextColor="rgba(255,255,255,0.35)"
-              style={styles.input}
-              multiline
-            />
-            <Text style={styles.counter}>{message.trim().length}/500</Text>
-          </View>
-                    {/* Images (optional) */}
-          <Text style={[styles.label, { marginTop: 12 }]}>Images (optional)</Text>
-
-          <View style={{ flexDirection: "row", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
-            <Pressable onPress={pickImages} style={styles.attachBtn}>
-              <Ionicons name="images-outline" size={16} color="rgba(255,255,255,0.9)" />
-              <Text style={styles.attachText}>Attach (max 3)</Text>
-            </Pressable>
-
-            {images.map((img) => (
-              <View key={img.uri} style={styles.thumbWrap}>
-                <Image source={{ uri: img.uri }} style={styles.thumb} />
-                <Pressable onPress={() => removeImage(img.uri)} style={styles.thumbX}>
-                  <Ionicons name="close" size={14} color="#0B0F14" />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-          {/* Submit */}
-          <Pressable
-            onPress={submit}
-            disabled={!canSubmit}
-            style={[styles.primaryBtn, !canSubmit && { opacity: 0.45 }]}
-          >
-            {loading ? (
-              <View style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-                <ActivityIndicator />
-                <Text style={styles.primaryText}>Sending…</Text>
-              </View>
-            ) : (
-              <Text style={styles.primaryText}>Submit Feedback</Text>
-            )}
-          </Pressable>
-
-          {!!status && <Text style={styles.status}>{status}</Text>}
         </View>
 
-        <Text style={styles.footer}>
-          Tip: Be specific (what you did, what happened, what you expected).
-        </Text>
-      </View>
+        {/* Message */}
+        <View style={styles.fieldWrap}>
+          <Text style={styles.label}>Message</Text>
+          <TextInput
+            value={message}
+            onChangeText={setMessage}
+            placeholder="Tell us what’s on your mind..."
+            placeholderTextColor="#9CA3AF"
+            multiline
+            style={styles.messageInput}
+          />
+        </View>
+
+        {/* Attachment */}
+        <View style={styles.fieldWrap}>
+          <Text style={styles.label}>Attachments (Optional)</Text>
+
+          <Pressable onPress={pickImages} style={styles.attachmentBtn}>
+            <Ionicons name="attach-outline" size={18} color={MUTED} />
+            <Text style={styles.attachmentText}>Add screenshots or files</Text>
+          </Pressable>
+
+          {images.length > 0 && (
+            <View style={styles.previewRow}>
+              {images.map((img) => (
+                <View key={img.uri} style={styles.thumbWrap}>
+                  <Image source={{ uri: img.uri }} style={styles.thumb} />
+                  <Pressable onPress={() => removeImage(img.uri)} style={styles.thumbX}>
+                    <Ionicons name="close" size={13} color="#fff" />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Submit */}
+        <Pressable
+          onPress={submit}
+          disabled={!canSubmit}
+          style={[styles.submitBtn, !canSubmit && { opacity: 0.5 }]}
+        >
+          {loading ? (
+            <View style={styles.submitRow}>
+              <ActivityIndicator color="#fff" />
+              <Text style={styles.submitText}>Sending…</Text>
+            </View>
+          ) : (
+            <View style={styles.submitRow}>
+              <Text style={styles.submitText}>Submit Feedback</Text>
+              <Ionicons name="paper-plane-outline" size={18} color="#fff" />
+            </View>
+          )}
+        </Pressable>
+
+        {!!status && <Text style={styles.status}>{status}</Text>}
+
+        {/* Footer stats */}
+        <View style={styles.footerStats}>
+          <View style={styles.avgWrap}>
+            <Text style={styles.avgValue}>4.8</Text>
+            <View style={styles.avgStars}>
+              <Ionicons name="star" size={14} color={PRIMARY} />
+              <Ionicons name="star" size={14} color={PRIMARY} />
+              <Ionicons name="star" size={14} color={PRIMARY} />
+              <Ionicons name="star" size={14} color={PRIMARY} />
+              <Ionicons name="star-half" size={14} color={PRIMARY} />
+            </View>
+            <Text style={styles.avgLabel}>AVERAGE RATING</Text>
+          </View>
+
+          <View style={styles.barsWrap}>
+            <StatBar label="5" value="85%" width="85%" />
+            <StatBar label="4" value="10%" width="10%" />
+            <StatBar label="3" value="3%" width="3%" />
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0B0F14" },
-  container: { flex: 1, paddingHorizontal: 18, paddingTop: 14 },
+function StatBar({
+  label,
+  value,
+  width,
+}: {
+  label: string;
+  value: string;
+  width: string;
+}) {
+  return (
+    <View style={styles.statRow}>
+      <Text style={styles.statLeft}>{label}</Text>
+      <View style={styles.barTrack}>
+        <View style={[styles.barFill, { width }]} />
+      </View>
+      <Text style={styles.statRight}>{value}</Text>
+    </View>
+  );
+}
 
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  backBtn: {
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: BG,
+  },
+
+  header: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(231,217,208,0.35)",
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    justifyContent: "space-between",
+    backgroundColor: BG,
   },
-  backText: { color: "#fff", fontWeight: "900" },
-  title: { color: "#fff", fontWeight: "900", fontSize: 16 },
-
-  card: {
-    marginTop: 14,
-    borderRadius: 24,
-    padding: 16,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.18)",
-  },
-
-  cardTopRow: { flexDirection: "row", gap: 12, alignItems: "center" },
-  iconBubble: {
+  iconBtn: {
     width: 40,
     height: 40,
-    borderRadius: 14,
-    backgroundColor: "rgba(46,230,166,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.18)",
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
   },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 18,
+    fontWeight: "800",
+    color: TEXT,
+  },
 
-  cardTitle: { color: "#fff", fontSize: 16, fontWeight: "900" },
-  cardSub: { color: "rgba(255,255,255,0.6)", marginTop: 4, fontSize: 11, lineHeight: 15 },
+  content: {
+    padding: 16,
+    paddingBottom: 40,
+  },
 
-  label: { marginTop: 14, color: "rgba(255,255,255,0.8)", fontWeight: "900", fontSize: 12 },
+  headBlock: {
+    marginBottom: 22,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: TEXT,
+  },
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    lineHeight: 22,
+    color: MUTED,
+  },
 
-  rowWrap: { flexDirection: "row", gap: 10, flexWrap: "wrap", marginTop: 10 },
-  chip: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 999,
+  fieldWrap: {
+    marginBottom: 18,
+  },
+  label: {
+    marginBottom: 10,
+    fontSize: 16,
+    fontWeight: "700",
+    color: TEXT,
+  },
+
+  selectBox: {
+    minHeight: 56,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.07)",
-  },
-  chipActive: {
-    borderColor: "rgba(46,230,166,0.55)",
-    backgroundColor: "rgba(46,230,166,0.18)",
-  },
-  chipText: { color: "rgba(255,255,255,0.75)", fontWeight: "900", fontSize: 11 },
-  chipTextActive: { color: "#fff" },
-
-  starBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.07)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  starBtnActive: {
-    borderColor: "rgba(46,230,166,0.6)",
-    backgroundColor: ACCENT,
-  },
-
-  inputWrap: {
-    marginTop: 10,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.06)",
-    padding: 12,
-  },
-  input: {
-    color: "#fff",
-    minHeight: 120,
-    textAlignVertical: "top",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  counter: { marginTop: 10, color: "rgba(255,255,255,0.45)", fontSize: 11, textAlign: "right" },
-
-  primaryBtn: {
-    marginTop: 14,
-    borderRadius: 18,
-    paddingVertical: 14,
-    backgroundColor: "rgba(46,230,166,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.30)",
-    alignItems: "center",
-  },
-  primaryText: { color: "#fff", fontWeight: "900", fontSize: 14 },
-
-  status: { marginTop: 12, color: "rgba(255,255,255,0.8)" },
-  footer: { marginTop: "auto", paddingVertical: 14, textAlign: "center", color: "rgba(255,255,255,0.35)", fontSize: 10 },
-
-
-
-    attachBtn: {
+    borderColor: BORDER,
+    backgroundColor: BG,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.07)",
+    justifyContent: "space-between",
   },
-  attachText: { color: "#fff", fontWeight: "900", fontSize: 12 },
+  selectText: {
+    fontSize: 16,
+    color: TEXT,
+  },
+  placeholderText: {
+    color: MUTED,
+  },
+  dropdown: {
+    marginTop: 8,
+    borderRadius: 18,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#fff",
+  },
+  dropdownItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(231,217,208,0.45)",
+  },
+  dropdownText: {
+    fontSize: 15,
+    color: TEXT,
+  },
 
+  ratingCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: "rgba(231,217,208,0.5)",
+    backgroundColor: "#fff",
+    padding: 22,
+    marginBottom: 18,
+    alignItems: "center",
+  },
+  ratingTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: MUTED,
+    letterSpacing: 1.2,
+  },
+  starsRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  messageInput: {
+    minHeight: 130,
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: BG,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    fontSize: 16,
+    color: TEXT,
+    textAlignVertical: "top",
+  },
+
+  attachmentBtn: {
+    minHeight: 56,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderStyle: "dashed",
+    borderColor: BORDER,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+    backgroundColor: "transparent",
+  },
+  attachmentText: {
+    color: MUTED,
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  previewRow: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap",
+    marginTop: 12,
+  },
   thumbWrap: {
-    width: 56,
-    height: 56,
+    width: 62,
+    height: 62,
     borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
-    backgroundColor: "rgba(255,255,255,0.06)",
+    borderColor: BORDER,
+    backgroundColor: "#fff",
   },
-  thumb: { width: "100%", height: "100%" },
+  thumb: {
+    width: "100%",
+    height: "100%",
+  },
   thumbX: {
     position: "absolute",
-    top: 6,
-    right: 6,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+    top: 5,
+    right: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(46,230,166,0.95)",
+  },
+
+  submitBtn: {
+    height: 52,
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    shadowColor: PRIMARY,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  submitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  submitText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  status: {
+    marginTop: 12,
+    textAlign: "center",
+    color: TEXT,
+    fontWeight: "700",
+  },
+
+  footerStats: {
+    marginTop: 32,
+    paddingTop: 22,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(231,217,208,0.35)",
+    gap: 20,
+  },
+  avgWrap: {
+    alignItems: "center",
+  },
+  avgValue: {
+    fontSize: 42,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  avgStars: {
+    marginTop: 4,
+    flexDirection: "row",
+    gap: 2,
+  },
+  avgLabel: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: "800",
+    color: MUTED,
+    letterSpacing: 1.4,
+  },
+
+  barsWrap: {
+    gap: 10,
+  },
+  statRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  statLeft: {
+    width: 12,
+    fontSize: 12,
+    fontWeight: "800",
+    color: TEXT,
+  },
+  barTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(231,217,208,0.45)",
+    overflow: "hidden",
+  },
+  barFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
+  },
+  statRight: {
+    width: 34,
+    textAlign: "right",
+    fontSize: 12,
+    fontWeight: "600",
+    color: MUTED,
   },
 });

@@ -37,7 +37,7 @@ function Login({ onSuccess }: { onSuccess: (t: string) => void }) {
       setLoading(true);
       const res = await adminLogin(username, password);
       onSuccess(res.token);
-    } catch (e: any) {
+    } catch {
       setErr("Invalid login or server offline.");
     } finally {
       setLoading(false);
@@ -45,44 +45,46 @@ function Login({ onSuccess }: { onSuccess: (t: string) => void }) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl">
+    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(249,168,212,0.25),_transparent_30%),radial-gradient(circle_at_20%_70%,_rgba(147,197,253,0.18),_transparent_25%),radial-gradient(circle_at_80%_85%,_rgba(253,230,138,0.22),_transparent_28%),linear-gradient(135deg,_#FFF9F2_0%,_#FFF7ED_45%,_#FDF2F8_100%)] flex items-center justify-center p-6 text-[#1F2937]">
+      <div className="w-full max-w-md rounded-3xl border border-[#E5E7EB] bg-white/90 p-6 shadow-xl backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-emerald-400/15 border border-emerald-300/25 flex items-center justify-center">
-            <span className="text-emerald-300 font-black">SS</span>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#F9A8D4]/30 bg-[#FCE7F3]">
+            <span className="font-black text-[#BE185D]">SS</span>
           </div>
           <div>
-            <div className="text-lg font-black">SignSight Admin</div>
-            <div className="text-white/60 text-sm">Feedback dashboard</div>
+            <div className="text-lg font-black text-[#1F2937]">SignSight Admin</div>
+            <div className="text-sm text-[#6B7280]">Feedback dashboard</div>
           </div>
         </div>
 
         <div className="mt-6 grid gap-3">
           <input
-            className="w-full rounded-xl bg-black/25 border border-white/10 px-4 py-3 outline-none focus:border-emerald-300/50"
+            className="w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#1F2937] outline-none transition focus:border-[#F9A8D4] focus:ring-2 focus:ring-[#FCE7F3]"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             placeholder="Username"
           />
           <input
-            className="w-full rounded-xl bg-black/25 border border-white/10 px-4 py-3 outline-none focus:border-emerald-300/50"
+            className="w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 text-[#1F2937] outline-none transition focus:border-[#F9A8D4] focus:ring-2 focus:ring-[#FCE7F3]"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             type="password"
           />
 
-          {!!err && <div className="text-red-300 text-sm">{err}</div>}
+          {!!err && (
+            <div className="rounded-2xl border border-[#FCA5A5]/40 bg-[#FEE2E2] px-4 py-3 text-sm text-[#B91C1C]">
+              {err}
+            </div>
+          )}
 
           <button
             onClick={submit}
             disabled={loading}
-            className="mt-2 w-full rounded-xl bg-emerald-300/20 border border-emerald-300/30 px-4 py-3 font-extrabold hover:bg-emerald-300/25 disabled:opacity-60"
+            className="mt-2 w-full rounded-2xl border border-[#F9A8D4]/40 bg-[#F9A8D4]/30 px-4 py-3 font-extrabold text-[#831843] transition hover:bg-[#F9A8D4]/40 disabled:opacity-60"
           >
             {loading ? "Signing in…" : "Login"}
           </button>
-
-
         </div>
       </div>
     </div>

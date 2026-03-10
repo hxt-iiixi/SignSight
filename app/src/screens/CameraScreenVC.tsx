@@ -29,7 +29,14 @@ import { HAND_WEBVIEW_HTML } from "../ml/handWebviewHtml";
 type DetectMode = "LETTERS" | "WORDS";
 
 const API_BASE = "http://192.168.1.7:8000"; // ✅ your IP here
-const ACCENT = "#2EE6A6";
+const ACCENT = "#BE185D";
+const BG = "#FFF9F2";
+const TEXT = "#1F2937";
+const MUTED = "#6B7280";
+const SOFT_PINK = "#FCE7F3";
+const SOFT_YELLOW = "#FEF3C7";
+const SOFT_BLUE = "#DBEAFE";
+const BORDER = "#E5E7EB";
 const WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE", "PAKYU"] as const;
 
 export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
@@ -527,7 +534,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       {/* ✅ Top-left small debug chips (still nice) */}
       <View style={[styles.topHud, { top: TOP, left: PAD, right: PAD }]}>
       <Pressable onPress={onBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={18} color="#fff" />
+            <Ionicons name="chevron-back" size={18} color={TEXT} />
             <Text style={styles.backText}>Back</Text>
           </Pressable>
 
@@ -762,42 +769,43 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#000" },
+  container: { flex: 1, backgroundColor: BG },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#000",
+    backgroundColor: BG,
   },
-  text: { color: "#fff" },
+  text: { color: TEXT, fontWeight: "800" },
+
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: BORDER,
+    backgroundColor: "rgba(255,255,255,0.92)",
   },
-  backText: { color: "#fff", fontWeight: "900" },
-  title: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  // --- Top HUD ---
+  backText: { color: TEXT, fontWeight: "900" },
+  title: { color: TEXT, fontWeight: "900", fontSize: 16 },
+
   topHud: { position: "absolute" },
-  h1: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  h1: { color: "#FFFFFF", fontSize: 18, fontWeight: "900", marginTop: 10 },
+
   chipsRow: { flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" },
   chip: {
     paddingVertical: 8,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(0,0,0,0.35)",
+    backgroundColor: "rgba(255,249,242,0.88)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
+    borderColor: "rgba(229,231,235,0.95)",
   },
-  chipText: { color: "rgba(255,255,255,0.85)", fontWeight: "900", fontSize: 12 },
+  chipText: { color: TEXT, fontWeight: "900", fontSize: 12 },
 
-  // --- Center prediction ---
   centerHudWrap: {
     position: "absolute",
     top: "36%",
@@ -807,71 +815,69 @@ const styles = StyleSheet.create({
   centerHud: {
     width: "100%",
     maxWidth: 520,
-    borderRadius: 26,
+    borderRadius: 28,
     paddingVertical: 18,
     paddingHorizontal: 18,
-    backgroundColor: "rgba(0,0,0,0.40)",
+    backgroundColor: "rgba(255,255,255,0.90)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: BORDER,
     ...Platform.select({
       android: { elevation: 5 },
       ios: {
         shadowColor: "#000",
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.12,
         shadowRadius: 14,
         shadowOffset: { width: 0, height: 10 },
       },
     }),
   },
   centerKicker: {
-    color: "rgba(46,230,166,0.95)",
+    color: ACCENT,
     fontWeight: "900",
     letterSpacing: 1.4,
     fontSize: 12,
   },
   centerLabel: {
-    color: "#fff",
+    color: TEXT,
     fontWeight: "900",
     fontSize: 36,
     marginTop: 8,
   },
   centerMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 },
-  centerMeta: { color: "rgba(255,255,255,0.75)", fontWeight: "800" },
-  dot: { width: 4, height: 4, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.35)" },
+  centerMeta: { color: MUTED, fontWeight: "800" },
+  dot: { width: 4, height: 4, borderRadius: 4, backgroundColor: "#D1D5DB" },
 
-  // --- Toggle button (always visible) ---
   toggleWrap: { position: "absolute", bottom: 18 },
   toggleBtn: {
-    borderRadius: 16,
+    borderRadius: 18,
     paddingVertical: 12,
     alignItems: "center",
-    backgroundColor: "rgba(46,230,166,0.14)",
+    backgroundColor: "rgba(252,231,243,0.94)",
     borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.28)",
+    borderColor: "rgba(249,168,212,0.45)",
   },
-  toggleText: { color: "#fff", fontWeight: "900" },
+  toggleText: { color: ACCENT, fontWeight: "900" },
 
-  // --- Panel ---
   panelWrap: { position: "absolute", bottom: 70 },
   panel: {
-    borderRadius: 26,
+    borderRadius: 28,
     padding: 14,
-    backgroundColor: "rgba(0,0,0,0.46)",
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: BORDER,
     ...Platform.select({
       android: { elevation: 6 },
       ios: {
         shadowColor: "#000",
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.12,
         shadowRadius: 14,
         shadowOffset: { width: 0, height: 10 },
       },
     }),
   },
   panelHeader: { marginBottom: 12 },
-  panelTitle: { color: "#fff", fontWeight: "900", fontSize: 14 },
-  panelSub: { color: "rgba(255,255,255,0.6)", marginTop: 4, fontWeight: "700" },
+  panelTitle: { color: TEXT, fontWeight: "900", fontSize: 14 },
+  panelSub: { color: MUTED, marginTop: 4, fontWeight: "700" },
 
   btnRow: { flexDirection: "row", gap: 10 },
   btn: {
@@ -880,46 +886,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
-  btnText: { color: "#fff", fontWeight: "900" },
+  btnText: { color: TEXT, fontWeight: "900" },
 
   btnAccent: {
-    backgroundColor: "rgba(46,230,166,0.92)",
-    borderColor: "rgba(46,230,166,0.95)",
+    backgroundColor: SOFT_PINK,
+    borderColor: "rgba(249,168,212,0.45)",
   },
-  btnTextDark: { color: "#0B0F14" },
+  btnTextDark: { color: ACCENT },
 
   btnPrimary: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.40)",
-    backgroundColor: "rgba(46,230,166,0.18)",
+    borderColor: "rgba(249,168,212,0.45)",
+    backgroundColor: SOFT_PINK,
     alignItems: "center",
     justifyContent: "center",
   },
-  btnPrimaryText: { color: "#fff", fontWeight: "900" },
+  btnPrimaryText: { color: ACCENT, fontWeight: "900" },
 
-  status: { marginTop: 12, color: "rgba(255,255,255,0.86)", fontWeight: "800" },
-  debugLine: { marginTop: 10, color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: "700" },
+  status: { marginTop: 12, color: TEXT, fontWeight: "800" },
+  debugLine: { marginTop: 10, color: MUTED, fontSize: 11, fontWeight: "700" },
 
   wordInfoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  smallLabel: { color: "rgba(255,255,255,0.65)", fontWeight: "800" },
-  smallValue: { color: "#fff", fontWeight: "900" },
-  smallMuted: { color: "rgba(255,255,255,0.55)", fontWeight: "800" },
+  smallLabel: { color: MUTED, fontWeight: "800" },
+  smallValue: { color: TEXT, fontWeight: "900" },
+  smallMuted: { color: MUTED, fontWeight: "800" },
 
   pillMini: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.10)",
+    backgroundColor: SOFT_YELLOW,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)",
+    borderColor: "rgba(253,230,138,0.45)",
   },
-  pillMiniText: { color: "#fff", fontWeight: "900" },
+  pillMiniText: { color: "#92400E", fontWeight: "900" },
 });

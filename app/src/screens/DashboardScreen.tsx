@@ -8,10 +8,16 @@ import {
   Platform,
   ScrollView,
   useWindowDimensions,
+  ImageBackground,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-const ACCENT = "#2EE6A6";
+const PRIMARY = "#E66E19";
+const BG = "#F8F7F6";
+const CARD = "#FFFFFF";
+const TEXT = "#1B130E";
+const MUTED = "#976D4E";
+const BORDER = "#F3ECE7";
 
 export default function DashboardScreen({
   onTranslate,
@@ -26,299 +32,402 @@ export default function DashboardScreen({
 }) {
   const { width } = useWindowDimensions();
 
-  // ✅ responsive sizing
   const isSmall = width < 360;
   const isTablet = width >= 768;
 
   const P = isTablet ? 28 : isSmall ? 14 : 18;
-  const heroTitleSize = isTablet ? 28 : isSmall ? 20 : 24;
-  const heroSubSize = isTablet ? 14 : 12;
-
-  // ✅ responsive card sizing for grid
-  const cardMinWidth = isTablet ? 260 : 160;
+  const heroTitleSize = isTablet ? 30 : isSmall ? 20 : 24;
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* subtle background glow */}
-      <View style={styles.bgGlow1} />
-      <View style={styles.bgGlow2} />
-
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: P, paddingTop: 14, paddingBottom: 22 }}
+        contentContainerStyle={{ paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Top bar */}
-        <View style={styles.topRow}>
-          <View style={styles.brand}>
-            <View style={styles.logo}>
-              <Ionicons name="hand-left-outline" size={18} color={ACCENT} />
+        {/* Header */}
+        <View style={[styles.header, { paddingHorizontal: P }]}>
+          <View style={styles.headerLeft}>
+            <View style={styles.logoWrap}>
+              <Ionicons name="hand-left-outline" size={22} color={PRIMARY} />
             </View>
-            <View>
-              <Text style={styles.brandTitle}>SignSight</Text>
-              <Text style={styles.brandSub}>ASL Landmark Translator</Text>
-            </View>
+
+            <Text style={styles.brandText}>SignSight</Text>
           </View>
 
-          <View style={styles.pill}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={16}
-              color="rgba(255,255,255,0.75)"
-            />
-            <Text style={styles.pillText}>Secured</Text>
-          </View>
-        </View>
-
-        {/* Hero card */}
-        <View style={styles.hero}>
-          <Text style={styles.heroKicker}>Ready when you are</Text>
-          <Text style={[styles.heroTitle, { fontSize: heroTitleSize }]}>Translate ASL Letters</Text>
-          <Text style={[styles.heroSub, { fontSize: heroSubSize }]}>
-            Uses 21 hand landmarks for better accuracy in different lighting.
-          </Text>
-
-          <Pressable style={styles.primaryBtn} onPress={onTranslate}>
-            <View style={styles.primaryBtnRow}>
-              <View style={styles.primaryIcon}>
-                <Ionicons name="camera-outline" size={18} color="#0B0F14" />
-              </View>
-              <Text style={styles.primaryText}>Translate Now</Text>
-              <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.85)" />
-            </View>
+          <Pressable style={styles.profileBtn}>
+            <Ionicons name="person-circle-outline" size={24} color={TEXT} />
           </Pressable>
         </View>
 
-        {/* Quick actions */}
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        {/* Page Title */}
+        <View style={[styles.pageHead, { paddingHorizontal: P }]}>
+          <Text style={[styles.pageTitle, { fontSize: heroTitleSize }]}>
+            ASL Landmark Translator
+          </Text>
+          <Text style={styles.pageSub}>Real-time sign language interpretation</Text>
+        </View>
 
-        {/* ✅ Wrap grid so it adapts */}
-        <View style={[styles.grid, { gap: 12 }]}>
+        {/* Hero Card */}
+        <View style={{ paddingHorizontal: P, marginTop: 8 }}>
+          <View style={styles.heroCard}>
+            <ImageBackground
+              source={{
+                uri: "https://lh3.googleusercontent.com/aida-public/AB6AXuDuYqUxtI5_XFPcKR0qGe1pTjoAw2mrdzUEBUQXIzusKwMlJNoNKiZvjjb5oq2a3j1ZiJCX05Jor-aLzwUPXV-NL_SYeN8J5vb_r0WrlSBqZ5Ihf1SpF7KP7iz-4rrJnD1HfkhUDeUE6Nu9-MPIuOf2BkCUeR4NJ7BhQFj_MM2GUKMQTcqdPUH6uzCnDn86cCS-mnY35vcRfi7lNwNeDDlejuBB9NS7u3rJGJxSwXRXtC5pg_32jldOGDnV6SZcL45K3mBkb5dj0Q",
+              }}
+              imageStyle={styles.heroImageStyle}
+              style={styles.heroImage}
+            >
+              <View style={styles.heroOverlay} />
+              <View style={styles.liveBadge}>
+                <Text style={styles.liveBadgeText}>LIVE DETECTION READY</Text>
+              </View>
+            </ImageBackground>
+
+            <View style={styles.heroBody}>
+              <Text style={styles.heroBodyTitle}>Translate ASL Letters</Text>
+              <Text style={styles.heroBodySub}>
+                Start real-time translation using your device&apos;s camera to
+                identify landmarks and signs.
+              </Text>
+
+              <Pressable style={styles.startBtn} onPress={onTranslate}>
+                <Ionicons name="videocam-outline" size={18} color="#fff" />
+                <Text style={styles.startBtnText}>Start Camera</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={[styles.sectionWrap, { paddingHorizontal: P }]}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+        </View>
+
+        <View style={[styles.actionsRow, { paddingHorizontal: P }]}>
           <ActionCard
             title="Tutorial"
-            sub="Learn the ASL alphabet"
             icon="book-outline"
             onPress={onTutorial}
-            minWidth={cardMinWidth}
           />
-
           <ActionCard
             title="Settings"
-            sub="Dataset, preferences"
             icon="settings-outline"
             onPress={onSettings}
-            minWidth={cardMinWidth}
           />
-
           <ActionCard
             title="Feedback"
-            sub="Send anonymous feedback"
-            icon="chatbubble-ellipses-outline"
+            icon="create-outline"
             onPress={onFeedback}
-            minWidth={cardMinWidth}
           />
         </View>
 
-        {/* Bottom note */}
-        <View style={styles.tip}>
-          <Ionicons name="bulb-outline" size={16} color="rgba(255,255,255,0.75)" />
-          <Text style={styles.tipText}>Tip: Keep your hand centered and avoid motion blur.</Text>
+        {/* Tips */}
+        <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: 18 }]}>
+          <Text style={styles.sectionTitle}>Tips for Better Accuracy</Text>
         </View>
 
-        <Text style={styles.footer}>SignSight • Snapshot-based live tracking</Text>
+        <View style={[styles.tipsList, { paddingHorizontal: P }]}>
+          <View style={styles.tipCard}>
+            <View style={styles.tipIconWrap}>
+              <Ionicons name="bulb-outline" size={18} color={PRIMARY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tipTitle}>Good Lighting</Text>
+              <Text style={styles.tipDesc}>
+                Ensure your hands are well-lit for the sensor to track landmarks accurately.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.tipCard}>
+            <View style={styles.tipIconWrap}>
+              <Ionicons name="scan-outline" size={18} color={PRIMARY} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tipTitle}>Stay in Frame</Text>
+              <Text style={styles.tipDesc}>
+                Keep your hands within the camera frame, about 2–3 feet away from the lens.
+              </Text>
+            </View>
+          </View>
+        </View>
       </ScrollView>
+
+      {/* Bottom Nav UI only */}
+      <View style={styles.bottomNav}>
+        <NavItem icon="home" label="Home" active />
+        <NavItem icon="time-outline" label="History" />
+        <NavItem icon="school-outline" label="Learn" />
+        <NavItem icon="person-outline" label="Profile" />
+      </View>
     </SafeAreaView>
   );
 }
 
 function ActionCard({
   title,
-  sub,
   icon,
   onPress,
-  minWidth,
 }: {
   title: string;
-  sub: string;
   icon: any;
   onPress: () => void;
-  minWidth: number;
 }) {
   return (
-    <Pressable onPress={onPress} style={[styles.card, { minWidth, flexGrow: 1 }]}>
-      <View style={styles.cardIconWrap}>
-        <Ionicons name={icon} size={18} color={ACCENT} />
+    <Pressable onPress={onPress} style={styles.actionCard}>
+      <View style={styles.actionIconCircle}>
+        <Ionicons name={icon} size={20} color={PRIMARY} />
       </View>
-      <Text style={styles.cardTitle}>{title}</Text>
-      <Text style={styles.cardSub}>{sub}</Text>
+      <Text style={styles.actionText}>{title}</Text>
+    </Pressable>
+  );
+}
+
+function NavItem({
+  icon,
+  label,
+  active = false,
+}: {
+  icon: any;
+  label: string;
+  active?: boolean;
+}) {
+  return (
+    <Pressable style={styles.navItem}>
+      <Ionicons
+        name={icon}
+        size={22}
+        color={active ? PRIMARY : MUTED}
+      />
+      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0B0F14" },
-
-  // ✅ subtle background glow layers
-  bgGlow1: {
-    position: "absolute",
-    top: -120,
-    left: -80,
-    width: 240,
-    height: 240,
-    borderRadius: 240,
-    backgroundColor: "rgba(46,230,166,0.12)",
-  },
-  bgGlow2: {
-    position: "absolute",
-    bottom: -160,
-    right: -120,
-    width: 320,
-    height: 320,
-    borderRadius: 320,
-    backgroundColor: "rgba(46,230,166,0.08)",
+  safe: {
+    flex: 1,
+    backgroundColor: BG,
   },
 
-  topRow: {
+  header: {
+    paddingTop: 8,
+    paddingBottom: 12,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+    backgroundColor: BG,
   },
-
-  brand: { flexDirection: "row", alignItems: "center", gap: 10 },
-  logo: {
-    width: 42,
-    height: 42,
-    borderRadius: 16,
-    backgroundColor: "rgba(46,230,166,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.22)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  brandTitle: { color: "#fff", fontSize: 18, fontWeight: "900" },
-  brandSub: { color: "rgba(255,255,255,0.55)", fontSize: 11, marginTop: 1 },
-
-  pill: {
+  headerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+    gap: 12,
   },
-  pillText: { color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: "800" },
-
-  hero: {
-    marginTop: 14,
-    borderRadius: 26,
-    padding: 16,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.18)",
-    ...Platform.select({
-      android: { elevation: 6 },
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.18,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 10 },
-      },
-    }),
-  },
-  heroKicker: { color: "rgba(46,230,166,0.92)", fontSize: 12, fontWeight: "900" },
-  heroTitle: { color: "#fff", fontWeight: "900", marginTop: 6 },
-  heroSub: {
-    color: "rgba(255,255,255,0.62)",
-    marginTop: 8,
-    lineHeight: 18,
-  },
-
-  primaryBtn: {
-    marginTop: 14,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
-    backgroundColor: "rgba(46,230,166,0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.30)",
-  },
-  primaryBtnRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  primaryIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: ACCENT,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryText: { flex: 1, color: "#fff", fontSize: 15, fontWeight: "900" },
-
-  sectionTitle: {
-    marginTop: 18,
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 12,
-    fontWeight: "900",
-    letterSpacing: 1,
-  },
-
-  // ✅ responsive wrap grid
-  grid: {
-    marginTop: 12,
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-
-  card: {
-    borderRadius: 22,
-    padding: 14,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
-    ...Platform.select({
-      android: { elevation: 4 },
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.14,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 8 },
-      },
-    }),
-  },
-  cardIconWrap: {
+  logoWrap: {
     width: 40,
     height: 40,
-    borderRadius: 16,
-    backgroundColor: "rgba(46,230,166,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(46,230,166,0.18)",
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(230,110,25,0.10)",
+  },
+  brandText: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: TEXT,
+  },
+  profileBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: BORDER,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  pageHead: {
+    paddingTop: 18,
+    paddingBottom: 8,
+  },
+  pageTitle: {
+    color: TEXT,
+    fontWeight: "800",
+    lineHeight: 32,
+  },
+  pageSub: {
+    marginTop: 2,
+    color: MUTED,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  heroCard: {
+    borderRadius: 24,
+    overflow: "hidden",
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORDER,
+    ...Platform.select({
+      android: { elevation: 2 },
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.06,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 6 },
+      },
+    }),
+  },
+  heroImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+    justifyContent: "flex-end",
+  },
+  heroImageStyle: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.18)",
+  },
+  liveBadge: {
+    alignSelf: "flex-start",
+    marginLeft: 14,
+    marginBottom: 14,
+    backgroundColor: PRIMARY,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  liveBadgeText: {
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+  },
+
+  heroBody: {
+    padding: 18,
+  },
+  heroBodyTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: TEXT,
+  },
+  heroBodySub: {
+    marginTop: 6,
+    color: MUTED,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+
+  startBtn: {
+    marginTop: 16,
+    height: 48,
+    borderRadius: 999,
+    backgroundColor: PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+  startBtnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  sectionWrap: {
+    paddingTop: 18,
+    paddingBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: TEXT,
+  },
+
+  actionsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  actionCard: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 16,
+    borderRadius: 22,
+    backgroundColor: CARD,
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  actionIconCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(230,110,25,0.10)",
     marginBottom: 10,
   },
-  cardTitle: { color: "#fff", fontSize: 15, fontWeight: "900" },
-  cardSub: { color: "rgba(255,255,255,0.58)", fontSize: 11, marginTop: 6, lineHeight: 15 },
-
-  tip: {
-    marginTop: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.10)",
+  actionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: MUTED,
   },
-  tipText: { flex: 1, color: "rgba(255,255,255,0.65)", fontSize: 11, lineHeight: 15 },
 
-  footer: {
-    textAlign: "center",
-    color: "rgba(255,255,255,0.35)",
+  tipsList: {
+    gap: 12,
+  },
+  tipCard: {
+    flexDirection: "row",
+    gap: 14,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: "rgba(243,236,231,0.70)",
+  },
+  tipIconWrap: {
+    paddingTop: 2,
+  },
+  tipTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: TEXT,
+  },
+  tipDesc: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 18,
+    color: MUTED,
+  },
+
+  bottomNav: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    paddingTop: 10,
+    paddingBottom: 22,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  navItem: {
+    alignItems: "center",
+    gap: 3,
+  },
+  navLabel: {
     fontSize: 10,
-    paddingTop: 14,
+    fontWeight: "600",
+    color: MUTED,
+  },
+  navLabelActive: {
+    color: PRIMARY,
+    fontWeight: "800",
   },
 });

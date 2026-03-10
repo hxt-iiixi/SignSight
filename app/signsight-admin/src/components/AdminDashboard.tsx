@@ -27,10 +27,10 @@ function Pill({
   tone?: "neutral" | "ok" | "warn" | "danger";
 }) {
   const map = {
-    neutral: "bg-white/6 border-white/10 text-white/80",
-    ok: "bg-emerald-400/10 border-emerald-300/20 text-emerald-200",
-    warn: "bg-amber-400/10 border-amber-300/20 text-amber-200",
-    danger: "bg-rose-400/10 border-rose-300/20 text-rose-200",
+    neutral: "bg-white border-[#E5E7EB] text-[#374151]",
+    ok: "bg-[#FCE7F3] border-[#F9A8D4]/40 text-[#BE185D]",
+    warn: "bg-[#FEF3C7] border-[#FDE68A]/40 text-[#92400E]",
+    danger: "bg-[#FEE2E2] border-[#FCA5A5]/40 text-[#B91C1C]",
   };
   return (
     <span
@@ -56,11 +56,11 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
-      <div className="flex items-start justify-between gap-4 border-b border-white/10 p-4">
+    <div className="rounded-3xl border border-[#E5E7EB] bg-white/85 shadow-sm backdrop-blur-xl">
+      <div className="flex items-start justify-between gap-4 border-b border-[#F3F4F6] p-4">
         <div>
-          <div className="text-sm font-black">{title}</div>
-          {subtitle && <div className="mt-1 text-xs text-white/55">{subtitle}</div>}
+          <div className="text-sm font-black text-[#1F2937]">{title}</div>
+          {subtitle && <div className="mt-1 text-xs text-[#6B7280]">{subtitle}</div>}
         </div>
         {right}
       </div>
@@ -71,13 +71,13 @@ function SectionCard({
 
 function SkeletonRow() {
   return (
-    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+    <div className="rounded-2xl border border-[#E5E7EB] bg-[#FFFDF8] p-4">
       <div className="flex items-center justify-between gap-4">
         <div className="space-y-2">
-          <div className="h-3 w-40 rounded bg-white/10" />
-          <div className="h-3 w-56 rounded bg-white/8" />
+          <div className="h-3 w-40 rounded bg-[#F3F4F6]" />
+          <div className="h-3 w-56 rounded bg-[#E5E7EB]" />
         </div>
-        <div className="h-8 w-24 rounded-xl bg-white/10" />
+        <div className="h-8 w-24 rounded-xl bg-[#F3F4F6]" />
       </div>
     </div>
   );
@@ -86,9 +86,6 @@ function SkeletonRow() {
 export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   const [tab, setTab] = useState<"feedback" | "audit">("feedback");
 
-  // -------------------------
-  // Feedback state
-  // -------------------------
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -108,16 +105,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         limit: 300,
       });
       setRows(res);
-    } catch (e: any) {
+    } catch {
       setErr("Failed to load feedback (token expired or server offline).");
     } finally {
       setLoading(false);
     }
   };
 
-  // -------------------------
-  // Audit state
-  // -------------------------
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditErr, setAuditErr] = useState("");
@@ -135,14 +129,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         limit: 300,
       });
       setAuditRows(res);
-    } catch (e: any) {
+    } catch {
       setAuditErr("Failed to load audit trail (token expired or server offline).");
     } finally {
       setAuditLoading(false);
     }
   };
 
-  // Create audit form
   const [aTitle, setATitle] = useState("");
   const [aDetails, setADetails] = useState("");
   const [aCreateCategory, setACreateCategory] = useState("other");
@@ -186,16 +179,13 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
       setAFiles([]);
 
       await fetchAudit();
-    } catch (e: any) {
+    } catch {
       alert("Create audit failed. Check server / token.");
     } finally {
       setACreating(false);
     }
   };
 
-  // -------------------------
-  // Counts
-  // -------------------------
   const openCount = useMemo(() => rows.filter((r) => !r.resolved).length, [rows]);
 
   const markResolved = async (id: string) => {
@@ -237,26 +227,24 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // image viewer modal
   const [imgModal, setImgModal] = useState<{ open: boolean; src: string } | null>(null);
 
   const ImgModal = () => {
     if (!imgModal?.open) return null;
     return (
       <div
-        className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
         onClick={() => setImgModal(null)}
       >
         <div
-          className="max-w-4xl w-full rounded-3xl border border-white/10 bg-black/60 p-3 shadow-2xl"
+          className="max-w-4xl w-full rounded-3xl border border-[#E5E7EB] bg-white p-3 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={imgModal.src} alt="attachment" className="w-full h-auto rounded-2xl" />
           <div className="mt-3 flex justify-end">
             <button
               onClick={() => setImgModal(null)}
-              className="rounded-2xl px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 font-extrabold"
+              className="rounded-2xl border border-[#E5E7EB] bg-[#FFF7ED] px-4 py-2 font-extrabold text-[#374151] transition hover:bg-[#FCE7F3]"
             >
               Close
             </button>
@@ -267,36 +255,34 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
   };
 
   const inputBase =
-    "rounded-2xl bg-black/25 border border-white/10 px-4 py-3 outline-none focus:border-emerald-300/45 focus:ring-2 focus:ring-emerald-400/10 transition";
+    "rounded-2xl bg-white border border-[#E5E7EB] px-4 py-3 text-[#1F2937] outline-none transition focus:border-[#F9A8D4] focus:ring-2 focus:ring-[#FCE7F3]";
   const btnBase =
     "rounded-2xl px-4 py-2 border font-extrabold transition active:scale-[0.99]";
-  const btnGhost = "bg-white/5 border-white/10 hover:bg-white/10";
-  const btnPrimary = "bg-emerald-300/18 border-emerald-300/25 hover:bg-emerald-300/22";
+  const btnGhost =
+    "bg-white border-[#E5E7EB] text-[#374151] hover:bg-[#FFF7ED]";
+  const btnPrimary =
+    "bg-[#F9A8D4]/30 border-[#F9A8D4]/40 text-[#831843] hover:bg-[#F9A8D4]/40";
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen text-[#1F2937]">
       <ImgModal />
 
-      {/* Background gradient */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[#050707]" />
-        <div className="absolute -top-24 left-1/2 h-72 w-[60rem] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -bottom-24 left-1/3 h-72 w-[50rem] -translate-x-1/2 rounded-full bg-emerald-400/8 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(249,168,212,0.25),_transparent_30%),radial-gradient(circle_at_20%_70%,_rgba(147,197,253,0.18),_transparent_25%),radial-gradient(circle_at_80%_85%,_rgba(253,230,138,0.22),_transparent_28%),linear-gradient(135deg,_#FFF9F2_0%,_#FFF7ED_45%,_#FDF2F8_100%)]" />
       </div>
 
-      {/* Sticky top bar */}
-      <div className="sticky top-0 z-20 border-b border-white/10 bg-black/35 backdrop-blur-xl">
-        <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between gap-4">
+      <div className="sticky top-0 z-20 border-b border-[#F3E8FF] bg-white/70 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="h-11 w-11 rounded-2xl bg-emerald-400/15 border border-emerald-300/25 flex items-center justify-center shadow-[0_0_0_1px_rgba(16,185,129,0.08)]">
-              <span className="text-emerald-200 font-black">SS</span>
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[#F9A8D4]/30 bg-[#FCE7F3] shadow-sm">
+              <span className="font-black text-[#BE185D]">SS</span>
             </div>
 
             <div>
-              <div className="text-lg font-black leading-tight">
+              <div className="text-lg font-black leading-tight text-[#1F2937]">
                 {tab === "feedback" ? "Feedback Inbox" : "Audit Trail"}
               </div>
-              <div className="text-white/55 text-xs mt-0.5">
+              <div className="mt-0.5 text-xs text-[#6B7280]">
                 {tab === "feedback"
                   ? `Open: ${openCount} • Total: ${rows.length}`
                   : `Total: ${auditRows.length}`}
@@ -324,16 +310,15 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="mx-auto max-w-6xl px-6 pb-4">
-          <div className="inline-flex rounded-2xl border border-white/10 bg-white/5 p-1">
+          <div className="inline-flex rounded-2xl border border-[#E5E7EB] bg-white/80 p-1 shadow-sm">
             <button
               onClick={() => setTab("feedback")}
               className={clsx(
                 "rounded-xl px-4 py-2 text-sm font-extrabold transition",
                 tab === "feedback"
-                  ? "bg-emerald-300/20 border border-emerald-300/25"
-                  : "text-white/70 hover:text-white"
+                  ? "border border-[#F9A8D4]/40 bg-[#FCE7F3] text-[#BE185D]"
+                  : "text-[#6B7280] hover:text-[#1F2937]"
               )}
             >
               Feedback
@@ -343,8 +328,8 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               className={clsx(
                 "rounded-xl px-4 py-2 text-sm font-extrabold transition",
                 tab === "audit"
-                  ? "bg-emerald-300/20 border border-emerald-300/25"
-                  : "text-white/70 hover:text-white"
+                  ? "border border-[#F9A8D4]/40 bg-[#FCE7F3] text-[#BE185D]"
+                  : "text-[#6B7280] hover:text-[#1F2937]"
               )}
             >
               Audit Trail
@@ -353,19 +338,16 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
         </div>
       </div>
 
-      {/* Body */}
-      <div className="mx-auto max-w-6xl p-6 space-y-5">
-        {/* FEEDBACK TAB */}
+      <div className="mx-auto max-w-6xl space-y-5 p-6">
         {tab === "feedback" && (
           <>
-            {/* Filters */}
             <SectionCard
               title="Filters"
               subtitle="Search and narrow down feedback quickly."
               right={
-                <div className="hidden md:flex items-center gap-2 text-xs text-white/45">
+                <div className="hidden items-center gap-2 text-xs text-[#6B7280] md:flex">
                   <span className="inline-flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-300/80" />
+                    <span className="h-2 w-2 rounded-full bg-[#F9A8D4]" />
                     Live
                   </span>
                 </div>
@@ -408,13 +390,12 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </div>
 
               {!!err && (
-                <div className="mt-3 rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-rose-200 text-sm">
+                <div className="mt-3 rounded-2xl border border-[#FCA5A5]/40 bg-[#FEE2E2] px-4 py-3 text-sm text-[#B91C1C]">
                   {err}
                 </div>
               )}
             </SectionCard>
 
-            {/* List */}
             <SectionCard
               title="Results"
               subtitle={
@@ -438,9 +419,9 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <SkeletonRow />
                 </div>
               ) : rows.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center">
-                  <div className="text-base font-black">No feedback found</div>
-                  <div className="text-sm text-white/55 mt-1">
+                <div className="rounded-2xl border border-[#E5E7EB] bg-[#FFFDF8] p-8 text-center">
+                  <div className="text-base font-black text-[#1F2937]">No feedback found</div>
+                  <div className="mt-1 text-sm text-[#6B7280]">
                     Try changing filters or refresh.
                   </div>
                 </div>
@@ -460,46 +441,40 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     return (
                       <div
                         key={r.id}
-                        className="rounded-3xl border border-white/10 bg-black/20 p-4 hover:bg-black/25 transition"
+                        className="rounded-3xl border border-[#E5E7EB] bg-white/85 p-4 shadow-sm transition hover:shadow-md"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <Pill tone={catTone as any}>{cat}</Pill>
-                              <span className="text-xs text-white/45">
+                              <span className="text-xs text-[#6B7280]">
                                 {new Date(r.created_at).toLocaleString()}
                               </span>
-                              <span className="text-xs text-white/25">•</span>
-                              <span className="text-xs text-white/45">
+                              <span className="text-xs text-[#D1D5DB]">•</span>
+                              <span className="text-xs text-[#6B7280]">
                                 {r.platform ?? "-"} • {r.app_version ?? "-"} • {r.device ?? "-"}
                               </span>
                             </div>
 
-                            <div className="mt-2 text-sm font-black text-white/90 break-words">
+                            <div className="mt-2 break-words text-sm font-black text-[#1F2937]">
                               {r.message}
                             </div>
 
                             <div className="mt-2 flex items-center gap-2">
                               <Pill>{r.rating ?? "-"}</Pill>
-                              {r.resolved ? (
-                                <Pill tone="ok">resolved</Pill>
-                              ) : (
-                                <Pill tone="warn">open</Pill>
-                              )}
+                              {r.resolved ? <Pill tone="ok">resolved</Pill> : <Pill tone="warn">open</Pill>}
                             </div>
 
-                            {/* Images */}
                             {(r.image_urls?.length ?? 0) > 0 && (
                               <div className="mt-3 flex gap-2 flex-wrap">
                                 {r.image_urls!.map((u) => {
                                   const src = absoluteUrl(u);
                                   return (
-                                    // eslint-disable-next-line @next/next/no-img-element
                                     <img
                                       key={u}
                                       src={src}
                                       alt="attachment"
-                                      className="h-16 w-16 rounded-2xl border border-white/10 object-cover cursor-pointer hover:opacity-90 hover:scale-[1.02] transition"
+                                      className="h-16 w-16 cursor-pointer rounded-2xl border border-[#E5E7EB] object-cover transition hover:scale-[1.02] hover:opacity-90"
                                       onClick={() => setImgModal({ open: true, src })}
                                     />
                                   );
@@ -512,7 +487,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                             {r.resolved ? (
                               <button
                                 disabled
-                                className={clsx(btnBase, "bg-white/5 border-white/10 text-white/45 cursor-not-allowed")}
+                                className={clsx(btnBase, "cursor-not-allowed border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF]")}
                               >
                                 Resolved
                               </button>
@@ -535,12 +510,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           </>
         )}
 
-        {/* AUDIT TAB */}
         {tab === "audit" && (
           <>
             <SectionCard
               title="Create audit entry"
-              subtitle="Use this when you fixed/changed something (UI/bug/performance/etc.). Optional images allowed."
+              subtitle="Use this when you fixed or changed something. Optional images allowed."
             >
               <div className="grid gap-3 md:grid-cols-3">
                 <input
@@ -588,7 +562,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                     Attach images (max 3)
                   </label>
 
-                  <div className="text-xs text-white/50">{aFiles.length}/3 selected</div>
+                  <div className="text-xs text-[#6B7280]">{aFiles.length}/3 selected</div>
                 </div>
 
                 {aFiles.length > 0 && (
@@ -597,7 +571,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                       <button
                         key={f.name}
                         onClick={() => removeAuditFile(f.name)}
-                        className="rounded-2xl px-3 py-2 text-xs font-extrabold bg-emerald-300/12 border border-emerald-300/20 hover:bg-emerald-300/18 transition"
+                        className="rounded-2xl border border-[#F9A8D4]/40 bg-[#FCE7F3] px-3 py-2 text-xs font-extrabold text-[#BE185D] transition hover:bg-[#F9A8D4]/20"
                         title="Remove"
                       >
                         {f.name}
@@ -614,7 +588,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   className={clsx(
                     btnBase,
                     aCreating
-                      ? "bg-white/5 border-white/10 text-white/50 cursor-not-allowed"
+                      ? "cursor-not-allowed border-[#E5E7EB] bg-[#F9FAFB] text-[#9CA3AF]"
                       : btnPrimary
                   )}
                 >
@@ -651,7 +625,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
               </div>
 
               {!!auditErr && (
-                <div className="mt-3 rounded-2xl border border-rose-300/20 bg-rose-500/10 px-4 py-3 text-rose-200 text-sm">
+                <div className="mt-3 rounded-2xl border border-[#FCA5A5]/40 bg-[#FEE2E2] px-4 py-3 text-sm text-[#B91C1C]">
                   {auditErr}
                 </div>
               )}
@@ -665,30 +639,32 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                   <SkeletonRow />
                 </div>
               ) : auditRows.length === 0 ? (
-                <div className="rounded-2xl border border-white/10 bg-black/20 p-8 text-center">
-                  <div className="text-base font-black">No audit entries yet</div>
-                  <div className="text-sm text-white/55 mt-1">Create one above to start logging changes.</div>
+                <div className="rounded-2xl border border-[#E5E7EB] bg-[#FFFDF8] p-8 text-center">
+                  <div className="text-base font-black text-[#1F2937]">No audit entries yet</div>
+                  <div className="mt-1 text-sm text-[#6B7280]">
+                    Create one above to start logging changes.
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {auditRows.map((a) => (
                     <div
                       key={a.id}
-                      className="rounded-3xl border border-white/10 bg-black/20 p-4 hover:bg-black/25 transition"
+                      className="rounded-3xl border border-[#E5E7EB] bg-white/85 p-4 shadow-sm transition hover:shadow-md"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Pill tone="ok">{(a.category || "other").toString()}</Pill>
-                            <span className="text-xs text-white/45">
+                            <span className="text-xs text-[#6B7280]">
                               {new Date(a.created_at).toLocaleString()}
                             </span>
                           </div>
 
-                          <div className="mt-2 text-sm font-black text-white/90">{a.title}</div>
+                          <div className="mt-2 text-sm font-black text-[#1F2937]">{a.title}</div>
 
                           {!!a.details && (
-                            <div className="mt-1 text-sm text-white/75 whitespace-pre-wrap break-words">
+                            <div className="mt-1 break-words whitespace-pre-wrap text-sm text-[#6B7280]">
                               {a.details}
                             </div>
                           )}
@@ -698,12 +674,11 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
                               {a.image_urls!.map((u) => {
                                 const src = absoluteUrl(u);
                                 return (
-                                  // eslint-disable-next-line @next/next/no-img-element
                                   <img
                                     key={u}
                                     src={src}
                                     alt="attachment"
-                                    className="h-16 w-16 rounded-2xl border border-white/10 object-cover cursor-pointer hover:opacity-90 hover:scale-[1.02] transition"
+                                    className="h-16 w-16 cursor-pointer rounded-2xl border border-[#E5E7EB] object-cover transition hover:scale-[1.02] hover:opacity-90"
                                     onClick={() => setImgModal({ open: true, src })}
                                   />
                                 );
@@ -720,7 +695,7 @@ export default function AdminDashboard({ onLogout }: { onLogout: () => void }) {
           </>
         )}
 
-        <div className="pb-10 text-center text-xs text-white/35">
+        <div className="pb-10 text-center text-xs text-[#6B7280]">
           SignSight Admin • Powered by FastAPI + MongoDB
         </div>
       </div>
