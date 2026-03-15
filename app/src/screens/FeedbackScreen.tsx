@@ -21,7 +21,7 @@ const BORDER = "#E7D9D0";
 const MUTED = "#976D4E";
 const TEXT = "#1B130E";
 
-const API_BASE = "http://192.168.1.7:8000";
+const API_BASE = "http://10.37.126.147:8000";
 
 const CATEGORIES = ["general", "bug", "feature", "ui"] as const;
 type Category = (typeof CATEGORIES)[number];

@@ -93,7 +93,7 @@ export const HAND_WEBVIEW_HTML = `
 
         const img = new Image();
         img.onload = async () => {
-          const TARGET_W = 256; // ✅ try 256 (fast). If detection weak, try 320.
+          const TARGET_W = 192; // ✅ try 256 (fast). If detection weak, try 320.
           const scale = TARGET_W / img.width;
           canvas.width = TARGET_W;
           canvas.height = Math.round(img.height * scale);

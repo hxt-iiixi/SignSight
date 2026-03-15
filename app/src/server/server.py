@@ -52,7 +52,18 @@ os.makedirs(GESTURES_DIR, exist_ok=True)
 
 GESTURE_MODEL_PATH = os.path.join(BASE_DIR, "asl_gesture_model.joblib")
 
-WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE", "PAKYU"]
+GESTURE_LABELS = [ "HELLO",
+  "THANK_YOU",
+  "SORRY",
+  "PLEASE",
+  "YES",
+  "NO",
+  "HELP",
+  "GOODBYE",
+  "WHAT",
+  "WHERE",
+  "J",
+  "Z",]
 GESTURE_FRAMES = 12
 gesture_model = None
 
@@ -497,14 +508,14 @@ def health():
         "dataset_dir": DATASET_DIR,
         "landmarks_dir": LANDMARKS_DIR,
         "trained_gestures": os.path.exists(GESTURE_MODEL_PATH),
-        "gesture_labels": WORD_LABELS,
+        "gesture_labels": GESTURE_LABELS,
 
     }
 
 @app.post("/upload_gesture")
 def upload_gesture(req: UploadGestureReq):
     label = req.label.strip().upper()
-    if label not in WORD_LABELS:
+    if label not in GESTURE_LABELS:
         return {"ok": False, "error": f"Invalid label: {label}"}
 
     path = os.path.join(GESTURES_DIR, f"{label}.jsonl")
@@ -519,7 +530,7 @@ def upload_gesture(req: UploadGestureReq):
 
 def load_gesture_dataset():
     X, y = [], []
-    for label in WORD_LABELS:
+    for label in GESTURE_LABELS:
         path = os.path.join(GESTURES_DIR, f"{label}.jsonl")
         if not os.path.exists(path):
             continue

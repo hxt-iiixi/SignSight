@@ -1,22 +1,34 @@
+function IconImg({
+  src,
+  alt,
+  className = "",
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
+  return <img src={src} alt={alt} className={className} />;
+}
+
 export default function LandingPage() {
   const featureCards = [
     {
-      icon: "translate",
+      icon: "/icons/feature-translate.png",
       title: "Real-time Translation",
       desc: "Instant conversion of ASL signs into clear text and speech output on your device screen.",
     },
     {
-      icon: "fingerprint",
+      icon: "/icons/feature-landmark.png",
       title: "Landmark Detection",
       desc: "Precise tracking of 21 individual hand points for high-fidelity gesture recognition.",
     },
     {
-      icon: "menu_book",
+      icon: "/icons/feature-tutorial.png",
       title: "Alphabet Tutorial",
       desc: "Comprehensive modules for learning ASL finger spelling from basics to advanced levels.",
     },
     {
-      icon: "lightbulb",
+      icon: "/icons/feature-tips.png",
       title: "Accuracy Tips",
       desc: "Smart suggestions on lighting and positioning to ensure the best possible recognition rate.",
     },
@@ -24,17 +36,17 @@ export default function LandingPage() {
 
   const steps = [
     {
-      icon: "photo_camera",
+      icon: "/icons/step-camera.png",
       title: "1. Open Camera",
       desc: "Launch the SignSight app and grant camera permissions to start detecting.",
     },
     {
-      icon: "front_hand",
+      icon: "/icons/step-hand.png",
       title: "2. Show Sign",
       desc: "Position your hand clearly within the camera frame for the AI to track.",
     },
     {
-      icon: "psychology",
+      icon: "/icons/step-detect.png",
       title: "3. App Detects",
       desc: "Our neural network processes the landmarks and shows the text instantly.",
     },
@@ -57,12 +69,13 @@ export default function LandingPage() {
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[#f8f7f6] font-display text-slate-900 antialiased">
-
       <header className="sticky top-0 z-50 flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e66e19]/10 bg-[#f8f7f6]/80 px-6 py-4 backdrop-blur-md md:px-20 lg:px-40">
         <div className="flex items-center gap-2 text-[#e66e19]">
-          <span className="material-symbols-outlined text-3xl font-bold">
-            sign_language
-          </span>
+          <IconImg
+            src="/icons/logo.png"
+            alt="SignSight logo"
+            className="h-7 w-7 object-contain"
+          />
           <h2 className="text-xl font-black leading-tight tracking-tight text-slate-900 dark:text-slate-100">
             SignSight
           </h2>
@@ -96,9 +109,11 @@ export default function LandingPage() {
         </div>
 
         <div className="md:hidden">
-          <span className="material-symbols-outlined text-slate-900 dark:text-slate-100">
-            menu
-          </span>
+          <img
+            src="/icons/menu.png"
+            alt="Menu"
+            className="h-6 w-6 object-contain"
+          />
         </div>
       </header>
 
@@ -126,7 +141,11 @@ export default function LandingPage() {
 
               <div className="mt-4 flex flex-wrap gap-4">
                 <button className="bg-[#e66e19] flex min-w-[180px] cursor-pointer items-center justify-center gap-2 rounded-full bg-primary px-8 text-base font-bold text-white shadow-xl shadow-primary/30 transition-all duration-200 hover:scale-105 hover:bg-primary/90 active:scale-95 h-14">
-                  <span className="material-symbols-outlined">android</span>
+                  <IconImg
+                    src="/icons/android.png"
+                    alt="Android"
+                    className="h-5 w-5 object-contain"
+                  />
                   Download for Android
                 </button>
 
@@ -147,9 +166,11 @@ export default function LandingPage() {
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-primary/10">
                     <div className="flex flex-col items-center gap-2 rounded-xl border border-white/50 bg-white/80 p-4 shadow-lg backdrop-blur-sm">
-                      <span className="material-symbols-outlined text-4xl text-[#e66e19]">
-                        back_hand
-                      </span>
+                      <IconImg
+                        src="/icons/hero-hand.png"
+                        alt="Detected hand sign"
+                        className="h-10 w-10 object-contain"
+                      />
                       <span className="text-lg font-bold text-slate-900">
                         "Hello"
                       </span>
@@ -161,9 +182,11 @@ export default function LandingPage() {
               <div className="absolute -bottom-6 -left-6 max-w-[200px] rounded-2xl border border-[#e66e19]/10 bg-white p-6 shadow-xl md:-left-12 dark:bg-slate-800">
                 <div className="mb-2 flex items-center gap-3">
                   <div className="flex size-8 items-center justify-center rounded-full bg-green-500/20 text-green-600">
-                    <span className="material-symbols-outlined text-sm">
-                      verified
-                    </span>
+                    <IconImg
+                      src="/icons/verified.png"
+                      alt="Verified"
+                      className="h-4 w-4 object-contain"
+                    />
                   </div>
                   <span className="text-sm font-bold">98% Accuracy</span>
                 </div>
@@ -195,10 +218,14 @@ export default function LandingPage() {
                 key={feature.title}
                 className="flex flex-col gap-4 rounded-xl border border-[#e66e19]/10 bg-[#f8f7f6] p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl dark:bg-background-dark"
               >
-                <div className="mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10 text-[#e66e19]">
-                  <span className="material-symbols-outlined">{feature.icon}</span>
+                <div className=" bg-[#FACB8F]  mb-2 flex size-12 items-center justify-center rounded-full bg-primary/10 text-[#e66e19]">
+                  <IconImg
+                    src={feature.icon}
+                    alt={feature.title}
+                    className="h-5 w-5 object-contain "
+                  />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                <h3 className="text-xl font-bold text-orange-900 dark:text-black-100">
                   {feature.title}
                 </h3>
                 <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
@@ -225,10 +252,12 @@ export default function LandingPage() {
                 key={step.title}
                 className="group flex flex-col items-center text-center"
               >
-                <div className="relative z-10 mb-6 flex size-20 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/40 transition-transform group-hover:scale-110">
-                  <span className="material-symbols-outlined text-4xl">
-                    {step.icon}
-                  </span>
+                <div className=" bg-[#E66E19] relative z-10 mb-6 flex size-20 items-center justify-center rounded-full bg-primary text-white shadow-xl shadow-primary/40 transition-transform group-hover:scale-110">
+                  <IconImg
+                    src={step.icon}
+                    alt={step.title}
+                    className="h-8 w-8 object-contain"
+                  />
                 </div>
                 <h4 className="mb-3 text-xl font-bold text-slate-900 dark:text-slate-100">
                   {step.title}
@@ -275,9 +304,11 @@ export default function LandingPage() {
             <div className="relative z-10 h-[500px] w-64 rounded-[2.5rem] border-4 border-slate-700 bg-slate-800 p-2 shadow-2xl transition-transform duration-500 hover:scale-105">
               <div className="flex h-full w-full items-center justify-center rounded-[2rem] bg-primary/10 p-6 text-center">
                 <div>
-                  <span className="material-symbols-outlined mb-4 text-6xl text-[#e66e19]">
-                    abc
-                  </span>
+                  <IconImg
+                    src="/icons/preview-abc.png"
+                    alt="Alphabet mode"
+                    className="mx-auto mb-4 h-10 w-10 object-contain"
+                  />
                   <h5 className="mb-2 text-xl font-bold text-slate-900">
                     Alphabet Mode
                   </h5>
@@ -297,9 +328,11 @@ export default function LandingPage() {
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-6">
                   <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-green-500 text-white">
-                    <span className="material-symbols-outlined text-3xl">
-                      check
-                    </span>
+                    <IconImg
+                      src="/icons/check.png"
+                      alt="Perfect match"
+                      className="h-7 w-7 object-contain"
+                    />
                   </div>
                   <h5 className="font-bold text-slate-900">Perfect Match</h5>
                 </div>
@@ -323,7 +356,11 @@ export default function LandingPage() {
 
               <div className="flex w-full flex-col gap-4 md:w-auto">
                 <button className="flex h-16 items-center justify-center gap-3 rounded-full bg-white px-8 text-lg font-black text-[#e66e19] shadow-lg transition-colors hover:bg-slate-100">
-                  <span className="material-symbols-outlined">download</span>
+                  <IconImg
+                    src="/icons/download.png"
+                    alt="Download"
+                    className="h-5 w-5 object-contain"
+                  />
                   Get for Android
                 </button>
                 <p className="text-center text-sm text-white/60">
@@ -339,9 +376,11 @@ export default function LandingPage() {
         <div className="mb-12 grid grid-cols-1 gap-12 md:grid-cols-4">
           <div className="col-span-1 flex flex-col gap-6 md:col-span-1">
             <div className="flex items-center gap-2 text-[#e66e19]">
-              <span className="material-symbols-outlined text-3xl font-bold">
-                sign_language
-              </span>
+              <IconImg
+                src="/icons/logo.png"
+                alt="SignSight logo"
+                className="h-7 w-7 object-contain"
+              />
               <h2 className="text-xl font-black text-slate-900 dark:text-slate-100">
                 SignSight
               </h2>
@@ -354,10 +393,18 @@ export default function LandingPage() {
 
             <div className="flex gap-4">
               <a className="text-slate-400 hover:text-[#e66e19]" href="#">
-                <span className="material-symbols-outlined">public</span>
+                <IconImg
+                  src="/icons/footer-globe.png"
+                  alt="Website"
+                  className="h-4 w-4 object-contain"
+                />
               </a>
               <a className="text-slate-400 hover:text-[#e66e19]" href="#">
-                <span className="material-symbols-outlined">share</span>
+                <IconImg
+                  src="/icons/footer-share.png"
+                  alt="Share"
+                  className="h-4 w-4 object-contain"
+                />
               </a>
             </div>
           </div>
@@ -385,7 +432,11 @@ export default function LandingPage() {
             © 2024 SignSight AI. All rights reserved.
           </p>
           <div className="flex items-center gap-4 text-sm font-bold text-slate-900 dark:text-slate-100">
-            <span className="material-symbols-outlined text-[#e66e19]">code</span>
+            <IconImg
+              src="/icons/footer-code.png"
+              alt="Code"
+              className="h-4 w-4 object-contain"
+            />
             Built with MediaPipe &amp; TensorFlow
           </div>
         </div>

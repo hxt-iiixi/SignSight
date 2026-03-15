@@ -37,7 +37,24 @@ const SOFT_PINK = "#FCE7F3";
 const SOFT_YELLOW = "#FEF3C7";
 const SOFT_BLUE = "#DBEAFE";
 const BORDER = "#E5E7EB";
-const WORD_LABELS = ["HELLO", "THANK_YOU", "SORRY", "GOODBYE", "PAKYU"] as const;
+const WORD_LABELS = [
+  "HELLO",
+  "THANK_YOU",
+  "SORRY",
+  "PLEASE",
+  "YES",
+  "NO",
+  "HELP",
+  "GOODBYE",
+  "WHAT",
+  "WHERE",
+  "J",
+  "Z",
+] as const;
+
+const LETTER_MOTION_FRAMES = 10;
+const LETTER_MOTION_INTERVAL_MS = 140;
+
 
 export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const { width, height } = useWindowDimensions();
@@ -52,7 +69,8 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   const cameraRef = useRef<Camera>(null);
   const webRef = useRef<HandWebViewHandle>(null);
-
+  const letterMotionBufRef = useRef<any[]>([]);
+  const lastLetterMotionAtRef = useRef(0);
   const [cameraPosition, setCameraPosition] = useState<"back" | "front">(
     "back"
   );
@@ -90,7 +108,11 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const predictBufRef = useRef<any[]>([]);
 
   // ✅ faster “no clear word” -> stable display
-  const MIN_PREDICT_FRAMES = 2;
+
+  const clearLetterMotionBuffer = () => {
+    letterMotionBufRef.current = [];
+    lastLetterMotionAtRef.current = 0;
+  };
 
   const clearRecordBuffer = () => {
     recordBufRef.current = [];
@@ -100,12 +122,19 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const clearPredictBuffer = () => {
     predictBufRef.current = [];
     lastGestureAtRef.current = 0;
+    setGestureFramesCount(0);
   };
 
   // gesture sliding window
-  const GESTURE_FRAMES = 12;
+ const GESTURE_FRAMES = 8;
   const lastGestureAtRef = useRef(0);
-  const GESTURE_MIN_MS = 60; // slightly slower than 60 to reduce spam; UI still feels fast
+
+  // ~7 predictions per second
+  const WORD_PREDICT_INTERVAL_MS = 90;
+
+  // require a bit more buildup before predicting
+  const MIN_PREDICT_FRAMES = 3;
+
   const gestureStrideRef = useRef(0);
 
   // ---- tick counters (JS thread) ----
@@ -156,7 +185,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         return;
       }
 
-      const snap = await cameraRef.current.takeSnapshot({ quality: 80 });
+      const snap = await cameraRef.current.takeSnapshot({ quality:40 });
       if (!snap?.path) {
         setStatus("Snapshot failed");
         return;
@@ -316,6 +345,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     setLastConf(0);
     setIsRecordingGesture(false);
     setGestureFramesCount(0);
+    clearLetterMotionBuffer();
   }, [detectMode]);
 
   // ✅ IMPORTANT: interval hook MUST be above render returns
@@ -368,29 +398,67 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
               handedness: hand.handedness ?? null,
             }),
           });
-
+          letterMotionBufRef.current.push({ landmarks: hand.landmarks });
+          if (letterMotionBufRef.current.length > LETTER_MOTION_FRAMES) {
+            letterMotionBufRef.current.shift();
+          }
           const json = await res.json();
           const label = String(json.label ?? "?");
           const conf = Number(json.confidence ?? 0);
+          let finalLabel = label;
+          let finalConf = conf;
 
-          if (conf < 0.6) {
-            setRawLabel("—");
-            smootherRef.current.push("?");
-            if (mounted) {
-              setLastLabel("No clear sign");
-              setLastConf(conf);
+          // try motion recognition only when enough frames exist
+          if (letterMotionBufRef.current.length >= LETTER_MOTION_FRAMES) {
+            const now = Date.now();
+            const baseShapeLooksMotionLike =
+              label === "I" || label === "D" || label === "Z" || label === "J";
+
+            if (baseShapeLooksMotionLike && now - lastLetterMotionAtRef.current >= LETTER_MOTION_INTERVAL_MS) {
+              lastLetterMotionAtRef.current = now;
+
+              try {
+                const motionRes = await fetch(`${API_BASE}/predict_gesture`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    frames: letterMotionBufRef.current.map((f) => f.landmarks),
+                    handedness: hand.handedness ?? null,
+                  }),
+                });
+
+                const motionJson = await motionRes.json();
+                const motionLabel = String(motionJson.label ?? "?");
+                const motionConf = Number(motionJson.confidence ?? 0);
+
+                if ((motionLabel === "J" || motionLabel === "Z") && motionConf >= 0.75) {
+                  finalLabel = motionLabel;
+                  finalConf = motionConf;
+
+                  // restart motion window after successful motion-letter detection
+                  clearLetterMotionBuffer();
+                }
+              } catch {}
             }
-            return;
           }
-
-          setRawLabel(label);
-          smootherRef.current.push(label);
-          const stable = smootherRef.current.getStableLabel();
-
+         if (finalConf < 0.6) {
+          setRawLabel("—");
+          smootherRef.current.push("?");
           if (mounted) {
-            setLastLabel(stable);
-            setLastConf(conf);
+            setLastLabel("No clear sign");
+            setLastConf(finalConf);
           }
+          return;
+        }
+
+        setRawLabel(finalLabel);
+        smootherRef.current.push(finalLabel);
+        const stable = smootherRef.current.getStableLabel();
+
+        if (mounted) {
+          setLastLabel(stable);
+          setLastConf(finalConf);
+        }
         } else {
           // WORDS (GESTURES)
 
@@ -419,14 +487,13 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
           if (predictBufRef.current.length < MIN_PREDICT_FRAMES) {
             if (mounted) {
               setRawLabel(`${predictBufRef.current.length}/${GESTURE_FRAMES}`);
-              setLastLabel("Hold gesture…");
               setLastConf(0);
             }
             return;
           }
 
           const now = Date.now();
-          if (now - lastGestureAtRef.current < GESTURE_MIN_MS) return;
+          if (now - lastGestureAtRef.current < WORD_PREDICT_INTERVAL_MS) return;
           lastGestureAtRef.current = now;
 
           const res = await fetch(`${API_BASE}/predict_gesture`, {
@@ -438,33 +505,40 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             }),
           });
 
-          const json = await res.json();
-          const word = String(json.label ?? "?");
-          const conf = Number(json.confidence ?? 0);
+      const json = await res.json();
+      const word = String(json.label ?? "?");
+      const conf = Number(json.confidence ?? 0);
 
-          if (conf < 0.6) {
-            setRawLabel("…");
-            smootherRef.current.push("?");
-            if (mounted) setLastConf(conf);
-            return;
-          }
+      // always restart the frame window after a prediction attempt
+      predictBufRef.current = [];
+      lastGestureAtRef.current = 0;
 
-          setRawLabel(word);
-          smootherRef.current.push(word);
-          const stable = smootherRef.current.getStableLabel();
+      if (mounted) {
+        setGestureFramesCount(0);
+      }
 
-          if (mounted) {
-            setLastLabel(stable);
-            setLastConf(conf);
-          }
+      if (conf < 0.6) {
+        if (mounted) {
+          setRawLabel("…");
+          setLastConf(conf);
+          // keep lastLabel unchanged
+        }
+        return;
+      }
+
+      if (mounted) {
+        setRawLabel(word);
+        setLastLabel(word);
+        setLastConf(conf);
+      }
         }
       } catch {
       } finally {
         busy = false;
       }
-    }, 70);
+    }, 45);
 
-    return () => {
+    return () => {1
       mounted = false;
       clearInterval(interval);
     };
