@@ -27,8 +27,9 @@ import {
 import { HAND_WEBVIEW_HTML } from "../ml/handWebviewHtml";
 
 type DetectMode = "LETTERS" | "WORDS";
+type UiMode = "ADVANCED" | "SIMPLE";
 
-const API_BASE = "http://192.168.1.7:8000"; // ✅ your IP here
+const API_BASE = "http://10.81.107.147:8000"; // ✅ your IP here
 const ACCENT = "#BE185D";
 const BG = "#FFF9F2";
 const TEXT = "#1F2937";
@@ -37,6 +38,7 @@ const SOFT_PINK = "#FCE7F3";
 const SOFT_YELLOW = "#FEF3C7";
 const SOFT_BLUE = "#DBEAFE";
 const BORDER = "#E5E7EB";
+
 const WORD_LABELS = [
   "HELLO",
   "THANK_YOU",
@@ -54,12 +56,16 @@ const WORD_LABELS = [
 
 const LETTER_MOTION_FRAMES = 10;
 const LETTER_MOTION_INTERVAL_MS = 140;
-
+const GESTURE_FRAMES = 12;
+const WORD_PREDICT_INTERVAL_MS = 140;
+const MIN_PREDICT_FRAMES = 5;
 
 export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
   const isSmall = width < 360;
   const isTablet = width >= 768;
+
+  const [uiMode, setUiMode] = useState<UiMode>("ADVANCED");
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const TOP = isTablet ? 70 : 56;
@@ -71,6 +77,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const webRef = useRef<HandWebViewHandle>(null);
   const letterMotionBufRef = useRef<any[]>([]);
   const lastLetterMotionAtRef = useRef(0);
+  const wordMissCountRef = useRef(0);
   const [cameraPosition, setCameraPosition] = useState<"back" | "front">(
     "back"
   );
@@ -101,13 +108,12 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const [gestureFramesCount, setGestureFramesCount] = useState(0);
   const [detectMode, setDetectMode] = useState<DetectMode>("LETTERS");
 
-  // ✅ NEW: show/hide controls panel
   const [showControls, setShowControls] = useState(true);
 
   const recordBufRef = useRef<any[]>([]);
   const predictBufRef = useRef<any[]>([]);
-
-  // ✅ faster “no clear word” -> stable display
+  const lastGestureAtRef = useRef(0);
+  const gestureStrideRef = useRef(0);
 
   const clearLetterMotionBuffer = () => {
     letterMotionBufRef.current = [];
@@ -125,19 +131,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     setGestureFramesCount(0);
   };
 
-  // gesture sliding window
- const GESTURE_FRAMES = 8;
-  const lastGestureAtRef = useRef(0);
-
-  // ~7 predictions per second
-  const WORD_PREDICT_INTERVAL_MS = 90;
-
-  // require a bit more buildup before predicting
-  const MIN_PREDICT_FRAMES = 3;
-
-  const gestureStrideRef = useRef(0);
-
-  // ---- tick counters (JS thread) ----
   const onFrameTick = () => {
     framesThisSecondRef.current += 1;
     const now = Date.now();
@@ -158,7 +151,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     }
   };
 
-  // ---- frame processor (worklet) ----
   const onFrameTickJS = useMemo(() => Worklets.createRunOnJS(onFrameTick), []);
   const frameProcessor = useFrameProcessor(() => {
     "worklet";
@@ -185,7 +177,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         return;
       }
 
-      const snap = await cameraRef.current.takeSnapshot({ quality:40 });
+      const snap = await cameraRef.current.takeSnapshot({ quality: 80 });
       if (!snap?.path) {
         setStatus("Snapshot failed");
         return;
@@ -224,7 +216,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       }
 
       setStatus(`Saved ✅ ${selectedLabel} (${hand.handedness ?? "?"})`);
-    } catch (e) {
+    } catch {
       setStatus("Save error");
     }
   };
@@ -284,7 +276,9 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         return;
       }
 
-      setStatus(`Saved ✅ ${selectedWord} (${recordBufRef.current.length} frames)`);
+      setStatus(
+        `Saved ✅ ${selectedWord} (${recordBufRef.current.length} frames)`
+      );
     } catch {
       setStatus("Save gesture error");
     }
@@ -327,7 +321,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     }
   };
 
-  // ---- permission ----
   useEffect(() => {
     (async () => {
       if (!hasPermission) {
@@ -348,7 +341,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     clearLetterMotionBuffer();
   }, [detectMode]);
 
-  // ✅ IMPORTANT: interval hook MUST be above render returns
   useEffect(() => {
     if (!ready) return;
     if (!device || !format) return;
@@ -376,12 +368,23 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         const hand = await webRef.current.process(base64);
 
         if (!hand.landmarks || hand.landmarks.length !== 21) {
-          smootherRef.current.push("?");
-          const stable = smootherRef.current.getStableLabel();
-          if (mounted) {
-            setLastLabel(stable === "?" ? "No hand" : stable);
-            setLastConf(0);
-            setRawLabel("—");
+          if (detectMode === "LETTERS") {
+            smootherRef.current.push("?");
+            const stable = smootherRef.current.getStableLabel();
+            if (mounted) {
+              setLastLabel(stable === "?" ? "No hand" : stable);
+              setLastConf(0);
+              setRawLabel("—");
+            }
+          } else {
+            if (mounted) {
+              setLastLabel("No hand");
+              setLastConf(0);
+              setRawLabel("—");
+              setGestureFramesCount(0);
+            }
+            predictBufRef.current = [];
+            lastGestureAtRef.current = 0;
           }
           return;
         }
@@ -398,23 +401,27 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
               handedness: hand.handedness ?? null,
             }),
           });
+
           letterMotionBufRef.current.push({ landmarks: hand.landmarks });
           if (letterMotionBufRef.current.length > LETTER_MOTION_FRAMES) {
             letterMotionBufRef.current.shift();
           }
+
           const json = await res.json();
           const label = String(json.label ?? "?");
           const conf = Number(json.confidence ?? 0);
           let finalLabel = label;
           let finalConf = conf;
 
-          // try motion recognition only when enough frames exist
           if (letterMotionBufRef.current.length >= LETTER_MOTION_FRAMES) {
             const now = Date.now();
             const baseShapeLooksMotionLike =
               label === "I" || label === "D" || label === "Z" || label === "J";
 
-            if (baseShapeLooksMotionLike && now - lastLetterMotionAtRef.current >= LETTER_MOTION_INTERVAL_MS) {
+            if (
+              baseShapeLooksMotionLike &&
+              now - lastLetterMotionAtRef.current >= LETTER_MOTION_INTERVAL_MS
+            ) {
               lastLetterMotionAtRef.current = now;
 
               try {
@@ -431,42 +438,42 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                 const motionLabel = String(motionJson.label ?? "?");
                 const motionConf = Number(motionJson.confidence ?? 0);
 
-                if ((motionLabel === "J" || motionLabel === "Z") && motionConf >= 0.75) {
+                if (
+                  (motionLabel === "J" || motionLabel === "Z") &&
+                  motionConf >= 0.75
+                ) {
                   finalLabel = motionLabel;
                   finalConf = motionConf;
-
-                  // restart motion window after successful motion-letter detection
                   clearLetterMotionBuffer();
                 }
               } catch {}
             }
           }
-         if (finalConf < 0.6) {
-          setRawLabel("—");
-          smootherRef.current.push("?");
+
+          if (finalConf < 0.6) {
+            setRawLabel("—");
+            smootherRef.current.push("?");
+            if (mounted) {
+              setLastLabel("No clear sign");
+              setLastConf(finalConf);
+            }
+            return;
+          }
+
+          setRawLabel(finalLabel);
+          smootherRef.current.push(finalLabel);
+          const stable = smootherRef.current.getStableLabel();
+
           if (mounted) {
-            setLastLabel("No clear sign");
+            setLastLabel(stable);
             setLastConf(finalConf);
           }
-          return;
-        }
-
-        setRawLabel(finalLabel);
-        smootherRef.current.push(finalLabel);
-        const stable = smootherRef.current.getStableLabel();
-
-        if (mounted) {
-          setLastLabel(stable);
-          setLastConf(finalConf);
-        }
         } else {
-          // WORDS (GESTURES)
-
-          // If recording: fill recordBufRef only
           if (isRecordingGesture) {
             recordBufRef.current.push({ landmarks: hand.landmarks });
-            if (recordBufRef.current.length > GESTURE_FRAMES)
+            if (recordBufRef.current.length > GESTURE_FRAMES) {
               recordBufRef.current.shift();
+            }
 
             if (mounted) {
               setGestureFramesCount(recordBufRef.current.length);
@@ -477,12 +484,14 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             return;
           }
 
-          // Not recording: fill predictBufRef only
           predictBufRef.current.push({ landmarks: hand.landmarks });
-          if (predictBufRef.current.length > GESTURE_FRAMES)
+          if (predictBufRef.current.length > GESTURE_FRAMES) {
             predictBufRef.current.shift();
+          }
 
-          if (mounted) setGestureFramesCount(predictBufRef.current.length);
+          if (mounted) {
+            setGestureFramesCount(predictBufRef.current.length);
+          }
 
           if (predictBufRef.current.length < MIN_PREDICT_FRAMES) {
             if (mounted) {
@@ -505,46 +514,49 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             }),
           });
 
-      const json = await res.json();
-      const word = String(json.label ?? "?");
-      const conf = Number(json.confidence ?? 0);
+          const json = await res.json();
+          const word = String(json.label ?? "?");
+          const conf = Number(json.confidence ?? 0);
 
-      // always restart the frame window after a prediction attempt
-      predictBufRef.current = [];
-      lastGestureAtRef.current = 0;
+          predictBufRef.current = [];
+          lastGestureAtRef.current = 0;
 
-      if (mounted) {
-        setGestureFramesCount(0);
-      }
+          if (mounted) {
+            setGestureFramesCount(0);
+          }
 
-      if (conf < 0.6) {
-        if (mounted) {
-          setRawLabel("…");
-          setLastConf(conf);
-          // keep lastLabel unchanged
-        }
-        return;
-      }
+          if (conf < 0.55) {
+            wordMissCountRef.current += 1;
 
-      if (mounted) {
-        setRawLabel(word);
-        setLastLabel(word);
-        setLastConf(conf);
-      }
+            if (mounted) {
+              setRawLabel("…");
+              setLastConf(conf);
+
+              if (wordMissCountRef.current >= 2) {
+                setLastLabel("No clear word");
+              }
+            }
+            return;
+          }
+          if (mounted) {
+            wordMissCountRef.current = 0;
+            setRawLabel(word);
+            setLastLabel(word);
+            setLastConf(conf);
+          }
         }
       } catch {
       } finally {
         busy = false;
       }
-    }, 45);
+    }, 70);
 
-    return () => {1
+    return () => {
       mounted = false;
       clearInterval(interval);
     };
   }, [ready, device, format, detectMode, isDatasetMode, isRecordingGesture]);
 
-  // ---- safe to return conditionally ----
   if (!device || !format) {
     return (
       <View style={styles.center}>
@@ -561,12 +573,8 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     );
   }
 
-  // ✅ prettier label text for center display
   const centerTitle = detectMode === "LETTERS" ? "LETTER" : "WORD";
-  const displayLabel =
-    lastLabel === "No clear sign" || lastLabel === "Hold gesture…" || lastLabel === "No hand"
-      ? lastLabel
-      : lastLabel;
+  const displayLabel = lastLabel;
 
   return (
     <View style={styles.container}>
@@ -585,8 +593,16 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         isMirrored={cameraPosition === "front"}
       />
 
-      {/* ✅ Center Prediction HUD */}
-      <View pointerEvents="none" style={[styles.centerHudWrap, { paddingHorizontal: PAD }]}>
+      <View
+        pointerEvents="none"
+        style={[
+          styles.centerHudWrap,
+          {
+            paddingHorizontal: PAD,
+            top: showControls ? "36%" : "48%",
+          },
+        ]}
+      >
         <View style={styles.centerHud}>
           <Text style={styles.centerKicker}>{centerTitle}</Text>
           <Text style={styles.centerLabel} numberOfLines={1}>
@@ -594,40 +610,61 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
           </Text>
 
           <View style={styles.centerMetaRow}>
-            <Text style={styles.centerMeta}>
-              {Math.round(lastConf * 100)}%
-            </Text>
+            <Text style={styles.centerMeta}>{Math.round(lastConf * 100)}%</Text>
             <View style={styles.dot} />
             <Text style={styles.centerMeta}>
-              {detectMode === "WORDS" ? `${gestureFramesCount}/${GESTURE_FRAMES}` : `Hand ${lastHandedness ?? "-"}`}
+              {detectMode === "WORDS"
+                ? `${gestureFramesCount}/${GESTURE_FRAMES}`
+                : `Hand ${lastHandedness ?? "-"}`}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* ✅ Top-left small debug chips (still nice) */}
       <View style={[styles.topHud, { top: TOP, left: PAD, right: PAD }]}>
-      <Pressable onPress={onBack} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={18} color={TEXT} />
-            <Text style={styles.backText}>Back</Text>
-          </Pressable>
+        <Pressable onPress={onBack} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={18} color={TEXT} />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={() =>
+            setUiMode((prev) => (prev === "ADVANCED" ? "SIMPLE" : "ADVANCED"))
+          }
+          style={({ pressed }) => [
+            styles.backBtn,
+            pressed && { opacity: 0.85 },
+            { marginTop: 8, alignSelf: "flex-start" },
+          ]}
+        >
+          <Text style={styles.backText}>
+            {uiMode === "ADVANCED" ? "Simple UI" : "Advanced UI"}
+          </Text>
+        </Pressable>
 
         <Text style={styles.h1}>SignSight (MediaPipe)</Text>
 
-        <View style={styles.chipsRow}>
-          <View style={styles.chip}>
-            <Text style={styles.chipText}>FPS {fpsCounter}</Text>
+        {uiMode === "ADVANCED" ? (
+          <View style={styles.chipsRow}>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>FPS {fpsCounter}</Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>LM {lmFps}/s</Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{detectMode}</Text>
+            </View>
           </View>
-          <View style={styles.chip}>
-            <Text style={styles.chipText}>LM {lmFps}/s</Text>
+        ) : (
+          <View style={styles.chipsRow}>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>{detectMode}</Text>
+            </View>
           </View>
-          <View style={styles.chip}>
-            <Text style={styles.chipText}>{detectMode}</Text>
-          </View>
-        </View>
+        )}
       </View>
 
-      {/* ✅ Toggle button (always visible) */}
       <View style={[styles.toggleWrap, { left: PAD, right: PAD }]}>
         <Pressable
           onPress={() => setShowControls((v) => !v)}
@@ -642,199 +679,298 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         </Pressable>
       </View>
 
-      {/* ✅ Controls panel (hide/show) */}
       {showControls && (
         <View style={[styles.panelWrap, { left: PAD, right: PAD }]}>
           <View style={styles.panel}>
-            <View style={styles.panelHeader}>
-              <Text style={styles.panelTitle}>Controls</Text>
-              <Text style={styles.panelSub}>
-                {isDatasetMode ? "DATASET" : "PREDICT"} • {cameraPosition.toUpperCase()}
-              </Text>
-            </View>
-
-            <View style={styles.btnRow}>
-              <Pressable
-                onPress={() => {
-                  if (isDatasetMode) return;
-                  if (isRecordingGesture) {
-                    setStatus("Stop recording first.");
-                    return;
-                  }
-                  setDetectMode((m) => {
-                    const next = m === "LETTERS" ? "WORDS" : "LETTERS";
-                    if (next === "LETTERS") {
-                      setIsRecordingGesture(false);
-                      clearRecordBuffer();
-                      clearPredictBuffer();
-                      gestureStrideRef.current = 0;
-                    }
-                    return next;
-                  });
-                }}
-                style={({ pressed }) => [
-                  styles.btn,
-                  pressed && { opacity: 0.85 },
-                  isDatasetMode && { opacity: 0.45 },
-                ]}
-              >
-                <Text style={styles.btnText}>Mode: {detectMode}</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() =>
-                  setCameraPosition((p) => (p === "back" ? "front" : "back"))
-                }
-                style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }]}
-              >
-                <Text style={styles.btnText}>
-                  Switch: {cameraPosition.toUpperCase()}
-                </Text>
-              </Pressable>
-            </View>
-
-            <Pressable
-              onPress={() =>
-                setIsDatasetMode((v) => {
-                  const next = !v;
-                  if (next) {
-                    setDetectMode("LETTERS");
-                    setIsRecordingGesture(false);
-                    clearRecordBuffer();
-                    clearPredictBuffer();
-                    gestureStrideRef.current = 0;
-                  }
-                  return next;
-                })
-              }
-              style={({ pressed }) => [
-                styles.btn,
-                pressed && { opacity: 0.85 },
-                isDatasetMode && styles.btnAccent,
-              ]}
-            >
-              <Text style={[styles.btnText, isDatasetMode && styles.btnTextDark]}>
-                {isDatasetMode ? "Dataset ON" : "Dataset OFF"}
-              </Text>
-            </Pressable>
-
-            {/* WORDS controls */}
-            {detectMode === "WORDS" && !isDatasetMode && (
-              <View style={{ marginTop: 12, gap: 10 }}>
-                <View style={styles.wordInfoRow}>
-                  <Text style={styles.smallLabel}>Selected:</Text>
-                  <Text style={styles.smallValue}>{selectedWord}</Text>
-                  <View style={{ flex: 1 }} />
-                  <Text style={styles.smallMuted}>
-                    Frames {gestureFramesCount}/{GESTURE_FRAMES}
+            {uiMode === "ADVANCED" ? (
+              <>
+                <View style={styles.panelHeader}>
+                  <Text style={styles.panelTitle}>Controls</Text>
+                  <Text style={styles.panelSub}>
+                    {isDatasetMode ? "DATASET" : "PREDICT"} •{" "}
+                    {cameraPosition.toUpperCase()}
                   </Text>
                 </View>
 
                 <View style={styles.btnRow}>
                   <Pressable
-                    onPress={nextWord}
+                    onPress={() => {
+                      if (isDatasetMode) return;
+                      if (isRecordingGesture) {
+                        setStatus("Stop recording first.");
+                        return;
+                      }
+                      setDetectMode((m) => {
+                        const next = m === "LETTERS" ? "WORDS" : "LETTERS";
+                        if (next === "LETTERS") {
+                          setIsRecordingGesture(false);
+                          clearRecordBuffer();
+                          clearPredictBuffer();
+                          gestureStrideRef.current = 0;
+                        }
+                        return next;
+                      });
+                    }}
                     style={({ pressed }) => [
                       styles.btn,
                       pressed && { opacity: 0.85 },
+                      isDatasetMode && { opacity: 0.45 },
                     ]}
                   >
-                    <Text style={styles.btnText}>Next Word</Text>
+                    <Text style={styles.btnText}>Mode: {detectMode}</Text>
                   </Pressable>
 
                   <Pressable
-                    onPress={toggleGestureRecording}
+                    onPress={() =>
+                      setCameraPosition((p) => (p === "back" ? "front" : "back"))
+                    }
                     style={({ pressed }) => [
                       styles.btn,
                       pressed && { opacity: 0.85 },
-                      isRecordingGesture && styles.btnAccent,
                     ]}
                   >
-                    <Text style={[styles.btnText, isRecordingGesture && styles.btnTextDark]}>
-                      {isRecordingGesture ? "Stop Recording" : "Start Recording"}
+                    <Text style={styles.btnText}>
+                      Switch: {cameraPosition.toUpperCase()}
                     </Text>
                   </Pressable>
                 </View>
 
-                <View style={styles.btnRow}>
-                  <Pressable
-                    onPress={saveGestureSample}
-                    style={({ pressed }) => [
-                      styles.btnPrimary,
-                      pressed && { opacity: 0.9 },
-                    ]}
-                  >
-                    <Text style={styles.btnPrimaryText}>Save Gesture</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={trainGestures}
-                    style={({ pressed }) => [
-                      styles.btnPrimary,
-                      pressed && { opacity: 0.9 },
-                    ]}
-                  >
-                    <Text style={styles.btnPrimaryText}>Train Gestures</Text>
-                  </Pressable>
-                </View>
-
                 <Pressable
-                  onPress={() => {
-                    clearRecordBuffer();
-                    clearPredictBuffer();
-                    gestureStrideRef.current = 0;
-                    setStatus("Cleared frames.");
-                  }}
+                  onPress={() =>
+                    setIsDatasetMode((v) => {
+                      const next = !v;
+                      if (next) {
+                        setDetectMode("LETTERS");
+                        setIsRecordingGesture(false);
+                        clearRecordBuffer();
+                        clearPredictBuffer();
+                        gestureStrideRef.current = 0;
+                      }
+                      return next;
+                    })
+                  }
                   style={({ pressed }) => [
                     styles.btn,
                     pressed && { opacity: 0.85 },
+                    isDatasetMode && styles.btnAccent,
+                    { marginTop: 10 },
                   ]}
                 >
-                  <Text style={styles.btnText}>Clear Frames</Text>
+                  <Text
+                    style={[styles.btnText, isDatasetMode && styles.btnTextDark]}
+                  >
+                    {isDatasetMode ? "Dataset ON" : "Dataset OFF"}
+                  </Text>
                 </Pressable>
-              </View>
-            )}
 
-            {/* LETTERS controls */}
-            {detectMode === "LETTERS" && (
-              <View style={{ marginTop: 12, gap: 10 }}>
-                <View style={styles.wordInfoRow}>
-                  <Text style={styles.smallLabel}>Label:</Text>
-                  <Text style={styles.smallValue}>{selectedLabel}</Text>
-                  <View style={{ flex: 1 }} />
-                  <Pressable onPress={nextLabel} style={styles.pillMini}>
-                    <Text style={styles.pillMiniText}>Next</Text>
-                  </Pressable>
+                {detectMode === "WORDS" && !isDatasetMode && (
+                  <View style={{ marginTop: 12, gap: 10 }}>
+                    <View style={styles.wordInfoRow}>
+                      <Text style={styles.smallLabel}>Selected:</Text>
+                      <Text style={styles.smallValue}>{selectedWord}</Text>
+                      <View style={{ flex: 1 }} />
+                      <Text style={styles.smallMuted}>
+                        Frames {gestureFramesCount}/{GESTURE_FRAMES}
+                      </Text>
+                    </View>
+
+                    <View style={styles.btnRow}>
+                      <Pressable
+                        onPress={nextWord}
+                        style={({ pressed }) => [
+                          styles.btn,
+                          pressed && { opacity: 0.85 },
+                        ]}
+                      >
+                        <Text style={styles.btnText}>Next Word</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={toggleGestureRecording}
+                        style={({ pressed }) => [
+                          styles.btn,
+                          pressed && { opacity: 0.85 },
+                          isRecordingGesture && styles.btnAccent,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.btnText,
+                            isRecordingGesture && styles.btnTextDark,
+                          ]}
+                        >
+                          {isRecordingGesture
+                            ? "Stop Recording"
+                            : "Start Recording"}
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.btnRow}>
+                      <Pressable
+                        onPress={saveGestureSample}
+                        style={({ pressed }) => [
+                          styles.btnPrimary,
+                          pressed && { opacity: 0.9 },
+                        ]}
+                      >
+                        <Text style={styles.btnPrimaryText}>Save Gesture</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={trainGestures}
+                        style={({ pressed }) => [
+                          styles.btnPrimary,
+                          pressed && { opacity: 0.9 },
+                        ]}
+                      >
+                        <Text style={styles.btnPrimaryText}>Train Gestures</Text>
+                      </Pressable>
+                    </View>
+
+                    <Pressable
+                      onPress={() => {
+                        clearRecordBuffer();
+                        clearPredictBuffer();
+                        gestureStrideRef.current = 0;
+                        setStatus("Cleared frames.");
+                      }}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Text style={styles.btnText}>Clear Frames</Text>
+                    </Pressable>
+                  </View>
+                )}
+
+                {detectMode === "LETTERS" && (
+                  <View style={{ marginTop: 12, gap: 10 }}>
+                    <View style={styles.wordInfoRow}>
+                      <Text style={styles.smallLabel}>Label:</Text>
+                      <Text style={styles.smallValue}>{selectedLabel}</Text>
+                      <View style={{ flex: 1 }} />
+                      <Pressable onPress={nextLabel} style={styles.pillMini}>
+                        <Text style={styles.pillMiniText}>Next</Text>
+                      </Pressable>
+                    </View>
+
+                    <View style={styles.btnRow}>
+                      <Pressable
+                        onPress={saveOneLandmarkSample}
+                        style={({ pressed }) => [
+                          styles.btnPrimary,
+                          pressed && { opacity: 0.9 },
+                        ]}
+                      >
+                        <Text style={styles.btnPrimaryText}>Save Sample</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={trainLandmarks}
+                        style={({ pressed }) => [
+                          styles.btnPrimary,
+                          pressed && { opacity: 0.9 },
+                        ]}
+                      >
+                        <Text style={styles.btnPrimaryText}>Train</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {!!status && <Text style={styles.status}>{status}</Text>}
+
+                <Text style={styles.debugLine}>
+                  Raw: {rawLabel} • Hand: {lastHandedness ?? "-"}
+                </Text>
+              </>
+            ) : (
+              <>
+                <View style={styles.panelHeader}>
+                  <Text style={styles.panelTitle}>Quick Controls</Text>
+                  <Text style={styles.panelSub}>User mode</Text>
                 </View>
 
                 <View style={styles.btnRow}>
                   <Pressable
-                    onPress={saveOneLandmarkSample}
+                    onPress={() => {
+                      if (isRecordingGesture) {
+                        setStatus("Stop recording first.");
+                        return;
+                      }
+                      setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
+                    }}
                     style={({ pressed }) => [
-                      styles.btnPrimary,
-                      pressed && { opacity: 0.9 },
+                      styles.btn,
+                      pressed && { opacity: 0.85 },
                     ]}
                   >
-                    <Text style={styles.btnPrimaryText}>Save Sample</Text>
+                    <Text style={styles.btnText}>Mode: {detectMode}</Text>
                   </Pressable>
 
                   <Pressable
-                    onPress={trainLandmarks}
+                    onPress={() =>
+                      setCameraPosition((p) => (p === "back" ? "front" : "back"))
+                    }
                     style={({ pressed }) => [
-                      styles.btnPrimary,
-                      pressed && { opacity: 0.9 },
+                      styles.btn,
+                      pressed && { opacity: 0.85 },
                     ]}
                   >
-                    <Text style={styles.btnPrimaryText}>Train</Text>
+                    <Text style={styles.btnText}>
+                      Switch: {cameraPosition.toUpperCase()}
+                    </Text>
                   </Pressable>
                 </View>
-              </View>
+
+                {detectMode === "WORDS" && (
+                  <View style={{ marginTop: 12, gap: 10 }}>
+                    <View style={styles.wordInfoRow}>
+                      <Text style={styles.smallLabel}>Selected:</Text>
+                      <Text style={styles.smallValue}>{selectedWord}</Text>
+                      <View style={{ flex: 1 }} />
+                      <Text style={styles.smallMuted}>
+                        {gestureFramesCount}/{GESTURE_FRAMES}
+                      </Text>
+                    </View>
+
+                    <View style={styles.btnRow}>
+                      <Pressable
+                        onPress={nextWord}
+                        style={({ pressed }) => [
+                          styles.btn,
+                          pressed && { opacity: 0.85 },
+                        ]}
+                      >
+                        <Text style={styles.btnText}>Next Word</Text>
+                      </Pressable>
+
+                      <Pressable
+                        onPress={toggleGestureRecording}
+                        style={({ pressed }) => [
+                          styles.btn,
+                          pressed && { opacity: 0.85 },
+                          isRecordingGesture && styles.btnAccent,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.btnText,
+                            isRecordingGesture && styles.btnTextDark,
+                          ]}
+                        >
+                          {isRecordingGesture
+                            ? "Stop Recording"
+                            : "Start Recording"}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+              </>
             )}
-
-            {!!status && <Text style={styles.status}>{status}</Text>}
-
-            <Text style={styles.debugLine}>
-              Raw: {rawLabel} • Hand: {lastHandedness ?? "-"}
-            </Text>
           </View>
         </View>
       )}
@@ -864,7 +1000,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.92)",
   },
   backText: { color: TEXT, fontWeight: "900" },
-  title: { color: TEXT, fontWeight: "900", fontSize: 16 },
 
   topHud: { position: "absolute" },
   h1: { color: "#FFFFFF", fontSize: 18, fontWeight: "900", marginTop: 10 },
@@ -882,7 +1017,6 @@ const styles = StyleSheet.create({
 
   centerHudWrap: {
     position: "absolute",
-    top: "36%",
     width: "100%",
     alignItems: "center",
   },
@@ -917,7 +1051,12 @@ const styles = StyleSheet.create({
     fontSize: 36,
     marginTop: 8,
   },
-  centerMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 10 },
+  centerMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 10,
+  },
   centerMeta: { color: MUTED, fontWeight: "800" },
   dot: { width: 4, height: 4, borderRadius: 4, backgroundColor: "#D1D5DB" },
 
@@ -986,7 +1125,12 @@ const styles = StyleSheet.create({
   btnPrimaryText: { color: ACCENT, fontWeight: "900" },
 
   status: { marginTop: 12, color: TEXT, fontWeight: "800" },
-  debugLine: { marginTop: 10, color: MUTED, fontSize: 11, fontWeight: "700" },
+  debugLine: {
+    marginTop: 10,
+    color: MUTED,
+    fontSize: 11,
+    fontWeight: "700",
+  },
 
   wordInfoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   smallLabel: { color: MUTED, fontWeight: "800" },

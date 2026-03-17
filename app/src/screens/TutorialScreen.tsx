@@ -130,10 +130,6 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
                 <Ionicons name="image-outline" size={18} color="#fff" />
                 <Text style={styles.watchBtnText}>View Image</Text>
               </Pressable>
-
-              <Pressable style={styles.favoriteBtn}>
-                <Ionicons name="heart-outline" size={20} color={MUTED} />
-              </Pressable>
             </View>
           </View>
         </View>

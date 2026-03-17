@@ -50,19 +50,13 @@ export default function DashboardScreen({
             <View style={styles.logoWrap}>
               <Ionicons name="hand-left-outline" size={22} color={PRIMARY} />
             </View>
-
-            <Text style={styles.brandText}>SignSight</Text>
           </View>
-
-          <Pressable style={styles.profileBtn}>
-            <Ionicons name="person-circle-outline" size={24} color={TEXT} />
-          </Pressable>
         </View>
 
         {/* Page Title */}
         <View style={[styles.pageHead, { paddingHorizontal: P }]}>
           <Text style={[styles.pageTitle, { fontSize: heroTitleSize }]}>
-            ASL Landmark Translator
+           SignSight
           </Text>
           <Text style={styles.pageSub}>Real-time sign language interpretation</Text>
         </View>
@@ -109,11 +103,7 @@ export default function DashboardScreen({
             icon="book-outline"
             onPress={onTutorial}
           />
-          <ActionCard
-            title="Settings"
-            icon="settings-outline"
-            onPress={onSettings}
-          />
+
           <ActionCard
             title="Feedback"
             icon="create-outline"
@@ -154,12 +144,7 @@ export default function DashboardScreen({
       </ScrollView>
 
       {/* Bottom Nav UI only */}
-      <View style={styles.bottomNav}>
-        <NavItem icon="home" label="Home" active />
-        <NavItem icon="time-outline" label="History" />
-        <NavItem icon="school-outline" label="Learn" />
-        <NavItem icon="person-outline" label="Profile" />
-      </View>
+  
     </SafeAreaView>
   );
 }
