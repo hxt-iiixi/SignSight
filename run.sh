@@ -132,6 +132,14 @@ start_service() {
   PIDS+=("$!")
 }
 
+run_foreground_service() {
+  local dir="$1"
+  local cmd="$2"
+
+  cd "$dir"
+  exec bash -lc "$cmd"
+}
+
 need_cmd bash "Install bash."
 need_cmd node "Install Node.js 20 LTS or newer."
 need_cmd npm "Install npm with Node.js."
@@ -162,6 +170,5 @@ printf '\n'
 
 start_service "backend" "$SERVER_DIR" "source .venv/bin/activate && exec uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
 start_service "admin" "$ADMIN_DIR" "exec npm run dev"
-start_service "expo" "$APP_DIR" "exec npx expo start -c"
-
-wait -n "${PIDS[@]}"
+log "Launching Expo in the foreground so the QR code and interactive controls stay visible"
+run_foreground_service "$APP_DIR" "exec npx expo start -c"
