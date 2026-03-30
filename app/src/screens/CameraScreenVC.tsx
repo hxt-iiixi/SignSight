@@ -25,11 +25,11 @@ import {
   type HandWebViewHandle,
 } from "../ml/handLandmarksWebView";
 import { HAND_WEBVIEW_HTML } from "../ml/handWebviewHtml";
+import { API_BASE } from "../config/api";
 
 type DetectMode = "LETTERS" | "WORDS";
 type UiMode = "ADVANCED" | "SIMPLE";
 
-const API_BASE = "http://10.81.107.147:8000"; // ✅ your IP here
 const ACCENT = "#BE185D";
 const BG = "#FFF9F2";
 const TEXT = "#1F2937";

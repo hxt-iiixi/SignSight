@@ -16,8 +16,8 @@ import { ASL_LABELS, type AslLabel } from "../ml/labels";
 import { getClipCounts, getDatasetRoot } from "../ml/dataset";
 import { WebView } from "react-native-webview";
 import Svg, { Circle } from "react-native-svg";
+import { API_BASE } from "../config/api";
 
-const SERVER_URL = "http://10.100.74.147:8000";
 const ACCENT = "#2EE6A6";
 
 export default function CameraScreen() {
@@ -167,7 +167,7 @@ export default function CameraScreen() {
     try {
       setIsTraining(true);
       setLastText("Training model...");
-      const res = await fetch(`${SERVER_URL}/train`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/train`, { method: "POST" });
       if (!res.ok) throw new Error("Train failed");
       setLastText("Training complete ✅");
     } catch (e: any) {
@@ -180,7 +180,7 @@ export default function CameraScreen() {
     try {
       setIsTrainingLandmarks(true);
       setLastText("Training landmarks...");
-      const res = await fetch(`${SERVER_URL}/train_landmarks`, { method: "POST" });
+      const res = await fetch(`${API_BASE}/train_landmarks`, { method: "POST" });
       if (!res.ok) throw new Error("Train landmarks failed");
       setLastText("Landmarks training complete ✅");
     } catch (e: any) {
@@ -191,7 +191,7 @@ export default function CameraScreen() {
   };
 
   const snapAndUpload = async (base64: string) => {
-    const up = await fetch(`${SERVER_URL}/upload`, {
+    const up = await fetch(`${API_BASE}/upload`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label: selectedLabel, imageBase64: base64 }),
@@ -200,7 +200,7 @@ export default function CameraScreen() {
   };
 
   const snapAndPredict = async (base64: string) => {
-    const res = await fetch(`${SERVER_URL}/predict`, {
+    const res = await fetch(`${API_BASE}/predict`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageBase64: base64 }),
@@ -256,7 +256,7 @@ export default function CameraScreen() {
     const landmarks = msg.landmarks; // array of 21 {x,y,z}
 
     if (pendingActionRef.current === "upload") {
-      await fetch(`${SERVER_URL}/upload_landmarks`, {
+      await fetch(`${API_BASE}/upload_landmarks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ label: selectedLabel, landmarks }),
@@ -266,7 +266,7 @@ export default function CameraScreen() {
     }
 
     // predict
-    const res = await fetch(`${SERVER_URL}/predict_landmarks`, {
+    const res = await fetch(`${API_BASE}/predict_landmarks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ landmarks }),
@@ -386,7 +386,7 @@ export default function CameraScreen() {
 
           try {
             if (pendingActionRef.current === "upload") {
-              await fetch(`${SERVER_URL}/upload_landmarks`, {
+              await fetch(`${API_BASE}/upload_landmarks`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -402,7 +402,7 @@ export default function CameraScreen() {
                   return;
                 }
                 lastPredictAtRef.current = now;
-              const res = await fetch(`${SERVER_URL}/predict_landmarks`, {
+              const res = await fetch(`${API_BASE}/predict_landmarks`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ landmarks: msg.landmarks }),

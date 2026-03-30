@@ -5,3 +5,9 @@ motor
 pydantic
 python-jose[cryptography]
 passlib[bcrypt]
+opencv-python
+numpy
+pillow
+scikit-learn
+joblib
+python-multipart
