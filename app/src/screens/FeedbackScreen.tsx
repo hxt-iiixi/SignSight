@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { API_BASE } from "../config/api";
 
 const PRIMARY = "#E66E19";
 const BG = "#F8F7F6";
@@ -20,8 +21,6 @@ const CARD = "#FFFFFF";
 const BORDER = "#E7D9D0";
 const MUTED = "#976D4E";
 const TEXT = "#1B130E";
-
-const API_BASE = "http://10.81.107.147:8000";
 
 const CATEGORIES = ["general", "bug", "feature", "ui"] as const;
 type Category = (typeof CATEGORIES)[number];

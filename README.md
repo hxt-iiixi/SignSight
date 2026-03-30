@@ -56,52 +56,31 @@ src/
 
 ---
 
-## Install & Run (Frontend)
+## Quick Start
+
+Install local prerequisites first:
+- Node.js 20 LTS+
+- npm
+- Python 3.10+
+- MongoDB running locally
+
+From the repo root:
 
 ```bash
-npm install
-npx expo start -c
+./init.sh
+./run.sh
 ```
 
-Run on:
-- Android Emulator
-- Physical phone via Expo Go or Dev Build
+`./init.sh` installs the Expo app, the admin app, and the backend virtualenv. It also writes local env files for:
+- mobile app API base in `app/.env.local`
+- admin API base in `app/signsight-admin/.env.local`
 
----
+`./run.sh` starts:
+- FastAPI backend on `http://127.0.0.1:8000`
+- Next admin app on `http://localhost:3000`
+- Expo dev server for the mobile app
 
-## Install & Run (Backend)
-
-```bash
-cd src/server
-python -m venv .venv
-```
-
-### Activate virtual environment
-
-**Windows (PowerShell)**
-```bash
-.\.venv\Scripts\Activate.ps1
-```
-
-**macOS / Linux**
-```bash
-source .venv/bin/activate
-```
-
-### Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### Run FastAPI server
-```bash
-uvicorn server:app --host 0.0.0.0 --port 8000 --reload
-```
-
-Health check:
-```
-http://<YOUR_PC_IP>:8000/health
-```
+If MongoDB is not already running, `./run.sh` will stop and tell you to start it first.
 
 ---
 
@@ -118,20 +97,11 @@ npx expo install expo-local-authentication
 
 ---
 
-## Important: SERVER_URL
+## Important: Mobile Backend URL
 
-In `src/screens/CameraScreen.tsx`:
+The mobile app reads `EXPO_PUBLIC_API_BASE` from `app/.env.local`, which `./init.sh` and `./run.sh` generate automatically using your current LAN IP.
 
-```ts
-const SERVER_URL = "http://<YOUR_PC_IP>:8000";
-```
-
-Example:
-```ts
-const SERVER_URL = "http://192.168.1.7:8000";
-```
-
-Phone and PC must be on the same Wi-Fi network.
+Phone and PC still need to be on the same Wi-Fi network for the mobile app to reach the backend.
 
 ---
 
