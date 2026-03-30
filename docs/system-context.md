@@ -12,17 +12,17 @@ What is definitely implemented:
 What appears partially implemented:
 - “Real-time translation” is approximated by repeated snapshots, not continuous frame-native inference. In the active camera screen, landmarks are produced from `takeSnapshot` + file read + hidden WebView, inside a `setInterval`, while the `frameProcessor` is only used to count FPS ([CameraScreenVC.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/CameraScreenVC.tsx#L154), [CameraScreenVC.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/CameraScreenVC.tsx#L351)).
 - Word recognition exists, but the current word label set is small and unevenly populated, and one dataset label (`PAKYU`) is in the repo but not in `GESTURE_LABELS`, so it is ignored by training/inference ([server.py](/home/fkrul3s47/Documents/Projects/SignSight/app/src/server/server.py#L55), repo counts gathered locally).
-- There is still an older recognition screen with a different capture/WebView path and leftover pixel-model affordances, but the app no longer routes to it ([App.js](/home/fkrul3s47/Documents/Projects/SignSight/app/App.js#L123), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/CameraScreen.tsx#L23)).
+- The repo still contains an archived older recognition screen with a different capture/WebView path and leftover pixel-model affordances, but the app no longer routes to it ([App.js](/home/fkrul3s47/Documents/Projects/SignSight/app/App.js#L123), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/recognition/CameraScreen.tsx#L23)).
 
 What is planned or implied but not fully present:
-- Marketing copy promises broad “real-time sign language interpretation” and “text and speech output,” but the active UI displays a detected label on-screen; speech output exists only in the older, inactive `CameraScreen` via `expo-speech` ([DashboardScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/DashboardScreen.tsx#L61), [LandingPage.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/signsight-admin/src/app/LandingPage.tsx#L14), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/CameraScreen.tsx#L145)).
+- Marketing copy promises broad “real-time sign language interpretation” and “text and speech output,” but the active UI displays a detected label on-screen; speech output exists only in the older, inactive archived `CameraScreen` via `expo-speech` ([DashboardScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/DashboardScreen.tsx#L61), [LandingPage.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/signsight-admin/src/app/LandingPage.tsx#L14), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/recognition/CameraScreen.tsx#L145)).
 - Tutorial UX hints at broader learning modes like “Practice,” “Challenges,” and “Profile,” but those bottom-nav items are visual only ([TutorialScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/TutorialScreen.tsx#L176)).
 
 What is missing:
 - No server-side user accounts or per-user data model for mobile users.
 - No production-grade streaming inference pipeline.
 - No robust model/version management, metrics, or evaluation storage.
-- No real PIN implementation despite older `AuthGate` placeholder naming it ([AuthGate.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/AuthGate.tsx#L49)).
+- No real PIN implementation despite the older archived `AuthGate` placeholder naming it ([AuthGate.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/auth/AuthGate.tsx#L49)).
 
 ## 2. Actual Architecture
 
@@ -105,7 +105,7 @@ Repo training data present now:
 ### Pixel-model training
 Partially implemented / legacy:
 - There is still a pixel-image dataset path (`dataset/<LABEL>`), `/upload`, `/train`, and `/predict` using grayscale cropped `64x64` images and an SVC ([server.py](/home/fkrul3s47/Documents/Projects/SignSight/app/src/server/server.py#L242), [server.py](/home/fkrul3s47/Documents/Projects/SignSight/app/src/server/server.py#L413)).
-- The active app does not use this path. The old `CameraScreen` can still invoke it, but `App.js` no longer routes there ([App.js](/home/fkrul3s47/Documents/Projects/SignSight/app/App.js#L123), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/src/screens/CameraScreen.tsx#L158)).
+- The active app does not use this path. The old `CameraScreen` can still invoke it from the archive, but `App.js` no longer routes there ([App.js](/home/fkrul3s47/Documents/Projects/SignSight/app/App.js#L123), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/recognition/CameraScreen.tsx#L158)).
 - Pixel dataset in repo is only A/B/C with 640 total images, which is not a full alphabet training set.
 
 ## 5. Major Screens, Modules, and Services
@@ -122,7 +122,7 @@ Partially implemented / legacy:
 - `handWebviewHtml.ts`: the real embedded MediaPipe Hands implementation used by the active app ([handWebviewHtml.ts](/home/fkrul3s47/Documents/Projects/SignSight/app/src/ml/handWebviewHtml.ts#L1)).
 - `smoother.ts`: simple majority-vote label smoother ([smoother.ts](/home/fkrul3s47/Documents/Projects/SignSight/app/src/ml/smoother.ts#L1)).
 - `labels.ts`: alphabet label constants.
-- `recognizer.ts`: legacy/local fake recognizer based on dataset file counts, not a real ML inference path ([recognizer.ts](/home/fkrul3s47/Documents/Projects/SignSight/app/src/ml/recognizer.ts#L9)).
+- `app/archive/recognition/recognizer.ts`: legacy/local fake recognizer based on dataset file counts, not a real ML inference path ([recognizer.ts](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/recognition/recognizer.ts#L9)).
 - `dataset.ts`: local device dataset directory helper, mainly used by old/legacy flow ([dataset.ts](/home/fkrul3s47/Documents/Projects/SignSight/app/src/ml/dataset.ts#L6)).
 
 ### Backend services
@@ -136,9 +136,9 @@ Partially implemented / legacy:
 - `/download` serves a marketing/landing page, distinct from the admin dashboard ([download/page.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/signsight-admin/src/app/download/page.tsx#L1)).
 
 ### Legacy / stale artifacts
-- `CameraScreen.tsx`: older expo-camera + inline WebView pipeline, still present but inactive.
-- `hand_webview.html`: placeholder file with “Paste MediaPipe code here,” unused by the active app ([hand_webview.html](/home/fkrul3s47/Documents/Projects/SignSight/app/src/ml/hand_webview.html#L1)).
-- `AuthGate.tsx`: older auth component with placeholder PIN flow, inactive.
+- `app/archive/recognition/CameraScreen.tsx`: older expo-camera + inline WebView pipeline, archived and inactive.
+- `app/archive/recognition/hand_webview.html`: placeholder file with “Paste MediaPipe code here,” archived and unused by the active app ([hand_webview.html](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/recognition/hand_webview.html#L1)).
+- `app/archive/auth/AuthGate.tsx`: older auth component with placeholder PIN flow, archived and inactive.
 - `db.py` and `models.py`: empty files.
 - `server_old.py`: old backend file in repo root `app/`, not part of active flow.
 
@@ -192,7 +192,7 @@ from [`app/src/server/.env`](/home/fkrul3s47/Documents/Projects/SignSight/app/sr
 ## 8. Recommended Future Development Priorities
 
 1. Consolidate to one recognition path.  
-Use `CameraScreenVC` as the canonical camera experience and either remove or clearly archive `CameraScreen`, `recognizer.ts`, `hand_webview.html`, and unused auth placeholders.
+`CameraScreenVC` is the canonical camera experience. Older recognition/auth prototypes are now archived under `app/archive/`.
 
 2. Make runtime claims match reality.  
 Update UI and marketing language to say “snapshot-based live detection” or build true streaming/on-device inference before claiming full real-time translation.

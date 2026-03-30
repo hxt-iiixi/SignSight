@@ -10,13 +10,13 @@ import {
 } from "react-native";
 import { CameraView, type CameraType, useCameraPermissions } from "expo-camera";
 import * as Speech from "expo-speech";
-import { SignRecognizer } from "../ml/recognizer";
-import { MajorityVoteSmoother } from "../ml/smoother";
-import { ASL_LABELS, type AslLabel } from "../ml/labels";
-import { getClipCounts, getDatasetRoot } from "../ml/dataset";
+import { SignRecognizer } from "./recognizer";
+import { MajorityVoteSmoother } from "../../src/ml/smoother";
+import { ASL_LABELS, type AslLabel } from "../../src/ml/labels";
+import { getClipCounts, getDatasetRoot } from "../../src/ml/dataset";
 import { WebView } from "react-native-webview";
 import Svg, { Circle } from "react-native-svg";
-import { API_BASE } from "../config/api";
+import { API_BASE } from "../../src/config/api";
 
 const ACCENT = "#2EE6A6";
 

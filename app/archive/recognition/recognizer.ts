@@ -1,5 +1,5 @@
-import { ASL_LABELS, type AslLabel } from "./labels";
-import { getClipCounts } from "./dataset";
+import { ASL_LABELS, type AslLabel } from "../../src/ml/labels";
+import { getClipCounts } from "../../src/ml/dataset";
 
 export type RecognitionResult = {
   label: AslLabel;
