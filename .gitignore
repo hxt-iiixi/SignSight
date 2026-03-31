@@ -1,0 +1,33 @@
+# Dependencies
+**/node_modules/
+
+# Python virtual environments and caches
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Expo / React Native local artifacts
+app/.expo/
+app/dist/
+app/web-build/
+app/.expo-shared/
+app/android/.gradle/
+app/android/app/build/
+app/android/build/
+
+# Next.js local build artifacts
+web-frontend/.next/
+web-frontend/out/
+web-frontend/coverage/
+
+# Local env files
+app/.env.local
+web-frontend/.env.local
+backend/.env.local
+
+# Logs and OS files
+*.log
+.DS_Store

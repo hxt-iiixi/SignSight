@@ -1,0 +1,53 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.signsighthandtracker'
+version = '1.0.0'
+
+def assetDir = new File(projectDir, 'src/main/assets')
+def handLandmarkerModel = new File(assetDir, 'hand_landmarker.task')
+
+tasks.register('downloadHandLandmarkerModel') {
+  outputs.file(handLandmarkerModel)
+
+  doLast {
+    assetDir.mkdirs()
+
+    if (handLandmarkerModel.exists()) {
+      return
+    }
+
+    ant.get(
+      src: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+      dest: handLandmarkerModel,
+      verbose: true
+    )
+  }
+}
+
+android {
+  namespace "expo.modules.signsighthandtracker"
+
+  defaultConfig {
+    versionCode 1
+    versionName "1.0.0"
+    consumerProguardFiles "proguard-rules.pro"
+  }
+
+  lintOptions {
+    abortOnError false
+  }
+}
+
+afterEvaluate {
+  tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(tasks.named("downloadHandLandmarkerModel"))
+  }
+}
+
+dependencies {
+  implementation 'com.google.mediapipe:tasks-vision:0.10.29'
+  implementation 'androidx.camera:camera-core:1.4.2'
+}

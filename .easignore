@@ -1,55 +1,29 @@
-# --- BIG folders (never upload) ---
-node_modules/
-.expo/
-.expo-shared/
-android/.gradle/
-android/app/build/
-android/build/
-ios/build/
+# Dependencies
+**/node_modules/
 
-# --- caches / temp ---
+# Expo / native local build state
+app/.expo/
+app/.expo-shared/
+app/android/.gradle/
+app/android/app/build/
+app/android/build/
+app/ios/build/
+
+# Web frontend build output
+web-frontend/.next/
+web-frontend/out/
+web-frontend/coverage/
+
+# Python local environments and caches
+**/.venv/
+**/venv/
 **/__pycache__/
 **/.pytest_cache/
 **/.mypy_cache/
 **/.ruff_cache/
+
+# Logs and temp files
 **/.cache/
 **/tmp/
 **/*.log
-
-# --- local envs ---
-.venv/
-venv/
-**/.venv/
-
-# --- datasets / ML artifacts (DO NOT ship in app build) ---
-**/dataset/
-**/datasets/
-**/landmarks/
-**/*.joblib
-**/*.pkl
-**/*.pt
-**/*.onnx
-
-# --- media / recordings ---
-**/*.mp4
-**/*.mkv
-**/*.mov
-**/*.avi
-**/*.wav
-**/*.aac
-**/*.zip
-**/*.tar
-**/*.gz
-**/*.7z
-
-# --- misc ---
 .DS_Store
-.git/
-.gitignore
-server/
-.venv/
-**/.venv/
-**/__pycache__/
-**/dataset/
-**/landmarks/
-**/*.joblib

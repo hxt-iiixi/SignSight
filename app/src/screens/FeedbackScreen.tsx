@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  type DimensionValue,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { API_BASE } from "../config/api";
@@ -301,7 +302,7 @@ function StatBar({
 }: {
   label: string;
   value: string;
-  width: string;
+  width: DimensionValue;
 }) {
   return (
     <View style={styles.statRow}>

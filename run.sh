@@ -4,8 +4,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$ROOT_DIR/app"
-ADMIN_DIR="$APP_DIR/signsight-admin"
-SERVER_DIR="$APP_DIR/src/server"
+ADMIN_DIR="$ROOT_DIR/web-frontend"
+SERVER_DIR="$ROOT_DIR/backend"
 SERVER_ENV_FILE="$SERVER_DIR/.env"
 MOBILE_ENV_FILE="$APP_DIR/.env.local"
 ADMIN_ENV_FILE="$ADMIN_DIR/.env.local"

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Platform,
   useWindowDimensions,
 } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Camera,
@@ -16,18 +15,17 @@ import {
   useCameraFormat,
 } from "react-native-vision-camera";
 
-import { useFrameProcessor } from "react-native-vision-camera";
-import { Worklets } from "react-native-worklets-core";
-
 import { MajorityVoteSmoother } from "../ml/smoother";
-import {
-  HandLandmarksWebView,
-  type HandWebViewHandle,
-} from "../ml/handLandmarksWebView";
-import { HAND_WEBVIEW_HTML } from "../ml/handWebviewHtml";
 import { API_BASE } from "../config/api";
-
-type DetectMode = "LETTERS" | "WORDS";
+import {
+  createStreamingRecognitionBuffers,
+  GESTURE_FRAMES,
+  processStreamingHandFrame,
+  resetStreamingRecognitionState,
+  saveStreamingLandmarkSample,
+} from "../ml/streamingRecognition";
+import type { DetectMode } from "../ml/streamTypes";
+import { useStreamingHandTracking } from "../ml/useStreamingHandTracking";
 type UiMode = "ADVANCED" | "SIMPLE";
 
 const ACCENT = "#BE185D";
@@ -54,12 +52,6 @@ const WORD_LABELS = [
   "Z",
 ] as const;
 
-const LETTER_MOTION_FRAMES = 10;
-const LETTER_MOTION_INTERVAL_MS = 140;
-const GESTURE_FRAMES = 12;
-const WORD_PREDICT_INTERVAL_MS = 140;
-const MIN_PREDICT_FRAMES = 5;
-
 export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const { width } = useWindowDimensions();
   const isSmall = width < 360;
@@ -73,11 +65,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
 
-  const cameraRef = useRef<Camera>(null);
-  const webRef = useRef<HandWebViewHandle>(null);
-  const letterMotionBufRef = useRef<any[]>([]);
-  const lastLetterMotionAtRef = useRef(0);
-  const wordMissCountRef = useRef(0);
   const [cameraPosition, setCameraPosition] = useState<"back" | "front">(
     "back"
   );
@@ -110,24 +97,18 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   const [showControls, setShowControls] = useState(true);
 
-  const recordBufRef = useRef<any[]>([]);
-  const predictBufRef = useRef<any[]>([]);
-  const lastGestureAtRef = useRef(0);
-  const gestureStrideRef = useRef(0);
-
-  const clearLetterMotionBuffer = () => {
-    letterMotionBufRef.current = [];
-    lastLetterMotionAtRef.current = 0;
-  };
+  const buffersRef = useRef(createStreamingRecognitionBuffers());
+  const isMountedRef = useRef(true);
+  const isProcessingRef = useRef(false);
 
   const clearRecordBuffer = () => {
-    recordBufRef.current = [];
+    buffersRef.current.recordFrames = [];
     setGestureFramesCount(0);
   };
 
   const clearPredictBuffer = () => {
-    predictBufRef.current = [];
-    lastGestureAtRef.current = 0;
+    buffersRef.current.predictFrames = [];
+    buffersRef.current.lastGestureAtMs = 0;
     setGestureFramesCount(0);
   };
 
@@ -151,11 +132,11 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const onFrameTickJS = useMemo(() => Worklets.createRunOnJS(onFrameTick), []);
-  const frameProcessor = useFrameProcessor(() => {
-    "worklet";
-    onFrameTickJS();
-  }, []);
+  const { frameProcessor, latestHandFrame, isSupported } =
+    useStreamingHandTracking({
+      enabled: ready && !!device && !!format,
+      onFrameTick,
+    });
 
   const nextLabel = () => {
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -172,50 +153,19 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     try {
       setStatus(`Saving ${selectedLabel}...`);
 
-      if (!cameraRef.current || !webRef.current) {
-        setStatus("Camera/WebView not ready");
+      const result = await saveStreamingLandmarkSample(
+        latestHandFrame,
+        API_BASE,
+        selectedLabel
+      );
+
+      if (!result.ok) {
+        setStatus(`Save failed: ${result.error ?? "unknown"}`);
         return;
       }
 
-      const snap = await cameraRef.current.takeSnapshot({ quality: 80 });
-      if (!snap?.path) {
-        setStatus("Snapshot failed");
-        return;
-      }
-
-      const uri = snap.path.startsWith("file://")
-        ? snap.path
-        : `file://${snap.path}`;
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: "base64",
-      });
-
-      const hand = await webRef.current.process(base64);
-
-      if (!hand.landmarks || hand.landmarks.length !== 21) {
-        setStatus("No hand detected (cannot save)");
-        return;
-      }
-
-      setLastHandedness(hand.handedness ?? null);
-
-      const res = await fetch(`${API_BASE}/upload_landmarks`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label: selectedLabel,
-          landmarks: hand.landmarks,
-          handedness: hand.handedness ?? null,
-        }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || json.ok === false) {
-        setStatus(`Save failed: ${json.error ?? "unknown"}`);
-        return;
-      }
-
-      setStatus(`Saved ✅ ${selectedLabel} (${hand.handedness ?? "?"})`);
+      setLastHandedness(result.handedness ?? null);
+      setStatus(`Saved ✅ ${selectedLabel} (${result.handedness ?? "?"})`);
     } catch {
       setStatus("Save error");
     }
@@ -238,11 +188,11 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
       if (next) {
         setStatus("Recording gesture… hold steady");
-        recordBufRef.current = [];
+        buffersRef.current.recordFrames = [];
         setGestureFramesCount(0);
       } else {
         setStatus(
-          `Recording stopped (${recordBufRef.current.length}/${GESTURE_FRAMES})`
+          `Recording stopped (${buffersRef.current.recordFrames.length}/${GESTURE_FRAMES})`
         );
       }
 
@@ -253,7 +203,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const saveGestureSample = async () => {
     try {
       const MIN_FRAMES = 8;
-      if (recordBufRef.current.length < MIN_FRAMES) {
+      if (buffersRef.current.recordFrames.length < MIN_FRAMES) {
         setStatus(`Need at least ${MIN_FRAMES} frames to save.`);
         return;
       }
@@ -265,7 +215,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label: selectedWord,
-          frames: recordBufRef.current.map((f) => f.landmarks),
+          frames: buffersRef.current.recordFrames.map((f) => f.landmarks),
           handedness: lastHandedness ?? null,
         }),
       });
@@ -277,7 +227,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       }
 
       setStatus(
-        `Saved ✅ ${selectedWord} (${recordBufRef.current.length} frames)`
+        `Saved ✅ ${selectedWord} (${buffersRef.current.recordFrames.length} frames)`
       );
     } catch {
       setStatus("Save gesture error");
@@ -322,6 +272,14 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     (async () => {
       if (!hasPermission) {
         const ok = await requestPermission();
@@ -332,230 +290,47 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   }, [hasPermission, requestPermission]);
 
   useEffect(() => {
-    smootherRef.current = new MajorityVoteSmoother(3);
-    setRawLabel("?");
-    setLastLabel("Ready");
-    setLastConf(0);
+    resetStreamingRecognitionState(buffersRef, smootherRef, {
+      setGestureFramesCount,
+      setLastConf,
+      setLastLabel,
+      setRawLabel,
+    });
     setIsRecordingGesture(false);
-    setGestureFramesCount(0);
-    clearLetterMotionBuffer();
   }, [detectMode]);
 
   useEffect(() => {
-    if (!ready) return;
-    if (!device || !format) return;
+    if (!latestHandFrame) return;
 
-    let mounted = true;
-    let busy = false;
+    if (latestHandFrame.hasHand && latestHandFrame.landmarks?.length === 21) {
+      onLandmarkTick();
+    }
 
-    const interval = setInterval(async () => {
-      if (!mounted || busy) return;
-      if (!cameraRef.current || !webRef.current) return;
+    void processStreamingHandFrame(latestHandFrame, {
+      apiBase: API_BASE,
+      buffersRef,
+      detectMode,
+      isMountedRef,
+      isProcessingRef,
+      isRecordingGesture,
+      setGestureFramesCount,
+      setLastConf,
+      setLastHandedness,
+      setLastLabel,
+      setRawLabel,
+      smootherRef,
+    });
+  }, [latestHandFrame, detectMode, isRecordingGesture]);
 
-      busy = true;
+  useEffect(() => {
+    if (!ready || isSupported) {
+      return;
+    }
 
-      try {
-        const snap = await cameraRef.current.takeSnapshot({ quality: 55 });
-        if (!snap?.path) return;
-
-        const uri = snap.path.startsWith("file://")
-          ? snap.path
-          : `file://${snap.path}`;
-        const base64 = await FileSystem.readAsStringAsync(uri, {
-          encoding: "base64",
-        });
-
-        const hand = await webRef.current.process(base64);
-
-        if (!hand.landmarks || hand.landmarks.length !== 21) {
-          if (detectMode === "LETTERS") {
-            smootherRef.current.push("?");
-            const stable = smootherRef.current.getStableLabel();
-            if (mounted) {
-              setLastLabel(stable === "?" ? "No hand" : stable);
-              setLastConf(0);
-              setRawLabel("—");
-            }
-          } else {
-            if (mounted) {
-              setLastLabel("No hand");
-              setLastConf(0);
-              setRawLabel("—");
-              setGestureFramesCount(0);
-            }
-            predictBufRef.current = [];
-            lastGestureAtRef.current = 0;
-          }
-          return;
-        }
-
-        setLastHandedness(hand.handedness ?? null);
-        onLandmarkTick();
-
-        if (detectMode === "LETTERS") {
-          const res = await fetch(`${API_BASE}/predict_landmarks`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              landmarks: hand.landmarks,
-              handedness: hand.handedness ?? null,
-            }),
-          });
-
-          letterMotionBufRef.current.push({ landmarks: hand.landmarks });
-          if (letterMotionBufRef.current.length > LETTER_MOTION_FRAMES) {
-            letterMotionBufRef.current.shift();
-          }
-
-          const json = await res.json();
-          const label = String(json.label ?? "?");
-          const conf = Number(json.confidence ?? 0);
-          let finalLabel = label;
-          let finalConf = conf;
-
-          if (letterMotionBufRef.current.length >= LETTER_MOTION_FRAMES) {
-            const now = Date.now();
-            const baseShapeLooksMotionLike =
-              label === "I" || label === "D" || label === "Z" || label === "J";
-
-            if (
-              baseShapeLooksMotionLike &&
-              now - lastLetterMotionAtRef.current >= LETTER_MOTION_INTERVAL_MS
-            ) {
-              lastLetterMotionAtRef.current = now;
-
-              try {
-                const motionRes = await fetch(`${API_BASE}/predict_gesture`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    frames: letterMotionBufRef.current.map((f) => f.landmarks),
-                    handedness: hand.handedness ?? null,
-                  }),
-                });
-
-                const motionJson = await motionRes.json();
-                const motionLabel = String(motionJson.label ?? "?");
-                const motionConf = Number(motionJson.confidence ?? 0);
-
-                if (
-                  (motionLabel === "J" || motionLabel === "Z") &&
-                  motionConf >= 0.75
-                ) {
-                  finalLabel = motionLabel;
-                  finalConf = motionConf;
-                  clearLetterMotionBuffer();
-                }
-              } catch {}
-            }
-          }
-
-          if (finalConf < 0.6) {
-            setRawLabel("—");
-            smootherRef.current.push("?");
-            if (mounted) {
-              setLastLabel("No clear sign");
-              setLastConf(finalConf);
-            }
-            return;
-          }
-
-          setRawLabel(finalLabel);
-          smootherRef.current.push(finalLabel);
-          const stable = smootherRef.current.getStableLabel();
-
-          if (mounted) {
-            setLastLabel(stable);
-            setLastConf(finalConf);
-          }
-        } else {
-          if (isRecordingGesture) {
-            recordBufRef.current.push({ landmarks: hand.landmarks });
-            if (recordBufRef.current.length > GESTURE_FRAMES) {
-              recordBufRef.current.shift();
-            }
-
-            if (mounted) {
-              setGestureFramesCount(recordBufRef.current.length);
-              setRawLabel(`${recordBufRef.current.length}/${GESTURE_FRAMES}`);
-              setLastLabel("Recording…");
-              setLastConf(0);
-            }
-            return;
-          }
-
-          predictBufRef.current.push({ landmarks: hand.landmarks });
-          if (predictBufRef.current.length > GESTURE_FRAMES) {
-            predictBufRef.current.shift();
-          }
-
-          if (mounted) {
-            setGestureFramesCount(predictBufRef.current.length);
-          }
-
-          if (predictBufRef.current.length < MIN_PREDICT_FRAMES) {
-            if (mounted) {
-              setRawLabel(`${predictBufRef.current.length}/${GESTURE_FRAMES}`);
-              setLastConf(0);
-            }
-            return;
-          }
-
-          const now = Date.now();
-          if (now - lastGestureAtRef.current < WORD_PREDICT_INTERVAL_MS) return;
-          lastGestureAtRef.current = now;
-
-          const res = await fetch(`${API_BASE}/predict_gesture`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              frames: predictBufRef.current.map((f) => f.landmarks),
-              handedness: hand.handedness ?? null,
-            }),
-          });
-
-          const json = await res.json();
-          const word = String(json.label ?? "?");
-          const conf = Number(json.confidence ?? 0);
-
-          predictBufRef.current = [];
-          lastGestureAtRef.current = 0;
-
-          if (mounted) {
-            setGestureFramesCount(0);
-          }
-
-          if (conf < 0.55) {
-            wordMissCountRef.current += 1;
-
-            if (mounted) {
-              setRawLabel("…");
-              setLastConf(conf);
-
-              if (wordMissCountRef.current >= 2) {
-                setLastLabel("No clear word");
-              }
-            }
-            return;
-          }
-          if (mounted) {
-            wordMissCountRef.current = 0;
-            setRawLabel(word);
-            setLastLabel(word);
-            setLastConf(conf);
-          }
-        }
-      } catch {
-      } finally {
-        busy = false;
-      }
-    }, 70);
-
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [ready, device, format, detectMode, isDatasetMode, isRecordingGesture]);
+    setStatus(
+      "Streaming hand tracking requires an Android development build with the native hand tracker module."
+    );
+  }, [ready, isSupported]);
 
   if (!device || !format) {
     return (
@@ -578,19 +353,17 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   return (
     <View style={styles.container}>
-      <HandLandmarksWebView ref={webRef} html={HAND_WEBVIEW_HTML} />
-
       <Camera
-        ref={cameraRef}
         style={StyleSheet.absoluteFill}
         device={device}
         format={format}
         isActive={true}
-        photo={true}
+        photo={false}
         video={false}
         audio={false}
         frameProcessor={frameProcessor}
         isMirrored={cameraPosition === "front"}
+        pixelFormat="rgb"
       />
 
       <View
@@ -706,7 +479,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                           setIsRecordingGesture(false);
                           clearRecordBuffer();
                           clearPredictBuffer();
-                          gestureStrideRef.current = 0;
                         }
                         return next;
                       });
@@ -744,7 +516,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                         setIsRecordingGesture(false);
                         clearRecordBuffer();
                         clearPredictBuffer();
-                        gestureStrideRef.current = 0;
                       }
                       return next;
                     })
@@ -832,7 +603,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                       onPress={() => {
                         clearRecordBuffer();
                         clearPredictBuffer();
-                        gestureStrideRef.current = 0;
                         setStatus("Cleared frames.");
                       }}
                       style={({ pressed }) => [

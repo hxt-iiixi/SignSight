@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["SignSightHandTrackerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.signsighthandtracker.SignSightHandTrackerModule"]
+  }
+}
