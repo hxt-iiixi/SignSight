@@ -148,6 +148,7 @@ need_cmd python3 "Install Python 3.10 or newer."
 need_path "$APP_DIR/node_modules" "Expo dependencies are missing. Run ./init.sh first."
 need_path "$ADMIN_DIR/node_modules" "Admin dependencies are missing. Run ./init.sh first."
 need_path "$SERVER_DIR/.venv" "Backend virtual environment is missing. Run ./init.sh first."
+need_path "$SERVER_DIR/.venv/bin/python" "Backend Python virtual environment is incomplete. Run ./init.sh again."
 need_path "$SERVER_ENV_FILE" "Backend .env is missing. Run ./init.sh first."
 
 MOBILE_API_BASE_VALUE="$(detect_lan_ip)"
@@ -168,7 +169,7 @@ printf '  Backend:  http://127.0.0.1:8000\n'
 printf '  Mobile API: %s\n' "$MOBILE_API_BASE_VALUE"
 printf '\n'
 
-start_service "backend" "$SERVER_DIR" "source .venv/bin/activate && exec uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
+start_service "backend" "$SERVER_DIR" "exec .venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
 start_service "admin" "$ADMIN_DIR" "exec npm run dev"
 log "Launching Expo in the foreground so the QR code and interactive controls stay visible"
 run_foreground_service "$APP_DIR" "exec npx expo start -c"

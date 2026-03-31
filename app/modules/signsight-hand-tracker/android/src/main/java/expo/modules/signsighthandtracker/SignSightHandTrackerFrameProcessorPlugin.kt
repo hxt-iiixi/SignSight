@@ -18,7 +18,7 @@ import com.mrousavy.camera.frameprocessors.VisionCameraProxy
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
-class SignSightHandTrackerFrameProcessorPlugin(
+internal class SignSightHandTrackerFrameProcessorPlugin(
   private val controller: SignSightHandTrackerHandLandmarkerController
 ) : FrameProcessorPlugin() {
   override fun callback(frame: Frame, params: MutableMap<String, Any>?): Any? {
@@ -49,7 +49,7 @@ class SignSightHandTrackerFrameProcessorPlugin(
   }
 }
 
-private class SignSightHandTrackerHandLandmarkerController(
+internal class SignSightHandTrackerHandLandmarkerController(
   context: Context
 ) {
   private val handLandmarker: HandLandmarker
@@ -139,18 +139,18 @@ private class AtomicResultSnapshot {
       return mapOf(
         "landmarks" to null,
         "handedness" to null,
-        "timestampMs" to snapshot.timestampMs,
+        "timestampMs" to snapshot.timestampMs.toDouble(),
         "hasHand" to false,
-        "sequenceId" to snapshot.sequenceId
+        "sequenceId" to snapshot.sequenceId.toDouble()
       )
     }
 
     return mapOf(
       "landmarks" to snapshot.landmarks,
       "handedness" to snapshot.handedness,
-      "timestampMs" to snapshot.timestampMs,
+      "timestampMs" to snapshot.timestampMs.toDouble(),
       "hasHand" to snapshot.hasHand,
-      "sequenceId" to snapshot.sequenceId
+      "sequenceId" to snapshot.sequenceId.toDouble()
     )
   }
 

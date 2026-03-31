@@ -78,6 +78,9 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const [lmFps, setLmFps] = useState(0);
   const lmThisSecondRef = useRef(0);
   const lmLastTickRef = useRef(Date.now());
+  const [predictionRate, setPredictionRate] = useState(0);
+  const predictionThisSecondRef = useRef(0);
+  const predictionLastTickRef = useRef(Date.now());
 
   const [lastLabel, setLastLabel] = useState("Ready");
   const [lastConf, setLastConf] = useState(0);
@@ -132,7 +135,17 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     }
   };
 
-  const { frameProcessor, latestHandFrame, isSupported } =
+  const onPredictionAttempt = () => {
+    predictionThisSecondRef.current += 1;
+    const now = Date.now();
+    if (now - predictionLastTickRef.current >= 1000) {
+      setPredictionRate(predictionThisSecondRef.current);
+      predictionThisSecondRef.current = 0;
+      predictionLastTickRef.current = now;
+    }
+  };
+
+  const { frameProcessor, latestHandFrame, debugState, isSupported } =
     useStreamingHandTracking({
       enabled: ready && !!device && !!format,
       onFrameTick,
@@ -319,6 +332,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       setLastLabel,
       setRawLabel,
       smootherRef,
+      onPredictionAttempt,
     });
   }, [latestHandFrame, detectMode, isRecordingGesture]);
 
@@ -350,6 +364,10 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   const centerTitle = detectMode === "LETTERS" ? "LETTER" : "WORD";
   const displayLabel = lastLabel;
+  const lastSeenAgeMs =
+    debugState.lastValidTimestampMs == null
+      ? null
+      : Math.max(0, Date.now() - debugState.lastValidTimestampMs);
 
   return (
     <View style={styles.container}>
@@ -424,6 +442,21 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             </View>
             <View style={styles.chip}>
               <Text style={styles.chipText}>LM {lmFps}/s</Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>PRED {predictionRate}/s</Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                {debugState.hasHand
+                  ? `HAND ${debugState.landmarkCount}`
+                  : "HAND 0"}
+              </Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                AGE {lastSeenAgeMs == null ? "-" : `${lastSeenAgeMs}ms`}
+              </Text>
             </View>
             <View style={styles.chip}>
               <Text style={styles.chipText}>{detectMode}</Text>

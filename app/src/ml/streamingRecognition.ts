@@ -38,6 +38,7 @@ type RecognitionContext = RecognitionCallbacks &
     apiBase: string;
     detectMode: DetectMode;
     isRecordingGesture: boolean;
+    onPredictionAttempt?: (kind: "landmarks" | "gesture") => void;
   };
 
 export function createStreamingRecognitionBuffers(): StreamingRecognitionBuffers {
@@ -155,6 +156,7 @@ async function processLetterFrame(
   context: RecognitionContext
 ) {
   const buffers = context.buffersRef.current;
+  context.onPredictionAttempt?.("landmarks");
   const res = await fetch(`${context.apiBase}/predict_landmarks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -188,6 +190,7 @@ async function processLetterFrame(
       buffers.lastLetterMotionAtMs = now;
 
       try {
+        context.onPredictionAttempt?.("gesture");
         const motionRes = await fetch(`${context.apiBase}/predict_gesture`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -279,6 +282,7 @@ async function processWordFrame(
   }
   buffers.lastGestureAtMs = now;
 
+  context.onPredictionAttempt?.("gesture");
   const res = await fetch(`${context.apiBase}/predict_gesture`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
