@@ -18,11 +18,14 @@ import com.mrousavy.camera.frameprocessors.VisionCameraProxy
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
+private const val TARGET_INFERENCE_LONG_EDGE = 640
+private const val TARGET_INFERENCE_SHORT_EDGE = 480
+
 internal class SignSightHandTrackerFrameProcessorPlugin(
   private val controller: SignSightHandTrackerHandLandmarkerController
 ) : FrameProcessorPlugin() {
   override fun callback(frame: Frame, params: MutableMap<String, Any>?): Any? {
-    val minProcessIntervalMs = (params?.get("minProcessIntervalMs") as? Number)?.toLong() ?: 24L
+    val minProcessIntervalMs = (params?.get("minProcessIntervalMs") as? Number)?.toLong() ?: 30L
     val maxResultAgeMs = (params?.get("maxResultAgeMs") as? Number)?.toLong() ?: 500L
 
     controller.maybeProcessFrame(frame, minProcessIntervalMs)
@@ -76,7 +79,8 @@ internal class SignSightHandTrackerHandLandmarkerController(
     try {
       val bitmap = imageProxyToBitmap(imageProxy)
       val rotatedBitmap = rotateBitmap(bitmap, imageProxy.imageInfo.rotationDegrees, frame.isMirrored)
-      val mpImage = BitmapImageBuilder(rotatedBitmap).build()
+      val inferenceBitmap = resizeBitmapForInference(rotatedBitmap)
+      val mpImage = BitmapImageBuilder(inferenceBitmap).build()
       handLandmarker.detectAsync(mpImage, timestampMs)
     } catch (_: Throwable) {
     }
@@ -223,4 +227,28 @@ private fun rotateBitmap(bitmap: Bitmap, rotationDegrees: Int, isMirrored: Boole
   }
 
   return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+}
+
+private fun resizeBitmapForInference(bitmap: Bitmap): Bitmap {
+  val width = bitmap.width
+  val height = bitmap.height
+  if (width <= 0 || height <= 0) {
+    return bitmap
+  }
+
+  val longEdge = maxOf(width, height).toFloat()
+  val shortEdge = minOf(width, height).toFloat()
+  val scale = minOf(
+    1f,
+    TARGET_INFERENCE_LONG_EDGE / longEdge,
+    TARGET_INFERENCE_SHORT_EDGE / shortEdge
+  )
+
+  if (scale >= 0.999f) {
+    return bitmap
+  }
+
+  val targetWidth = maxOf(1, (width * scale).toInt())
+  val targetHeight = maxOf(1, (height * scale).toInt())
+  return Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true)
 }

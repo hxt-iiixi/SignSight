@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import {
   Camera,
+  type CameraDeviceFormat,
   useCameraDevice,
   useCameraPermission,
   useCameraFormat,
@@ -36,6 +37,8 @@ const SOFT_PINK = "#FCE7F3";
 const SOFT_YELLOW = "#FEF3C7";
 const SOFT_BLUE = "#DBEAFE";
 const BORDER = "#E5E7EB";
+const TARGET_CAMERA_FPS = 30;
+const TARGET_VIDEO_FORMAT = { width: 640, height: 480 } as const;
 
 const WORD_LABELS = [
   "HELLO",
@@ -69,7 +72,33 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     "back"
   );
   const device = useCameraDevice(cameraPosition);
-  const format = useCameraFormat(device, [{ fps: 30 }]);
+  const lightweightFormat = useCameraFormat(device, [
+    { fps: TARGET_CAMERA_FPS },
+    { videoResolution: TARGET_VIDEO_FORMAT },
+    {
+      videoAspectRatio:
+        TARGET_VIDEO_FORMAT.width / TARGET_VIDEO_FORMAT.height,
+    },
+  ]);
+  const fallbackFormat = useMemo<CameraDeviceFormat | undefined>(() => {
+    if (!device) {
+      return undefined;
+    }
+
+    return [...device.formats]
+      .filter((candidate) => candidate.maxFps >= TARGET_CAMERA_FPS)
+      .sort((left, right) => {
+        const leftPixels = left.videoWidth * left.videoHeight;
+        const rightPixels = right.videoWidth * right.videoHeight;
+
+        if (leftPixels !== rightPixels) {
+          return leftPixels - rightPixels;
+        }
+
+        return left.maxFps - right.maxFps;
+      })[0];
+  }, [device]);
+  const format = lightweightFormat ?? fallbackFormat;
 
   const [fpsCounter, setFpsCounter] = useState(0);
   const framesThisSecondRef = useRef(0);
@@ -456,6 +485,17 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             <View style={styles.chip}>
               <Text style={styles.chipText}>
                 AGE {lastSeenAgeMs == null ? "-" : `${lastSeenAgeMs}ms`}
+              </Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                FMT{" "}
+                {format
+                  ? `${format.videoWidth}x${format.videoHeight}@${Math.min(
+                      TARGET_CAMERA_FPS,
+                      format.maxFps
+                    )}`
+                  : "-"}
               </Text>
             </View>
             <View style={styles.chip}>
