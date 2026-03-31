@@ -14,9 +14,11 @@ export type LandmarkSampleFrame = {
 
 export type StreamingRecognitionBuffers = {
   letterMotionFrames: LandmarkSampleFrame[];
-  recordFrames: LandmarkSampleFrame[];
-  predictFrames: LandmarkSampleFrame[];
+  recordingFrames: LandmarkSampleFrame[];
+  liveWordFrames: LandmarkSampleFrame[];
   lastLetterMotionAtMs: number;
-  lastGestureAtMs: number;
+  lastWordPredictionAtMs: number;
+  lastWordHandAtMs: number;
+  wordNoHandSinceMs: number;
   wordMissCount: number;
 };

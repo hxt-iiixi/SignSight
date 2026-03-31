@@ -15,15 +15,19 @@ export const MIN_PREDICT_FRAMES = 5;
 export const LETTER_CONFIDENCE_THRESHOLD = 0.6;
 export const WORD_CONFIDENCE_THRESHOLD = 0.55;
 export const LETTER_MOTION_CONFIDENCE_THRESHOLD = 0.75;
+export const WORD_NO_HAND_GRACE_MS = 750;
 
 type SetState<T> = (value: T) => void;
 
 type RecognitionCallbacks = {
-  setGestureFramesCount: SetState<number>;
   setLastConf: SetState<number>;
   setLastHandedness: SetState<string | null>;
   setLastLabel: SetState<string>;
   setRawLabel: SetState<string>;
+  setLiveGestureFramesCount: SetState<number>;
+  setRecordingGestureFramesCount: SetState<number>;
+  setWordGraceActive: SetState<boolean>;
+  setLastGesturePredictionAtMs: SetState<number | null>;
 };
 
 type RecognitionRefs = {
@@ -44,10 +48,12 @@ type RecognitionContext = RecognitionCallbacks &
 export function createStreamingRecognitionBuffers(): StreamingRecognitionBuffers {
   return {
     letterMotionFrames: [],
-    recordFrames: [],
-    predictFrames: [],
+    recordingFrames: [],
+    liveWordFrames: [],
     lastLetterMotionAtMs: 0,
-    lastGestureAtMs: 0,
+    lastWordPredictionAtMs: 0,
+    lastWordHandAtMs: 0,
+    wordNoHandSinceMs: 0,
     wordMissCount: 0,
   };
 }
@@ -57,7 +63,13 @@ export function resetStreamingRecognitionState(
   smootherRef: MutableRefObject<MajorityVoteSmoother>,
   callbacks: Pick<
     RecognitionCallbacks,
-    "setGestureFramesCount" | "setLastConf" | "setLastLabel" | "setRawLabel"
+    | "setLiveGestureFramesCount"
+    | "setRecordingGestureFramesCount"
+    | "setWordGraceActive"
+    | "setLastConf"
+    | "setLastGesturePredictionAtMs"
+    | "setLastLabel"
+    | "setRawLabel"
   >
 ) {
   buffersRef.current = createStreamingRecognitionBuffers();
@@ -65,7 +77,10 @@ export function resetStreamingRecognitionState(
   callbacks.setRawLabel("?");
   callbacks.setLastLabel("Ready");
   callbacks.setLastConf(0);
-  callbacks.setGestureFramesCount(0);
+  callbacks.setLiveGestureFramesCount(0);
+  callbacks.setRecordingGestureFramesCount(0);
+  callbacks.setWordGraceActive(false);
+  callbacks.setLastGesturePredictionAtMs(null);
 }
 
 export async function processStreamingHandFrame(
@@ -139,14 +154,34 @@ function handleNoHand(context: RecognitionContext) {
       context.setRawLabel("—");
     }
   } else {
-    buffers.predictFrames = [];
-    buffers.lastGestureAtMs = 0;
+    const now = Date.now();
+    if (buffers.wordNoHandSinceMs === 0) {
+      buffers.wordNoHandSinceMs = now;
+    }
+
+    const lastWordHandAtMs = buffers.lastWordHandAtMs || buffers.wordNoHandSinceMs;
+    const withinGrace = now - lastWordHandAtMs <= WORD_NO_HAND_GRACE_MS;
+
+    if (withinGrace) {
+      if (context.isMountedRef.current) {
+        context.setWordGraceActive(true);
+      }
+      return;
+    }
+
+    buffers.liveWordFrames = [];
+    buffers.lastWordPredictionAtMs = 0;
+    buffers.lastWordHandAtMs = 0;
+    buffers.wordNoHandSinceMs = 0;
+    buffers.wordMissCount = 0;
 
     if (context.isMountedRef.current) {
+      context.setWordGraceActive(false);
       context.setLastLabel("No hand");
       context.setLastConf(0);
       context.setRawLabel("—");
-      context.setGestureFramesCount(0);
+      context.setLiveGestureFramesCount(0);
+      context.setLastGesturePredictionAtMs(null);
     }
   }
 }
@@ -243,51 +278,58 @@ async function processWordFrame(
   context: RecognitionContext
 ) {
   const buffers = context.buffersRef.current;
+  const now = Date.now();
+  buffers.lastWordHandAtMs = now;
+  buffers.wordNoHandSinceMs = 0;
+
+  if (context.isMountedRef.current) {
+    context.setWordGraceActive(false);
+  }
 
   if (context.isRecordingGesture) {
-    buffers.recordFrames.push({ landmarks: hand.landmarks! });
-    if (buffers.recordFrames.length > GESTURE_FRAMES) {
-      buffers.recordFrames.shift();
+    buffers.recordingFrames.push({ landmarks: hand.landmarks! });
+    if (buffers.recordingFrames.length > GESTURE_FRAMES) {
+      buffers.recordingFrames.shift();
     }
 
     if (context.isMountedRef.current) {
-      context.setGestureFramesCount(buffers.recordFrames.length);
-      context.setRawLabel(`${buffers.recordFrames.length}/${GESTURE_FRAMES}`);
+      context.setRecordingGestureFramesCount(buffers.recordingFrames.length);
+      context.setRawLabel(`${buffers.recordingFrames.length}/${GESTURE_FRAMES}`);
       context.setLastLabel("Recording…");
       context.setLastConf(0);
     }
     return;
   }
 
-  buffers.predictFrames.push({ landmarks: hand.landmarks! });
-  if (buffers.predictFrames.length > GESTURE_FRAMES) {
-    buffers.predictFrames.shift();
+  buffers.liveWordFrames.push({ landmarks: hand.landmarks! });
+  if (buffers.liveWordFrames.length > GESTURE_FRAMES) {
+    buffers.liveWordFrames.shift();
   }
 
   if (context.isMountedRef.current) {
-    context.setGestureFramesCount(buffers.predictFrames.length);
+    context.setLiveGestureFramesCount(buffers.liveWordFrames.length);
   }
 
-  if (buffers.predictFrames.length < MIN_PREDICT_FRAMES) {
+  if (buffers.liveWordFrames.length < MIN_PREDICT_FRAMES) {
     if (context.isMountedRef.current) {
-      context.setRawLabel(`${buffers.predictFrames.length}/${GESTURE_FRAMES}`);
+      context.setRawLabel(`${buffers.liveWordFrames.length}/${GESTURE_FRAMES}`);
       context.setLastConf(0);
     }
     return;
   }
 
-  const now = Date.now();
-  if (now - buffers.lastGestureAtMs < WORD_PREDICT_INTERVAL_MS) {
+  if (now - buffers.lastWordPredictionAtMs < WORD_PREDICT_INTERVAL_MS) {
     return;
   }
-  buffers.lastGestureAtMs = now;
+  buffers.lastWordPredictionAtMs = now;
+  context.setLastGesturePredictionAtMs(now);
 
   context.onPredictionAttempt?.("gesture");
   const res = await fetch(`${context.apiBase}/predict_gesture`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      frames: buffers.predictFrames.map((frame) => frame.landmarks),
+      frames: buffers.liveWordFrames.map((frame) => frame.landmarks),
       handedness: hand.handedness ?? null,
     }),
   });
@@ -295,13 +337,6 @@ async function processWordFrame(
   const json = await res.json();
   const word = String(json.label ?? "?");
   const conf = Number(json.confidence ?? 0);
-
-  buffers.predictFrames = [];
-  buffers.lastGestureAtMs = 0;
-
-  if (context.isMountedRef.current) {
-    context.setGestureFramesCount(0);
-  }
 
   if (conf < WORD_CONFIDENCE_THRESHOLD) {
     buffers.wordMissCount += 1;

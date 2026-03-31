@@ -124,7 +124,13 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   type WordLabel = (typeof WORD_LABELS)[number];
   const [selectedWord, setSelectedWord] = useState<WordLabel>("HELLO");
   const [isRecordingGesture, setIsRecordingGesture] = useState(false);
-  const [gestureFramesCount, setGestureFramesCount] = useState(0);
+  const [liveGestureFramesCount, setLiveGestureFramesCount] = useState(0);
+  const [recordingGestureFramesCount, setRecordingGestureFramesCount] =
+    useState(0);
+  const [wordGraceActive, setWordGraceActive] = useState(false);
+  const [lastGesturePredictionAtMs, setLastGesturePredictionAtMs] = useState<
+    number | null
+  >(null);
   const [detectMode, setDetectMode] = useState<DetectMode>("LETTERS");
 
   const [showControls, setShowControls] = useState(true);
@@ -134,14 +140,18 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const isProcessingRef = useRef(false);
 
   const clearRecordBuffer = () => {
-    buffersRef.current.recordFrames = [];
-    setGestureFramesCount(0);
+    buffersRef.current.recordingFrames = [];
+    setRecordingGestureFramesCount(0);
   };
 
   const clearPredictBuffer = () => {
-    buffersRef.current.predictFrames = [];
-    buffersRef.current.lastGestureAtMs = 0;
-    setGestureFramesCount(0);
+    buffersRef.current.liveWordFrames = [];
+    buffersRef.current.lastWordPredictionAtMs = 0;
+    buffersRef.current.lastWordHandAtMs = 0;
+    buffersRef.current.wordNoHandSinceMs = 0;
+    setLiveGestureFramesCount(0);
+    setWordGraceActive(false);
+    setLastGesturePredictionAtMs(null);
   };
 
   const onFrameTick = () => {
@@ -229,12 +239,12 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       const next = !prev;
 
       if (next) {
-        setStatus("Recording gesture… hold steady");
-        buffersRef.current.recordFrames = [];
-        setGestureFramesCount(0);
+      setStatus("Recording gesture… hold steady");
+        buffersRef.current.recordingFrames = [];
+        setRecordingGestureFramesCount(0);
       } else {
         setStatus(
-          `Recording stopped (${buffersRef.current.recordFrames.length}/${GESTURE_FRAMES})`
+          `Recording stopped (${buffersRef.current.recordingFrames.length}/${GESTURE_FRAMES})`
         );
       }
 
@@ -245,7 +255,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const saveGestureSample = async () => {
     try {
       const MIN_FRAMES = 8;
-      if (buffersRef.current.recordFrames.length < MIN_FRAMES) {
+      if (buffersRef.current.recordingFrames.length < MIN_FRAMES) {
         setStatus(`Need at least ${MIN_FRAMES} frames to save.`);
         return;
       }
@@ -257,7 +267,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label: selectedWord,
-          frames: buffersRef.current.recordFrames.map((f) => f.landmarks),
+          frames: buffersRef.current.recordingFrames.map((f) => f.landmarks),
           handedness: lastHandedness ?? null,
         }),
       });
@@ -269,7 +279,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       }
 
       setStatus(
-        `Saved ✅ ${selectedWord} (${buffersRef.current.recordFrames.length} frames)`
+        `Saved ✅ ${selectedWord} (${buffersRef.current.recordingFrames.length} frames)`
       );
     } catch {
       setStatus("Save gesture error");
@@ -333,8 +343,11 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   useEffect(() => {
     resetStreamingRecognitionState(buffersRef, smootherRef, {
-      setGestureFramesCount,
+      setLiveGestureFramesCount,
+      setRecordingGestureFramesCount,
+      setWordGraceActive,
       setLastConf,
+      setLastGesturePredictionAtMs,
       setLastLabel,
       setRawLabel,
     });
@@ -355,8 +368,11 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
       isMountedRef,
       isProcessingRef,
       isRecordingGesture,
-      setGestureFramesCount,
+      setLiveGestureFramesCount,
+      setRecordingGestureFramesCount,
+      setWordGraceActive,
       setLastConf,
+      setLastGesturePredictionAtMs,
       setLastHandedness,
       setLastLabel,
       setRawLabel,
@@ -393,10 +409,17 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   const centerTitle = detectMode === "LETTERS" ? "LETTER" : "WORD";
   const displayLabel = lastLabel;
+  const currentWordFramesCount = isRecordingGesture
+    ? recordingGestureFramesCount
+    : liveGestureFramesCount;
   const lastSeenAgeMs =
     debugState.lastValidTimestampMs == null
       ? null
       : Math.max(0, Date.now() - debugState.lastValidTimestampMs);
+  const lastGesturePredictionAgeMs =
+    lastGesturePredictionAtMs == null
+      ? null
+      : Math.max(0, Date.now() - lastGesturePredictionAtMs);
 
   return (
     <View style={styles.container}>
@@ -434,7 +457,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             <View style={styles.dot} />
             <Text style={styles.centerMeta}>
               {detectMode === "WORDS"
-                ? `${gestureFramesCount}/${GESTURE_FRAMES}`
+                ? `${currentWordFramesCount}/${GESTURE_FRAMES}`
                 : `Hand ${lastHandedness ?? "-"}`}
             </Text>
           </View>
@@ -501,6 +524,33 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
             <View style={styles.chip}>
               <Text style={styles.chipText}>{detectMode}</Text>
             </View>
+            {detectMode === "WORDS" && (
+              <>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    LIVE {liveGestureFramesCount}/{GESTURE_FRAMES}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    REC {recordingGestureFramesCount}/{GESTURE_FRAMES}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    GRACE {wordGraceActive ? "ON" : "OFF"}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    GPRED{" "}
+                    {lastGesturePredictionAgeMs == null
+                      ? "-"
+                      : `${lastGesturePredictionAgeMs}ms`}
+                  </Text>
+                </View>
+              </>
+            )}
           </View>
         ) : (
           <View style={styles.chipsRow}>
@@ -614,7 +664,8 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                       <Text style={styles.smallValue}>{selectedWord}</Text>
                       <View style={{ flex: 1 }} />
                       <Text style={styles.smallMuted}>
-                        Frames {gestureFramesCount}/{GESTURE_FRAMES}
+                        Live {liveGestureFramesCount}/{GESTURE_FRAMES} • Rec{" "}
+                        {recordingGestureFramesCount}/{GESTURE_FRAMES}
                       </Text>
                     </View>
 
@@ -775,7 +826,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                       <Text style={styles.smallValue}>{selectedWord}</Text>
                       <View style={{ flex: 1 }} />
                       <Text style={styles.smallMuted}>
-                        {gestureFramesCount}/{GESTURE_FRAMES}
+                        {currentWordFramesCount}/{GESTURE_FRAMES}
                       </Text>
                     </View>
 
