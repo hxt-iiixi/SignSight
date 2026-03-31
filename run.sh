@@ -11,6 +11,7 @@ MOBILE_ENV_FILE="$APP_DIR/.env.local"
 ADMIN_ENV_FILE="$ADMIN_DIR/.env.local"
 
 PIDS=()
+PGIDS=()
 
 log() {
   printf '[run] %s\n' "$1"
@@ -111,9 +112,19 @@ PY
 cleanup() {
   local code=$?
 
-  if [[ ${#PIDS[@]} -gt 0 ]]; then
+  if [[ ${#PIDS[@]} -gt 0 || ${#PGIDS[@]} -gt 0 ]]; then
     log "Stopping services"
-    kill "${PIDS[@]}" >/dev/null 2>&1 || true
+
+    local pgid
+    for pgid in "${PGIDS[@]}"; do
+      [[ -n "$pgid" ]] || continue
+      kill -- "-$pgid" >/dev/null 2>&1 || true
+    done
+
+    if [[ ${#PIDS[@]} -gt 0 ]]; then
+      kill "${PIDS[@]}" >/dev/null 2>&1 || true
+    fi
+
     wait "${PIDS[@]}" >/dev/null 2>&1 || true
   fi
 
@@ -124,12 +135,30 @@ start_service() {
   local name="$1"
   local dir="$2"
   local cmd="$3"
+  local pgid_file
+  local service_pid=""
+
+  pgid_file="$(mktemp)"
 
   (
     cd "$dir"
-    bash -lc "$cmd" 2>&1 | sed -u "s/^/[$name] /"
+    setsid bash -lc "echo \$\$ > \"$pgid_file\"; $cmd" 2>&1 | sed -u "s/^/[$name] /"
   ) &
-  PIDS+=("$!")
+  service_pid="$!"
+  PIDS+=("$service_pid")
+
+  local pgid=""
+  local deadline=$((SECONDS + 5))
+  while [[ ! -s "$pgid_file" && $SECONDS -lt $deadline ]]; do
+    sleep 0.05
+  done
+
+  if [[ -s "$pgid_file" ]]; then
+    pgid="$(<"$pgid_file")"
+    PGIDS+=("$pgid")
+  fi
+
+  rm -f "$pgid_file"
 }
 
 run_foreground_service() {
@@ -137,7 +166,7 @@ run_foreground_service() {
   local cmd="$2"
 
   cd "$dir"
-  exec bash -lc "$cmd"
+  bash -lc "$cmd"
 }
 
 need_cmd bash "Install bash."
