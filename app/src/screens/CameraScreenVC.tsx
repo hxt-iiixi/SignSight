@@ -29,6 +29,7 @@ import {
   processStreamingHandFrame,
   resetStreamingRecognitionState,
   saveStreamingLandmarkSample,
+  saveStreamingStaticWordLandmarkSample,
 } from "../ml/streamingRecognition";
 import { STATIC_ASL_LABELS } from "../ml/labels";
 import type { DetectMode } from "../ml/streamTypes";
@@ -76,6 +77,13 @@ type LandmarkModelVersion = {
   trained_at?: string;
   is_active?: boolean;
   active_static_letters?: string[];
+};
+type StaticWordModelVersion = {
+  version_id: string;
+  label?: string;
+  trained_at?: string;
+  is_active?: boolean;
+  active_static_word_labels?: string[];
 };
 type LandmarkLabelSummary = {
   label: string;
@@ -198,6 +206,14 @@ export default function CameraScreenVC({
     useState<string | null>(null);
   const [availableLandmarkModelVersions, setAvailableLandmarkModelVersions] =
     useState<LandmarkModelVersion[]>([]);
+  const [activeStaticWordModelVersionId, setActiveStaticWordModelVersionId] =
+    useState<string | null>(null);
+  const [availableStaticWordModelVersions, setAvailableStaticWordModelVersions] =
+    useState<StaticWordModelVersion[]>([]);
+  const [activeStaticWordLabels, setActiveStaticWordLabels] = useState<string[]>([]);
+  const [staticWordLandmarkCounts, setStaticWordLandmarkCounts] = useState<
+    Record<string, { approved: number; pending: number; rejected: number; legacy: number }>
+  >({});
   const [selectedLabelSummary, setSelectedLabelSummary] =
     useState<LandmarkLabelSummary | null>(null);
 
@@ -220,6 +236,10 @@ export default function CameraScreenVC({
   const [modelRenameDrafts, setModelRenameDrafts] = useState<ModelRenameDrafts>(
     {}
   );
+  const selectedWordIsStaticLandmark = selectedWord === "I_LOVE_YOU";
+  const selectedStaticWordCounts = selectedWord
+    ? staticWordLandmarkCounts[selectedWord] ?? null
+    : null;
 
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const isMountedRef = useRef(true);
@@ -335,6 +355,27 @@ export default function CameraScreenVC({
       bootstrap: bootstrapReady,
       full_reviewed: fullReviewedReady,
     });
+    setActiveStaticWordModelVersionId(
+      typeof json.active_static_word_model_version_id === "string"
+        ? json.active_static_word_model_version_id
+        : null
+    );
+    setAvailableStaticWordModelVersions(
+      Array.isArray(json.available_static_word_model_versions)
+        ? json.available_static_word_model_versions
+        : []
+    );
+    setActiveStaticWordLabels(
+      Array.isArray(json.active_static_word_labels)
+        ? json.active_static_word_labels.map(String)
+        : []
+    );
+    setStaticWordLandmarkCounts(
+      typeof json.static_word_landmark_counts === "object" &&
+        json.static_word_landmark_counts !== null
+        ? json.static_word_landmark_counts
+        : {}
+    );
   };
 
   const refreshSelectedLabelSummary = async (
@@ -410,6 +451,64 @@ export default function CameraScreenVC({
       await refreshLabHealth();
       setStatus(
         `Saved approved ✅ ${selectedLabel} (${result.handedness ?? "?"})`
+      );
+    } catch {
+      setStatus("Save error");
+    }
+  };
+
+  const saveOneStaticWordLandmarkSample = async () => {
+    try {
+      const normalizedSignerId = signerId.trim();
+      const normalizedSessionId = captureSessionId.trim();
+      const variantTags = variantTagsText
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (!normalizedSignerId) {
+        setStatus("Signer ID is required.");
+        return;
+      }
+
+      if (!normalizedSessionId) {
+        setStatus("Session ID is required.");
+        return;
+      }
+
+      if (!selectedWord) {
+        setStatus("Select a word first.");
+        return;
+      }
+
+      if (!selectedWordIsStaticLandmark) {
+        setStatus("This word uses the gesture capture flow.");
+        return;
+      }
+
+      setStatus(`Saving static word landmark ${selectedWord}...`);
+
+      const result = await saveStreamingStaticWordLandmarkSample(
+        latestHandFrame,
+        API_BASE,
+        selectedWord,
+        {
+          signerId: normalizedSignerId,
+          captureSessionId: normalizedSessionId,
+          cameraPosition,
+          deviceId: `${Platform.OS}_${cameraPosition}`,
+          variantTags,
+        }
+      );
+
+      if (!result.ok) {
+        setStatus(`Save failed: ${result.error ?? "unknown"}`);
+        return;
+      }
+
+      setLastHandedness(result.handedness ?? null);
+      setStatus(
+        `Saved approved static word ✅ ${selectedWord} (${result.handedness ?? "?"})`
       );
     } catch {
       setStatus("Save error");
@@ -668,6 +767,47 @@ export default function CameraScreenVC({
       setStatus(`Gesture training complete ✅${acc}`);
     } catch (e: any) {
       setStatus(`Gesture training error: ${e?.message ?? String(e)}`);
+    }
+  };
+
+  const trainStaticWordLandmarks = async () => {
+    try {
+      setStatus("Training static word landmark model...");
+
+      const res = await fetch(`${API_BASE}/train_static_word_landmarks`, {
+        method: "POST",
+      });
+
+      const text = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(text);
+      } catch {}
+
+      if (!res.ok) {
+        setStatus(`HTTP ${res.status}: ${text.slice(0, 120)}`);
+        return;
+      }
+
+      if (!json) {
+        setStatus(`Server returned non-JSON: ${text.slice(0, 120)}`);
+        return;
+      }
+
+      if (json.ok === false) {
+        setStatus(`Static word training blocked ❌ ${json.error ?? ""}`.trim());
+        await refreshLabHealth();
+        return;
+      }
+
+      const acc =
+        typeof json.accuracy === "number"
+          ? ` (acc ${Math.round(json.accuracy * 100)}%)`
+          : "";
+      await refreshLabHealth();
+      setStatus(`Static word training complete ✅${acc}`);
+    } catch (e: any) {
+      setStatus(`Static word training error: ${e?.message ?? String(e)}`);
     }
   };
 
@@ -1191,7 +1331,9 @@ export default function CameraScreenVC({
                     </Text>
                     <Text style={styles.targetPickerMeta} numberOfLines={2}>
                       {detectMode === "WORDS"
-                        ? "Choose which gesture label to record and save."
+                        ? selectedWordIsStaticLandmark
+                          ? "Choose which static word landmark target to save and train."
+                          : "Choose which gesture label to record and save."
                         : selectedLabel
                           ? selectedLabelIsActive
                             ? "Active in the serving static model."
@@ -1307,7 +1449,11 @@ export default function CameraScreenVC({
                   ) : (
                     <Text style={styles.labHelperText}>
                       {selectedWord
-                        ? "Selected gesture target for recording and saving."
+                        ? selectedWordIsStaticLandmark
+                          ? activeStaticWordLabels.includes(selectedWord)
+                            ? "Active in the serving static word landmark model."
+                            : "Selected static landmark word target."
+                          : "Selected gesture target for recording and saving."
                         : "No target selected yet."}
                     </Text>
                   )}
@@ -1321,13 +1467,27 @@ export default function CameraScreenVC({
                     value={`${liveGestureFramesCount}/${GESTURE_FRAMES}`}
                   />
                   <LabSummaryPill
-                    label="Recorded"
-                    value={`${recordingGestureFramesCount}/${GESTURE_FRAMES}`}
+                    label={selectedWordIsStaticLandmark ? "Capture" : "Recorded"}
+                    value={
+                      selectedWordIsStaticLandmark
+                        ? "Single frame"
+                        : `${recordingGestureFramesCount}/${GESTURE_FRAMES}`
+                    }
                   />
                   <LabSummaryPill
                     label="State"
-                    value={isRecordingGesture ? "Recording" : "Idle"}
-                    tone={isRecordingGesture ? "accent" : "neutral"}
+                    value={
+                      selectedWordIsStaticLandmark
+                        ? "Static word"
+                        : isRecordingGesture
+                          ? "Recording"
+                          : "Idle"
+                    }
+                    tone={
+                      selectedWordIsStaticLandmark || isRecordingGesture
+                        ? "accent"
+                        : "neutral"
+                    }
                   />
                 </View>
               ) : (
@@ -1390,7 +1550,15 @@ export default function CameraScreenVC({
                   </Text>
                 ) : (
                   <Text style={styles.labStatusModelText}>
-                    Gesture buffer {currentWordFramesCount}/{GESTURE_FRAMES}
+                    {selectedWordIsStaticLandmark
+                      ? `Static word model ${
+                          availableStaticWordModelVersions.find(
+                            (version) => version.is_active
+                          )?.label ??
+                          activeStaticWordModelVersionId ??
+                          "not trained"
+                        } • ${activeStaticWordLabels.length} active words`
+                      : `Gesture buffer ${currentWordFramesCount}/${GESTURE_FRAMES}`}
                   </Text>
                 )}
               </View>
@@ -1448,6 +1616,46 @@ export default function CameraScreenVC({
                       : selectedLabelIsReady
                         ? `${selectedLabel} is quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} and will join the next trained model.`
                         : `${selectedLabel} is still in collection. Keep saving approved samples until it reaches quota for the next retrain.`}
+                  </Text>
+                </View>
+              </LabSection>
+            ) : null}
+
+            {detectMode === "WORDS" && selectedWordIsStaticLandmark ? (
+              <LabSection
+                title="Static Word Dataset"
+                subtitle="Current dataset and model status for this landmark-based word."
+              >
+                <View style={styles.trainingModeCard}>
+                  <Text style={styles.labFieldLabel}>Save policy</Text>
+                  <Text style={styles.labFieldValue}>New samples save as approved</Text>
+                  <Text style={styles.labHelperTextTight}>
+                    I_LOVE_YOU is stored in the static word landmark dataset and counts toward the next static-word retrain immediately.
+                  </Text>
+                </View>
+
+                <View style={styles.labSummaryRow}>
+                  <LabSummaryPill
+                    label="Approved"
+                    value={String(selectedStaticWordCounts?.approved ?? 0)}
+                  />
+                  <LabSummaryPill
+                    label="Pending"
+                    value={String(selectedStaticWordCounts?.pending ?? 0)}
+                  />
+                  <LabSummaryPill
+                    label="Model"
+                    value={activeStaticWordModelVersionId ? "Trained" : "Rule only"}
+                    tone="accent"
+                  />
+                </View>
+
+                <View style={styles.datasetInsightCard}>
+                  <Text style={styles.datasetInsightTitle}>Training status</Text>
+                  <Text style={styles.datasetInsightText}>
+                    {activeStaticWordLabels.includes("I_LOVE_YOU")
+                      ? "I_LOVE_YOU is active in the serving static word landmark model."
+                      : "The static word model will not train yet unless the dataset contains at least 2 approved static word classes. Until then, live recognition falls back to the landmark rule."}
                   </Text>
                 </View>
               </LabSection>
@@ -1549,14 +1757,31 @@ export default function CameraScreenVC({
                 <Ionicons name="alert-circle-outline" size={18} color={ACCENT} />
                 <Text style={styles.trainingNoticeText}>
                   {detectMode === "WORDS"
-                    ? "Train only after you have collected enough clean samples for the current target set."
+                    ? selectedWordIsStaticLandmark
+                      ? "Static word landmark training needs at least 2 approved static word classes before a real classifier can be trained."
+                      : "Train only after you have collected enough clean samples for the current target set."
                     : landmarkTrainingMode === "bootstrap"
                       ? "Bootstrap mode is temporary and should not be treated as the final shared model."
                       : "Full reviewed mode expects the stricter final dataset quotas and signer diversity."}
                 </Text>
               </View>
 
-              {detectMode === "WORDS" ? (
+              {detectMode === "WORDS" && selectedWordIsStaticLandmark ? (
+                <Pressable
+                  onPress={trainStaticWordLandmarks}
+                  style={({ pressed }) => [
+                    styles.btnPrimary,
+                    styles.btnBlock,
+                    pressed && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={styles.btnPrimaryText}>
+                    Train Static Word Landmark Model
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              {detectMode === "WORDS" && !selectedWordIsStaticLandmark ? (
                 <Pressable
                   onPress={trainGestures}
                   style={({ pressed }) => [
@@ -1574,11 +1799,37 @@ export default function CameraScreenVC({
               title="Capture"
               subtitle={
                 detectMode === "WORDS"
-                  ? "Record or save gesture samples for the selected word."
+                  ? selectedWordIsStaticLandmark
+                    ? "Save a single landmark sample for the selected static word."
+                    : "Record or save gesture samples for the selected word."
                   : "Save single-frame landmark samples for the selected label."
               }
             >
               {detectMode === "WORDS" ? (
+                selectedWordIsStaticLandmark ? (
+                  <>
+                    <View style={styles.labFieldCard}>
+                      <View>
+                        <Text style={styles.labFieldLabel}>Static word capture</Text>
+                        <Text style={styles.labFieldValue}>Single landmark sample</Text>
+                        <Text style={styles.labHelperText}>
+                          I_LOVE_YOU uses the landmark dataset, so save one clear held pose instead of recording a gesture sequence.
+                        </Text>
+                      </View>
+                    </View>
+
+                    <Pressable
+                      onPress={saveOneStaticWordLandmarkSample}
+                      style={({ pressed }) => [
+                        styles.btnPrimary,
+                        styles.btnBlock,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                    >
+                      <Text style={styles.btnPrimaryText}>Save Static Word Landmark</Text>
+                    </Pressable>
+                  </>
+                ) : (
                 <>
                   <View
                     style={[
@@ -1646,6 +1897,7 @@ export default function CameraScreenVC({
                     <Text style={styles.btnText}>Clear Live and Recorded Frames</Text>
                   </Pressable>
                 </>
+                )
               ) : (
                 <>
                   <View style={styles.labFieldCard}>

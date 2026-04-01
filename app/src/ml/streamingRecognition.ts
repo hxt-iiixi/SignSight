@@ -163,6 +163,53 @@ export async function saveStreamingLandmarkSample(
   };
 }
 
+export async function saveStreamingStaticWordLandmarkSample(
+  hand: HandTrackingFrameResult | null,
+  apiBase: string,
+  label: string,
+  metadata: {
+    signerId: string;
+    captureSessionId: string;
+    cameraPosition: "front" | "back";
+    deviceId?: string;
+    variantTags?: string[];
+  }
+) {
+  if (!hand?.hasHand || !hand.landmarks || hand.landmarks.length !== 21) {
+    return { ok: false, error: "No hand detected (cannot save)" };
+  }
+
+  const res = await fetch(`${apiBase}/upload_static_word_landmarks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      label,
+      landmarks: hand.landmarks,
+      handedness: hand.handedness ?? null,
+      signer_id: metadata.signerId,
+      capture_session_id: metadata.captureSessionId,
+      device_id: metadata.deviceId ?? null,
+      camera_position: metadata.cameraPosition,
+      accepted: true,
+      review_status: "approved",
+      review_notes: "Approved static word capture from developer lab.",
+      variant_tags: metadata.variantTags ?? [],
+      captured_at: new Date().toISOString(),
+    }),
+  });
+
+  const json = await res.json();
+  if (!res.ok || json.ok === false) {
+    return { ok: false, error: json.error ?? "unknown" };
+  }
+
+  return {
+    ok: true,
+    handedness: hand.handedness ?? null,
+    reviewStatus: String(json.review_status ?? "approved"),
+  };
+}
+
 function handleNoHand(context: RecognitionContext) {
   const buffers = context.buffersRef.current;
 
@@ -341,6 +388,36 @@ async function processWordFrame(
 
   try {
     context.onPredictionAttempt?.("landmarks");
+    const staticWordModelRes = await fetch(
+      `${context.apiBase}/predict_static_word_landmarks`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          landmarks: hand.landmarks,
+          handedness: hand.handedness ?? null,
+        }),
+      }
+    );
+
+    const staticWordModelJson = await staticWordModelRes.json();
+    const staticWordModelLabel = String(staticWordModelJson.label ?? "?");
+    const staticWordModelConf = Number(staticWordModelJson.confidence ?? 0);
+    const staticWordModelAccepted =
+      typeof staticWordModelJson.accepted_prediction === "boolean"
+        ? staticWordModelJson.accepted_prediction
+        : staticWordModelConf >= STATIC_WORD_CONFIDENCE_THRESHOLD;
+
+    if (staticWordModelAccepted && staticWordModelLabel === "I_LOVE_YOU") {
+      buffers.wordMissCount = 0;
+      if (context.isMountedRef.current) {
+        context.setRawLabel(staticWordModelLabel);
+        context.setLastLabel(staticWordModelLabel);
+        context.setLastConf(staticWordModelConf);
+      }
+      return;
+    }
+
     const landmarkRes = await fetch(`${context.apiBase}/predict_landmarks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

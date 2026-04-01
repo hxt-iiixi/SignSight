@@ -16,6 +16,7 @@ from app.core.paths import (
     LANDMARKS_MODEL_PATH,
     LANDMARKS_MODEL_REGISTRY_PATH,
     LANDMARKS_MODEL_VERSIONS_DIR,
+    STATIC_WORD_LANDMARKS_DIR,
 )
 from app.ml.landmarks import analyze_hand_landmarks, landmark_feature_vector
 
@@ -1116,6 +1117,73 @@ def upload_landmarks(
         normalized_record["accepted"] = False
 
     path = LANDMARKS_DIR / f"{normalized_label}.jsonl"
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(json.dumps(normalized_record) + "\n")
+
+    return {
+        "ok": True,
+        "saved": str(path),
+        "review_status": normalized_record["review_status"],
+        "accepted": normalized_record["accepted"],
+    }
+
+
+def upload_static_word_landmark(
+    label: str,
+    landmarks: list,
+    handedness: Optional[str],
+    signer_id: Optional[str] = None,
+    capture_session_id: Optional[str] = None,
+    device_id: Optional[str] = None,
+    camera_position: Optional[str] = None,
+    accepted: Optional[bool] = None,
+    review_status: Optional[str] = None,
+    review_notes: Optional[str] = None,
+    variant_tags: Optional[list[str]] = None,
+    captured_at: Optional[str] = None,
+) -> dict:
+    normalized_label = label.strip().upper()
+    if normalized_label not in STATIC_WORD_LABELS:
+        return {"ok": False, "error": f"Invalid static word label: {normalized_label}"}
+
+    normalized_handedness = _normalize_handedness(handedness)
+    if normalized_handedness is None:
+        return {"ok": False, "error": "Handedness is required and must be Left or Right."}
+
+    if not isinstance(landmarks, list) or len(landmarks) != 21:
+        return {"ok": False, "error": "Exactly 21 landmarks are required."}
+
+    normalized_record = _normalize_landmark_record(
+        {
+            "label": normalized_label,
+            "handedness": normalized_handedness,
+            "landmarks": landmarks,
+            "signer_id": signer_id,
+            "capture_session_id": capture_session_id,
+            "device_id": device_id,
+            "camera_position": camera_position,
+            "accepted": accepted,
+            "review_status": review_status,
+            "review_notes": review_notes,
+            "variant_tags": variant_tags,
+            "captured_at": captured_at
+            or datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        }
+    )
+
+    if not normalized_record["signer_id"]:
+        return {"ok": False, "error": "signer_id is required for the reviewed dataset."}
+    if not normalized_record["capture_session_id"]:
+        return {"ok": False, "error": "capture_session_id is required."}
+    if not normalized_record["camera_position"]:
+        return {"ok": False, "error": "camera_position must be front or back."}
+
+    if normalized_record["review_status"] == "approved" and not normalized_record["accepted"]:
+        return {"ok": False, "error": "Approved records must set accepted=true."}
+    if normalized_record["review_status"] != "approved":
+        normalized_record["accepted"] = False
+
+    path = STATIC_WORD_LANDMARKS_DIR / f"{normalized_label}.jsonl"
     with open(path, "a", encoding="utf-8") as handle:
         handle.write(json.dumps(normalized_record) + "\n")
 

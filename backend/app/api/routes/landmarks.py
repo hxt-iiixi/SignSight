@@ -15,6 +15,11 @@ from app.services.landmark_classifier import (
     rename_landmark_model_version,
     train_landmarks_model,
     upload_landmarks,
+    upload_static_word_landmark,
+)
+from app.services.static_word_landmark_classifier import (
+    predict_static_word_landmarks,
+    train_static_word_landmark_model,
 )
 
 
@@ -44,6 +49,29 @@ def train_landmarks(req: TrainLandmarksReq):
     return train_landmarks_model(req.trainingMode)
 
 
+@router.post("/train_static_word_landmarks")
+def train_static_word_landmarks():
+    return train_static_word_landmark_model()
+
+
+@router.post("/upload_static_word_landmarks")
+def upload_static_word_landmarks_route(req: UploadLandmarksReq):
+    return upload_static_word_landmark(
+        req.label,
+        req.landmarks,
+        req.handedness,
+        signer_id=req.signer_id,
+        capture_session_id=req.capture_session_id,
+        device_id=req.device_id,
+        camera_position=req.camera_position,
+        accepted=req.accepted,
+        review_status=req.review_status,
+        review_notes=req.review_notes,
+        variant_tags=req.variant_tags,
+        captured_at=req.captured_at,
+    )
+
+
 @router.post("/activate_landmark_model")
 def activate_landmark_model(req: ActivateLandmarkModelReq):
     return activate_landmark_model_version(req.versionId)
@@ -66,3 +94,8 @@ def landmark_label_summary_route(req: LandmarkLabelSummaryReq):
 @router.post("/predict_landmarks")
 def predict_landmarks_route(req: PredictLandmarksReq):
     return predict_landmarks(req.landmarks, req.handedness, req.labelSpace)
+
+
+@router.post("/predict_static_word_landmarks")
+def predict_static_word_landmarks_route(req: PredictLandmarksReq):
+    return predict_static_word_landmarks(req.landmarks, req.handedness)
