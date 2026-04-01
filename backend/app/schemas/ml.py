@@ -3,15 +3,6 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class PredictReq(BaseModel):
-    imageBase64: str
-
-
-class UploadReq(BaseModel):
-    label: str
-    imageBase64: str
-
-
 class UploadLandmarksReq(BaseModel):
     label: str
     landmarks: list

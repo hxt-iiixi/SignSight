@@ -103,10 +103,10 @@ Repo training data present now:
 - `PAKYU:3` exists on disk but is excluded from `GESTURE_LABELS`, so it is effectively orphaned.
 
 ### Pixel-model training
-Partially implemented / legacy:
-- There is still a pixel-image dataset path (`dataset/<LABEL>`), `/upload`, `/train`, and `/predict` using grayscale cropped `64x64` images and an SVC ([server.py](/home/fkrul3s47/Documents/Projects/SignSight/app/src/server/server.py#L242), [server.py](/home/fkrul3s47/Documents/Projects/SignSight/app/src/server/server.py#L413)).
-- The active app does not use this path. The old `CameraScreen` can still invoke it from the archive, but `App.js` no longer routes there ([App.js](/home/fkrul3s47/Documents/Projects/SignSight/app/App.js#L123), [CameraScreen.tsx](/home/fkrul3s47/Documents/Projects/SignSight/app/archive/recognition/CameraScreen.tsx#L158)).
-- Pixel dataset in repo is only A/B/C with 640 total images, which is not a full alphabet training set.
+Retired from the live backend:
+- The old pixel-image dataset path (`dataset/<LABEL>`) and `/upload`, `/train`, `/predict` grayscale image endpoints were legacy compatibility code and are no longer part of the live FastAPI backend.
+- Archived mobile and server files may still mention that path for historical context, but the active app and active backend now use only landmark and gesture datasets/models.
+- The leftover pixel dataset in repo is still only A/B/C with 640 total images, so it remains historical data rather than part of the current production path.
 
 ## 5. Major Screens, Modules, and Services
 

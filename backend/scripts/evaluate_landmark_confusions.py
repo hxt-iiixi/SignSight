@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
+import sys
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 import numpy as np
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
+from app.core.paths import LANDMARKS_DIR
+from app.ml.landmarks import analyze_hand_landmarks, landmark_feature_vector
 from app.services.landmark_classifier import (
     _maybe_apply_rule_override,
     _top_predictions,
@@ -46,41 +54,21 @@ def train_eval_model():
     return model, Xte, yte
 
 
-def evaluate_rows(model: SVC, Xte: np.ndarray, yte: np.ndarray) -> list[EvalRow]:
-    rows: list[EvalRow] = []
-    for vec, truth in zip(Xte, yte, strict=False):
-        vec_2d = vec.reshape(1, -1)
-        top_labels, top_scores = _top_predictions(model, vec_2d)
-        raw_pred = str(top_labels[0])
-        raw_conf = float(top_scores[0])
-        adjusted_pred, _ = _maybe_apply_rule_override(
-            raw_pred,
-            raw_conf,
-            top_labels,
-            top_scores,
-            {},  # placeholder, replaced below
-        )
-        rows.append(EvalRow(truth=str(truth), raw_pred=raw_pred, adjusted_pred=adjusted_pred))
-    return rows
-
-
 def evaluate_rows_with_rules(model: SVC, Xte: np.ndarray, yte: np.ndarray) -> list[EvalRow]:
-    from pathlib import Path
     import json
-    from app.ml.landmarks import analyze_hand_landmarks, landmark_feature_vector
 
     # Reconstruct a lookup from engineered vector bytes to original landmarks so the exact
     # same test split can be evaluated with analysis-backed rules.
     vector_to_landmarks: dict[bytes, tuple[list, str | None]] = {}
-    for path in Path("landmarks").glob("*.jsonl"):
-      with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-          try:
-            obj = json.loads(line)
-          except Exception:
-            continue
-          vec = landmark_feature_vector(obj["landmarks"], obj.get("handedness"))
-          vector_to_landmarks[vec.tobytes()] = (obj["landmarks"], obj.get("handedness"))
+    for path in LANDMARKS_DIR.glob("*.jsonl"):
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                vec = landmark_feature_vector(obj["landmarks"], obj.get("handedness"))
+                vector_to_landmarks[vec.tobytes()] = (obj["landmarks"], obj.get("handedness"))
 
     rows: list[EvalRow] = []
     for vec, truth in zip(Xte, yte, strict=False):
