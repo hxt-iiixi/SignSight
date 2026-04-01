@@ -52,6 +52,8 @@ backend/.env.local
 # production
 /build
 
+.codex
+
 # misc
 .DS_Store
 *.pem
