@@ -684,9 +684,35 @@ def _suggest_rule_label(
     if _family_active(raw_label, top_labels, {"C", "O", "F"}):
         return _classify_cof_family(analysis)
 
-    if _family_active(raw_label, top_labels, {"A", "S"}):
+    if _family_active(raw_label, top_labels, {"A", "S"}) and {"A", "S"} <= set(top_labels):
         if fist_like:
             return "A" if float(extension_scores[0]) > 0.52 else "S"
+
+    if _family_active(raw_label, top_labels, {"E", "S", "T"}):
+        fingertips_tucked = float(np.mean(folded_finger_tips_to_palm)) < 0.42
+        thumb_cross_y = float(thumb_crossing[1])
+        thumb_cross_norm = float(thumb_crossing[2])
+        mean_inner_extension = float(np.mean(extension_scores[1:]))
+        mean_inner_curl = float(np.mean(curl_scores[1:]))
+
+        if (
+            fingertips_tucked
+            and thumb_closest_base == 0
+            and thumb_cross_norm >= 0.42
+            and thumb_cross_y <= -0.22
+        ):
+            return "T"
+        if (
+            fingertips_tucked
+            and thumb_cross_y <= -0.08
+            and thumb_cross_norm >= 0.14
+            and mean_inner_extension <= 0.36
+            and mean_inner_curl >= 0.55
+        ):
+            return "S"
+        if fingertips_tucked and thumb_cross_norm <= 0.20 and thumb_cross_y >= -0.12:
+            return "E"
+        return "S"
 
     if _family_active(raw_label, top_labels, {"M", "N", "T", "S"}):
         if fist_like:
@@ -697,14 +723,6 @@ def _suggest_rule_label(
             if float(thumb_to_tip_distance[0]) < 0.20:
                 return "T"
             return "S"
-
-    if _family_active(raw_label, top_labels, {"E", "S", "T"}):
-        fingertips_tucked = float(np.mean(folded_finger_tips_to_palm)) < 0.42
-        if fingertips_tucked and float(thumb_crossing[2]) < 0.34:
-            return "E"
-        if float(thumb_to_tip_distance[0]) < 0.20:
-            return "T"
-        return "S"
 
     return None
 
