@@ -169,6 +169,10 @@ def _dataset_summary() -> dict:
     return {"labels": summary, "approved_records": approved_records}
 
 
+def load_approved_landmark_records() -> list[dict]:
+    return list(_dataset_summary()["approved_records"])
+
+
 def _training_gate_failures(summary: dict) -> list[str]:
     failures: list[str] = []
     label_stats = summary["labels"]
@@ -196,8 +200,7 @@ def _training_gate_failures(summary: dict) -> list[str]:
 
 def load_landmarks_dataset():
     X, y = [], []
-    summary = _dataset_summary()
-    for record in summary["approved_records"]:
+    for record in load_approved_landmark_records():
         try:
             X.append(landmark_feature_vector(record["landmarks"], record["handedness"]))
             y.append(record["label"])
@@ -236,6 +239,7 @@ def _suggest_rule_label(
 ) -> Optional[str]:
     extended = analysis["extended_flags"] > 0.5
     extension_scores = analysis["extension_scores"]
+    curl_scores = analysis["curl_scores"]
     adjacent_tip_distance = analysis["adjacent_tip_distance"]
     thumb_to_tip_distance = analysis["thumb_to_tip_distance"]
     thumb_crossing = analysis["thumb_crossing"]
@@ -279,9 +283,29 @@ def _suggest_rule_label(
             return "D"
 
     if _family_active(raw_label, top_labels, {"C", "O", "F"}):
+        thumb_index_closed = float(thumb_to_tip_distance[0]) < 0.24
+        thumb_middle_near = float(thumb_to_tip_distance[1]) < 0.36
+        thumb_ring_near = float(thumb_to_tip_distance[2]) < 0.52
+        fingers_curved = float(np.mean(curl_scores[1:])) > 0.24
+        fingers_not_fully_extended = float(np.mean(extension_scores[1:4])) < 0.72
+
+        if (
+            thumb_index_closed
+            and fingers_curved
+            and fingers_not_fully_extended
+            and (thumb_middle_near or thumb_ring_near)
+            and aperture < 0.94
+        ):
+            return "O"
+
         if float(thumb_to_tip_distance[0]) < 0.16:
-            return "F" if int(np.sum(extended[1:4])) >= 2 else "O"
-        if aperture > 0.78:
+            return (
+                "F"
+                if int(np.sum(extended[1:4])) >= 2
+                and float(np.mean(curl_scores[1:4])) < 0.45
+                else "O"
+            )
+        if aperture > 0.92:
             return "C"
 
     if _family_active(raw_label, top_labels, {"A", "S"}):
@@ -309,6 +333,30 @@ def _suggest_rule_label(
     return None
 
 
+def _rule_confidence_floor(suggested: str, analysis: dict) -> Optional[float]:
+    if suggested != "O":
+        return None
+
+    thumb_to_tip_distance = analysis["thumb_to_tip_distance"]
+    curl_scores = analysis["curl_scores"]
+    aperture = float(analysis["aperture"])
+
+    thumb_index_closed = float(thumb_to_tip_distance[0]) < 0.24
+    thumb_middle_near = float(thumb_to_tip_distance[1]) < 0.36
+    thumb_ring_near = float(thumb_to_tip_distance[2]) < 0.52
+    fingers_curved = float(np.mean(curl_scores[1:])) > 0.24
+
+    if (
+        thumb_index_closed
+        and fingers_curved
+        and (thumb_middle_near or thumb_ring_near)
+        and aperture < 0.94
+    ):
+        return 0.68
+
+    return None
+
+
 def _maybe_apply_rule_override(
     raw_label: str,
     raw_confidence: float,
@@ -329,10 +377,15 @@ def _maybe_apply_rule_override(
     if not suggested:
         return raw_label, raw_confidence
 
-    if suggested not in top_candidates:
+    confidence_floor = _rule_confidence_floor(suggested, analysis)
+
+    if suggested not in top_candidates and confidence_floor is None:
         return raw_label, raw_confidence
 
-    final_confidence = min(raw_confidence, CONFIDENCE_OVERRIDE_MAX)
+    final_confidence = raw_confidence
+    if confidence_floor is not None:
+        final_confidence = max(final_confidence, confidence_floor)
+    final_confidence = min(final_confidence, CONFIDENCE_OVERRIDE_MAX)
     return suggested, float(final_confidence)
 
 

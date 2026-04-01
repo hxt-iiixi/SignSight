@@ -556,33 +556,35 @@ export default function CameraScreenVC({
         />
       </View>
 
-      <View
-        pointerEvents="none"
-        style={[
-          styles.centerHudWrap,
-          {
-            paddingHorizontal: PAD,
-            top: isLab ? TOP + 88 : "48%",
-          },
-        ]}
-      >
-        <View style={[styles.centerHud, isLab && styles.centerHudLab]}>
-          <Text style={styles.centerKicker}>{centerTitle}</Text>
-          <Text style={styles.centerLabel} numberOfLines={1}>
-            {displayLabel}
-          </Text>
-
-          <View style={styles.centerMetaRow}>
-            <Text style={styles.centerMeta}>{Math.round(lastConf * 100)}%</Text>
-            <View style={styles.dot} />
-            <Text style={styles.centerMeta}>
-              {detectMode === "WORDS"
-                ? `${currentWordFramesCount}/${GESTURE_FRAMES}`
-                : `Hand ${lastHandedness ?? "-"}`}
+      {isLab ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.centerHudWrap,
+            {
+              paddingHorizontal: PAD,
+              top: TOP + 88,
+            },
+          ]}
+        >
+          <View style={[styles.centerHud, styles.centerHudLab]}>
+            <Text style={styles.centerKicker}>{centerTitle}</Text>
+            <Text style={styles.centerLabel} numberOfLines={1}>
+              {displayLabel}
             </Text>
+
+            <View style={styles.centerMetaRow}>
+              <Text style={styles.centerMeta}>{Math.round(lastConf * 100)}%</Text>
+              <View style={styles.dot} />
+              <Text style={styles.centerMeta}>
+                {detectMode === "WORDS"
+                  ? `${currentWordFramesCount}/${GESTURE_FRAMES}`
+                  : `Hand ${lastHandedness ?? "-"}`}
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
+      ) : null}
 
       <View style={[styles.topHud, { top: TOP, left: PAD, right: PAD }]}>
         <Pressable onPress={onBack} style={styles.backBtn}>
@@ -1004,6 +1006,23 @@ export default function CameraScreenVC({
         </View>
       ) : (
         <View style={[styles.translatorControlsWrap, { left: PAD, right: PAD }]}>
+          <View style={styles.centerHud}>
+            <Text style={styles.centerKicker}>{centerTitle}</Text>
+            <Text style={styles.centerLabel} numberOfLines={1}>
+              {displayLabel}
+            </Text>
+
+            <View style={styles.centerMetaRow}>
+              <Text style={styles.centerMeta}>{Math.round(lastConf * 100)}%</Text>
+              <View style={styles.dot} />
+              <Text style={styles.centerMeta}>
+                {detectMode === "WORDS"
+                  ? `${currentWordFramesCount}/${GESTURE_FRAMES}`
+                  : `Hand ${lastHandedness ?? "-"}`}
+              </Text>
+            </View>
+          </View>
+
           <View style={styles.translatorControls}>
             <Pressable
               onPress={() => {
@@ -1206,7 +1225,11 @@ const styles = StyleSheet.create({
     padding: 14,
     paddingBottom: 18,
   },
-  translatorControlsWrap: { position: "absolute", bottom: 18 },
+  translatorControlsWrap: {
+    position: "absolute",
+    bottom: 18,
+    gap: 12,
+  },
   translatorControls: {
     flexDirection: "row",
     gap: 10,
