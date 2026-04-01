@@ -135,7 +135,7 @@ export function useStreamingHandTracking({
       onFrameTickJS?.();
 
       const result = detectHands(frame, {
-        minProcessIntervalMs: 24,
+        minProcessIntervalMs: 20,
         maxResultAgeMs: 450,
       });
 

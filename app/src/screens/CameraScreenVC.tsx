@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type LayoutChangeEvent,
   View,
   Text,
   StyleSheet,
@@ -16,6 +17,7 @@ import {
   useCameraFormat,
 } from "react-native-vision-camera";
 
+import HandLandmarkOverlay from "../components/HandLandmarkOverlay";
 import { MajorityVoteSmoother } from "../ml/smoother";
 import { API_BASE } from "../config/api";
 import {
@@ -134,6 +136,9 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const [detectMode, setDetectMode] = useState<DetectMode>("LETTERS");
 
   const [showControls, setShowControls] = useState(true);
+  const [showHandOverlay, setShowHandOverlay] = useState(true);
+  const [cameraLayout, setCameraLayout] = useState({ width: 0, height: 0 });
+  const [isOverlaySmoothing, setIsOverlaySmoothing] = useState(false);
 
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const isMountedRef = useRef(true);
@@ -199,6 +204,16 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const nextWord = () => {
     const i = WORD_LABELS.indexOf(selectedWord);
     setSelectedWord(WORD_LABELS[(i + 1) % WORD_LABELS.length]);
+  };
+
+  const onCameraLayout = (event: LayoutChangeEvent) => {
+    const { width: nextWidth, height: nextHeight } = event.nativeEvent.layout;
+    setCameraLayout((current) => {
+      if (current.width === nextWidth && current.height === nextHeight) {
+        return current;
+      }
+      return { width: nextWidth, height: nextHeight };
+    });
   };
 
   const saveOneLandmarkSample = async () => {
@@ -391,6 +406,27 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     );
   }, [ready, isSupported]);
 
+  const orientedFrame = useMemo(() => {
+    if (!format) {
+      return { width: 0, height: 0 };
+    }
+
+    const previewIsPortrait = cameraLayout.height >= cameraLayout.width;
+    const formatIsPortrait = format.videoHeight >= format.videoWidth;
+
+    if (previewIsPortrait !== formatIsPortrait) {
+      return {
+        width: format.videoHeight,
+        height: format.videoWidth,
+      };
+    }
+
+    return {
+      width: format.videoWidth,
+      height: format.videoHeight,
+    };
+  }, [cameraLayout.height, cameraLayout.width, format]);
+
   if (!device || !format) {
     return (
       <View style={styles.center}>
@@ -423,18 +459,37 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
   return (
     <View style={styles.container}>
-      <Camera
-        style={StyleSheet.absoluteFill}
-        device={device}
-        format={format}
-        isActive={true}
-        photo={false}
-        video={false}
-        audio={false}
-        frameProcessor={frameProcessor}
-        isMirrored={cameraPosition === "front"}
-        pixelFormat="rgb"
-      />
+      <View style={styles.cameraSurface} onLayout={onCameraLayout}>
+        <Camera
+          style={StyleSheet.absoluteFill}
+          device={device}
+          format={format}
+          isActive={true}
+          photo={false}
+          video={false}
+          audio={false}
+          frameProcessor={frameProcessor}
+          isMirrored={cameraPosition === "front"}
+          resizeMode="cover"
+          pixelFormat="rgb"
+        />
+        <HandLandmarkOverlay
+          landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}
+          landmarkTimestampMs={latestHandFrame?.timestampMs ?? null}
+          cameraPosition={cameraPosition}
+          previewWidth={cameraLayout.width}
+          previewHeight={cameraLayout.height}
+          frameWidth={orientedFrame.width}
+          frameHeight={orientedFrame.height}
+          onSmoothingChange={setIsOverlaySmoothing}
+          visible={
+            uiMode === "ADVANCED" &&
+            showHandOverlay &&
+            !!latestHandFrame?.hasHand &&
+            (latestHandFrame?.landmarks?.length ?? 0) === 21
+          }
+        />
+      </View>
 
       <View
         pointerEvents="none"
@@ -519,6 +574,21 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                       format.maxFps
                     )}`
                   : "-"}
+              </Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                VIEW {Math.round(cameraLayout.width)}x{Math.round(cameraLayout.height)}
+              </Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                ORIENT {orientedFrame.width}x{orientedFrame.height}
+              </Text>
+            </View>
+            <View style={styles.chip}>
+              <Text style={styles.chipText}>
+                SMOOTH {isOverlaySmoothing ? "ON" : "OFF"}
               </Text>
             </View>
             <View style={styles.chip}>
@@ -629,6 +699,25 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
                     </Text>
                   </Pressable>
                 </View>
+
+                <Pressable
+                  onPress={() => setShowHandOverlay((value) => !value)}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    pressed && { opacity: 0.85 },
+                    showHandOverlay && styles.btnAccent,
+                    { marginTop: 10 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.btnText,
+                      showHandOverlay && styles.btnTextDark,
+                    ]}
+                  >
+                    {showHandOverlay ? "Hand Overlay ON" : "Hand Overlay OFF"}
+                  </Text>
+                </Pressable>
 
                 <Pressable
                   onPress={() =>
@@ -874,6 +963,9 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: BG },
+  cameraSurface: {
+    ...StyleSheet.absoluteFillObject,
+  },
   center: {
     flex: 1,
     alignItems: "center",
