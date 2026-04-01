@@ -4,6 +4,7 @@ from app.schemas.ml import (
     ActivateLandmarkModelReq,
     LandmarkLabelSummaryReq,
     PredictLandmarksReq,
+    RenameLandmarkModelReq,
     TrainLandmarksReq,
     UploadLandmarksReq,
 )
@@ -11,6 +12,7 @@ from app.services.landmark_classifier import (
     activate_landmark_model_version,
     landmark_label_summary,
     predict_landmarks,
+    rename_landmark_model_version,
     train_landmarks_model,
     upload_landmarks,
 )
@@ -45,6 +47,11 @@ def train_landmarks(req: TrainLandmarksReq):
 @router.post("/activate_landmark_model")
 def activate_landmark_model(req: ActivateLandmarkModelReq):
     return activate_landmark_model_version(req.versionId)
+
+
+@router.post("/rename_landmark_model")
+def rename_landmark_model(req: RenameLandmarkModelReq):
+    return rename_landmark_model_version(req.versionId, req.label)
 
 
 @router.post("/landmark_label_summary")

@@ -494,6 +494,54 @@ def activate_landmark_model_version(version_id: str) -> dict:
     }
 
 
+def rename_landmark_model_version(version_id: str, label: str) -> dict:
+    global landmark_model_metadata
+    requested_version = _clean_optional_string(version_id)
+    next_label = _clean_optional_string(label)
+    if not requested_version:
+        return {"ok": False, "error": "version_id is required."}
+    if not next_label:
+        return {"ok": False, "error": "label is required."}
+
+    registry = _ensure_legacy_landmark_model_versioned()
+    versions = registry.get("versions", [])
+    matching = next(
+        (entry for entry in versions if str(entry.get("version_id")) == requested_version),
+        None,
+    )
+    if not matching:
+        return {"ok": False, "error": f"Unknown landmark model version: {requested_version}"}
+
+    matching["label"] = next_label
+    registry["versions"] = versions
+    _persist_landmark_model_registry(registry)
+
+    metadata_path = _landmark_model_metadata_path_for_version(requested_version)
+    metadata: dict[str, object]
+    if metadata_path.exists():
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            metadata = {}
+    else:
+        metadata = {}
+    metadata["label"] = next_label
+    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+
+    if _active_landmark_model_version_id() == requested_version:
+        landmark_model_metadata = {**landmark_model_metadata, "label": next_label}
+        _persist_landmark_model_metadata(landmark_model_metadata)
+        _sync_active_model_aliases(requested_version, landmark_model_metadata)
+
+    return {
+        "ok": True,
+        "version_id": requested_version,
+        "label": next_label,
+        "active_version_id": _active_landmark_model_version_id(),
+        "available_versions": _available_landmark_model_versions(),
+    }
+
+
 def _top_predictions(model: SVC, vec: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     probabilities = model.predict_proba(vec)[0]
     order = np.argsort(probabilities)[::-1]
@@ -513,6 +561,12 @@ def _fingertips_cross(points: np.ndarray, first: tuple[int, int], second: tuple[
     ) < 0.0
 
 
+
+
+
+
+
+# Finger hand landmark rules.
 def _suggest_rule_label(
     raw_label: str,
     top_labels: list[str],

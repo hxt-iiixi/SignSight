@@ -31,6 +31,11 @@ class ActivateLandmarkModelReq(BaseModel):
     versionId: str
 
 
+class RenameLandmarkModelReq(BaseModel):
+    versionId: str
+    label: str
+
+
 class LandmarkLabelSummaryReq(BaseModel):
     label: str
     captureSessionId: Optional[str] = None

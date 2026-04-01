@@ -89,6 +89,8 @@ type LandmarkLabelSummary = {
   session_rejected: number;
 };
 
+type ModelRenameDrafts = Record<string, string>;
+
 function createDefaultCaptureSessionId() {
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -207,6 +209,9 @@ export default function CameraScreenVC({
   const [isOverlaySmoothing, setIsOverlaySmoothing] = useState(false);
   const [showLabDiagnostics, setShowLabDiagnostics] = useState(false);
   const [showModelVersions, setShowModelVersions] = useState(false);
+  const [modelRenameDrafts, setModelRenameDrafts] = useState<ModelRenameDrafts>(
+    {}
+  );
 
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const isMountedRef = useRef(true);
@@ -287,6 +292,9 @@ export default function CameraScreenVC({
   const refreshLabHealth = async () => {
     const res = await fetch(`${API_BASE}/health`);
     const json = await res.json();
+    const versions = Array.isArray(json.available_landmark_model_versions)
+      ? json.available_landmark_model_versions
+      : [];
     setActiveStaticLetters(
       Array.isArray(json.active_static_letters)
         ? json.active_static_letters.map(String)
@@ -315,11 +323,17 @@ export default function CameraScreenVC({
         ? json.active_landmark_model_version_id
         : null
     );
-    setAvailableLandmarkModelVersions(
-      Array.isArray(json.available_landmark_model_versions)
-        ? json.available_landmark_model_versions
-        : []
-    );
+    setAvailableLandmarkModelVersions(versions);
+    setModelRenameDrafts((current) => {
+      const next = { ...current };
+      versions.forEach((version: LandmarkModelVersion) => {
+        const versionId = String(version.version_id);
+        if (!next[versionId]) {
+          next[versionId] = String(version.label ?? versionId);
+        }
+      });
+      return next;
+    });
     setReadyStaticLettersByMode({
       bootstrap: bootstrapReady,
       full_reviewed: fullReviewedReady,
@@ -399,7 +413,7 @@ export default function CameraScreenVC({
   const trainLandmarks = async () => {
     try {
       setStatus(
-        `Training landmarks (${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"})...`
+        `Retraining from saved dataset (${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"})...`
       );
       const res = await fetch(`${API_BASE}/train_landmarks`, {
         method: "POST",
@@ -434,10 +448,20 @@ export default function CameraScreenVC({
             ? json.available_versions
             : []
         );
+        setModelRenameDrafts((current) => {
+          const next = { ...current };
+          (Array.isArray(json.available_versions) ? json.available_versions : []).forEach(
+            (version: LandmarkModelVersion) => {
+              const versionId = String(version.version_id);
+              next[versionId] = String(version.label ?? versionId);
+            }
+          );
+          return next;
+        });
         setActiveStaticLetters(active);
         await refreshSelectedLabelSummary();
         setStatus(
-          `Training complete ✅${acc} ${json.training_mode === "bootstrap" ? "Bootstrap" : "Full reviewed"} model: ${active.length}/${STATIC_ASL_LABELS.length} active`
+          `New model version created ✅${acc} ${json.training_mode === "bootstrap" ? "Bootstrap" : "Full reviewed"}: ${active.length}/${STATIC_ASL_LABELS.length} active`
         );
         return;
       }
@@ -486,10 +510,57 @@ export default function CameraScreenVC({
           ? json.available_versions
           : []
       );
+      setModelRenameDrafts((current) => {
+        const next = { ...current };
+        (Array.isArray(json.available_versions) ? json.available_versions : []).forEach(
+          (version: LandmarkModelVersion) => {
+            const versionId = String(version.version_id);
+            next[versionId] = String(version.label ?? versionId);
+          }
+        );
+        return next;
+      });
       await refreshSelectedLabelSummary();
       setStatus(`Switched active model ✅ ${versionId}`);
     } catch {
       setStatus("Version switch error");
+    }
+  };
+
+  const renameLandmarkModelVersion = async (versionId: string) => {
+    try {
+      const nextLabel = (modelRenameDrafts[versionId] ?? "").trim();
+      if (!nextLabel) {
+        setStatus("Model name cannot be empty.");
+        return;
+      }
+      setStatus(`Renaming model ${versionId}...`);
+      const res = await fetch(`${API_BASE}/rename_landmark_model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId, label: nextLabel }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setStatus(`Rename failed: ${json.error ?? "unknown"}`);
+        return;
+      }
+      const versions = Array.isArray(json.available_versions)
+        ? json.available_versions
+        : [];
+      setAvailableLandmarkModelVersions(versions);
+      setModelRenameDrafts((current) => {
+        const next = { ...current, [versionId]: nextLabel };
+        versions.forEach((version: LandmarkModelVersion) => {
+          const id = String(version.version_id);
+          next[id] = String(version.label ?? id);
+        });
+        return next;
+      });
+      await refreshLabHealth();
+      setStatus(`Model renamed ✅ ${nextLabel}`);
+    } catch {
+      setStatus("Rename error");
     }
   };
 
@@ -1099,7 +1170,7 @@ export default function CameraScreenVC({
                       ? `${selectedLabel} is already active in the serving static model.`
                       : selectedLabelIsReady
                         ? `${selectedLabel} is quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} and will join the next trained model.`
-                        : `${selectedLabel} is still in collection. Keep saving samples, then approve them before training.`}
+                        : `${selectedLabel} is still in collection. Keep saving approved samples until it reaches quota for the next retrain.`}
                   </Text>
                 </View>
               </LabSection>
@@ -1110,12 +1181,12 @@ export default function CameraScreenVC({
               subtitle={
                 detectMode === "WORDS"
                   ? "Model training is separate from capture so it is harder to trigger by accident."
-                  : "Train a new landmark model first, then switch between saved model versions when needed."
+                  : "Retrain from the saved landmark dataset, create a new model version, then switch the active model when you are ready."
               }
             >
               {detectMode === "LETTERS" ? (
                 <View style={styles.trainingModeCard}>
-                  <Text style={styles.labFieldLabel}>New model</Text>
+                  <Text style={styles.labFieldLabel}>Retrain from saved dataset</Text>
                   <View style={styles.btnRow}>
                     <Pressable
                       onPress={() => setLandmarkTrainingMode("bootstrap")}
@@ -1158,17 +1229,17 @@ export default function CameraScreenVC({
                   </View>
                   <Text style={styles.labFieldValue}>
                     {landmarkTrainingMode === "bootstrap"
-                      ? "Train Bootstrap Model"
-                      : "Train Full Reviewed Model"}
+                      ? "Retrain Bootstrap Model"
+                      : "Retrain Full Reviewed Model"}
                   </Text>
                   <Text style={styles.labHelperTextTight}>
                     {landmarkTrainingMode === "bootstrap"
                       ? "Bootstrap mode is for solo or early internal testing with lower quotas."
                       : "Full reviewed mode uses the stricter final dataset quotas."}{" "}
-                    Training creates a new model version and does not overwrite the old one.
+                    Retraining uses the saved approved landmark dataset and creates a new model version without overwriting the old one.
                   </Text>
                   <Text style={styles.inputHelperText}>
-                    Current trained model:{" "}
+                    Current serving mode:{" "}
                     {currentLandmarkTrainingMode === "bootstrap"
                       ? "bootstrap"
                       : "full reviewed"}
@@ -1190,8 +1261,8 @@ export default function CameraScreenVC({
                   >
                     <Text style={styles.btnPrimaryText}>
                       {landmarkTrainingMode === "bootstrap"
-                        ? "Train New Bootstrap Model"
-                        : "Train New Full Reviewed Model"}
+                        ? "Create New Bootstrap Model Version"
+                        : "Create New Full Reviewed Model Version"}
                     </Text>
                   </Pressable>
                 </View>
@@ -1199,7 +1270,7 @@ export default function CameraScreenVC({
 
               {detectMode === "LETTERS" && availableLandmarkModelVersions.length > 0 ? (
                 <View style={styles.trainingModeCard}>
-                  <Text style={styles.labFieldLabel}>Active model</Text>
+                  <Text style={styles.labFieldLabel}>Switch active model</Text>
                   <Text style={styles.labFieldValue}>
                     {String(
                       activeLandmarkModelVersion?.label ??
@@ -1221,8 +1292,42 @@ export default function CameraScreenVC({
                             ? `${activeLandmarkModelVersion.active_static_letters.length} active letters`
                             : "unknown classes"
                         }`
-                      : "Use a trained version for live predictions."}
+                      : "Choose which saved model version should serve live predictions."}
                   </Text>
+                  {activeLandmarkModelVersionId ? (
+                    <View style={styles.renameRow}>
+                      <TextInput
+                        value={
+                          modelRenameDrafts[activeLandmarkModelVersionId] ??
+                          String(
+                            activeLandmarkModelVersion?.label ??
+                              activeLandmarkModelVersionId
+                          )
+                        }
+                        onChangeText={(text) =>
+                          setModelRenameDrafts((current) => ({
+                            ...current,
+                            [activeLandmarkModelVersionId]: text,
+                          }))
+                        }
+                        placeholder="Rename active model"
+                        placeholderTextColor={MUTED}
+                        style={[styles.input, styles.renameInput]}
+                      />
+                      <Pressable
+                        onPress={() =>
+                          renameLandmarkModelVersion(activeLandmarkModelVersionId)
+                        }
+                        style={({ pressed }) => [
+                          styles.btn,
+                          styles.renameButton,
+                          pressed && { opacity: 0.85 },
+                        ]}
+                      >
+                        <Text style={styles.btnText}>Rename</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                   <Pressable
                     onPress={() => setShowModelVersions((value) => !value)}
                     style={({ pressed }) => [
@@ -1233,8 +1338,8 @@ export default function CameraScreenVC({
                   >
                     <Text style={styles.btnText}>
                       {showModelVersions
-                        ? "Hide Saved Models"
-                        : "Show Saved Models"}
+                        ? "Hide Model Versions"
+                        : "Show Model Versions"}
                     </Text>
                   </Pressable>
 
@@ -1272,6 +1377,36 @@ export default function CameraScreenVC({
                                 {version.trained_at}
                               </Text>
                             ) : null}
+                            <View style={styles.renameRow}>
+                              <TextInput
+                                value={
+                                  modelRenameDrafts[versionId] ??
+                                  String(version.label ?? versionId)
+                                }
+                                onChangeText={(text) =>
+                                  setModelRenameDrafts((current) => ({
+                                    ...current,
+                                    [versionId]: text,
+                                  }))
+                                }
+                                placeholder="Rename model version"
+                                placeholderTextColor={MUTED}
+                                style={[styles.input, styles.renameInput]}
+                              />
+                              <Pressable
+                                onPress={() => renameLandmarkModelVersion(versionId)}
+                                style={({ pressed }) => [
+                                  styles.btn,
+                                  styles.renameButton,
+                                  pressed && { opacity: 0.85 },
+                                ]}
+                              >
+                                <Text style={styles.btnText}>Rename</Text>
+                              </Pressable>
+                            </View>
+                            <Text style={styles.inputHelperText}>
+                              {isActive ? "Currently serving" : "Tap to switch active model"}
+                            </Text>
                           </Pressable>
                         );
                       })}
@@ -1905,6 +2040,18 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 11,
     lineHeight: 16,
+  },
+  renameRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  renameInput: {
+    flex: 1,
+  },
+  renameButton: {
+    flex: 0,
+    minWidth: 92,
   },
   labSummaryPill: {
     minWidth: 92,
