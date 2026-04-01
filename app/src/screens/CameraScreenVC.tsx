@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  TextInput,
   useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +29,7 @@ import {
   resetStreamingRecognitionState,
   saveStreamingLandmarkSample,
 } from "../ml/streamingRecognition";
+import { STATIC_ASL_LABELS } from "../ml/labels";
 import type { DetectMode } from "../ml/streamTypes";
 import { useStreamingHandTracking } from "../ml/useStreamingHandTracking";
 
@@ -63,6 +65,14 @@ const WORD_LABELS = [
   "J",
   "Z",
 ] as const;
+
+function createDefaultCaptureSessionId() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}_lab`;
+}
 
 export default function CameraScreenVC({
   onBack,
@@ -131,7 +141,13 @@ export default function CameraScreenVC({
   const [lastConf, setLastConf] = useState(0);
 
   const smootherRef = useRef(new MajorityVoteSmoother(3));
-  const [selectedLabel, setSelectedLabel] = useState("A");
+  const [selectedLabel, setSelectedLabel] =
+    useState<(typeof STATIC_ASL_LABELS)[number]>("A");
+  const [signerId, setSignerId] = useState("person_01");
+  const [captureSessionId, setCaptureSessionId] = useState(
+    createDefaultCaptureSessionId
+  );
+  const [variantTagsText, setVariantTagsText] = useState("neutral");
   const [status, setStatus] = useState("");
   const [lastHandedness, setLastHandedness] = useState<string | null>(null);
   const [rawLabel, setRawLabel] = useState("?");
@@ -207,9 +223,9 @@ export default function CameraScreenVC({
     });
 
   const nextLabel = () => {
-    const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const i = letters.indexOf(selectedLabel);
-    setSelectedLabel(letters[(i + 1) % letters.length]);
+    const i = STATIC_ASL_LABELS.indexOf(selectedLabel);
+    const nextIndex = i >= 0 ? (i + 1) % STATIC_ASL_LABELS.length : 0;
+    setSelectedLabel(STATIC_ASL_LABELS[nextIndex]);
   };
 
   const nextWord = () => {
@@ -229,12 +245,36 @@ export default function CameraScreenVC({
 
   const saveOneLandmarkSample = async () => {
     try {
+      const normalizedSignerId = signerId.trim();
+      const normalizedSessionId = captureSessionId.trim();
+      const variantTags = variantTagsText
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+
+      if (!normalizedSignerId) {
+        setStatus("Signer ID is required.");
+        return;
+      }
+
+      if (!normalizedSessionId) {
+        setStatus("Session ID is required.");
+        return;
+      }
+
       setStatus(`Saving ${selectedLabel}...`);
 
       const result = await saveStreamingLandmarkSample(
         latestHandFrame,
         API_BASE,
-        selectedLabel
+        selectedLabel,
+        {
+          signerId: normalizedSignerId,
+          captureSessionId: normalizedSessionId,
+          cameraPosition,
+          deviceId: `${Platform.OS}_${cameraPosition}`,
+          variantTags,
+        }
       );
 
       if (!result.ok) {
@@ -243,7 +283,9 @@ export default function CameraScreenVC({
       }
 
       setLastHandedness(result.handedness ?? null);
-      setStatus(`Saved ✅ ${selectedLabel} (${result.handedness ?? "?"})`);
+      setStatus(
+        `Saved pending ✅ ${selectedLabel} (${result.handedness ?? "?"})`
+      );
     } catch {
       setStatus("Save error");
     }
@@ -254,7 +296,20 @@ export default function CameraScreenVC({
       setStatus("Training landmarks...");
       const res = await fetch(`${API_BASE}/train_landmarks`, { method: "POST" });
       const json = await res.json();
-      setStatus(json.ok ? "Training complete ✅" : "Training failed ❌");
+      if (json.ok) {
+        const acc =
+          typeof json.accuracy === "number"
+            ? ` (acc ${Math.round(json.accuracy * 100)}%)`
+            : "";
+        setStatus(`Training complete ✅${acc}`);
+        return;
+      }
+
+      const firstDeficit =
+        Array.isArray(json.deficits) && json.deficits.length > 0
+          ? ` ${json.deficits[0]}`
+          : "";
+      setStatus(`Training blocked ❌ ${json.error ?? "unknown"}${firstDeficit}`);
     } catch {
       setStatus("Training error");
     }
@@ -724,6 +779,52 @@ export default function CameraScreenVC({
                   tone={isRecordingGesture ? "accent" : "neutral"}
                 />
               </View>
+
+              {detectMode === "LETTERS" ? (
+                <View style={styles.metadataStack}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Signer ID</Text>
+                    <TextInput
+                      value={signerId}
+                      onChangeText={setSignerId}
+                      style={styles.input}
+                      placeholder="person_01"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Capture Session ID</Text>
+                    <TextInput
+                      value={captureSessionId}
+                      onChangeText={setCaptureSessionId}
+                      style={styles.input}
+                      placeholder="2026-04-01_lab"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Variant Tags</Text>
+                    <TextInput
+                      value={variantTagsText}
+                      onChangeText={setVariantTagsText}
+                      style={styles.input}
+                      placeholder="neutral, slight_rotation"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <Text style={styles.inputHelperText}>
+                      New static samples save as pending review and are excluded from training until approved.
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
             </LabSection>
 
             <LabSection
@@ -1191,6 +1292,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
     flexWrap: "wrap",
+  },
+  metadataStack: {
+    gap: 10,
+  },
+  inputGroup: {
+    gap: 6,
+  },
+  inputLabel: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    color: TEXT,
+    fontWeight: "800",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  inputHelperText: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: 11,
+    lineHeight: 16,
   },
   labSummaryPill: {
     minWidth: 92,

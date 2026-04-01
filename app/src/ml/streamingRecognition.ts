@@ -114,7 +114,14 @@ export async function processStreamingHandFrame(
 export async function saveStreamingLandmarkSample(
   hand: HandTrackingFrameResult | null,
   apiBase: string,
-  label: string
+  label: string,
+  metadata: {
+    signerId: string;
+    captureSessionId: string;
+    cameraPosition: "front" | "back";
+    deviceId?: string;
+    variantTags?: string[];
+  }
 ) {
   if (!hand?.hasHand || !hand.landmarks || hand.landmarks.length !== 21) {
     return { ok: false, error: "No hand detected (cannot save)" };
@@ -127,6 +134,15 @@ export async function saveStreamingLandmarkSample(
       label,
       landmarks: hand.landmarks,
       handedness: hand.handedness ?? null,
+      signer_id: metadata.signerId,
+      capture_session_id: metadata.captureSessionId,
+      device_id: metadata.deviceId ?? null,
+      camera_position: metadata.cameraPosition,
+      accepted: false,
+      review_status: "pending",
+      review_notes: "",
+      variant_tags: metadata.variantTags ?? [],
+      captured_at: new Date().toISOString(),
     }),
   });
 
@@ -138,6 +154,7 @@ export async function saveStreamingLandmarkSample(
   return {
     ok: true,
     handedness: hand.handedness ?? null,
+    reviewStatus: String(json.review_status ?? "pending"),
   };
 }
 

@@ -13,13 +13,25 @@ router = APIRouter()
 
 @router.post("/upload_landmarks")
 def upload_landmarks_route(req: UploadLandmarksReq):
-    return upload_landmarks(req.label, req.landmarks, req.handedness)
+    return upload_landmarks(
+        req.label,
+        req.landmarks,
+        req.handedness,
+        signer_id=req.signer_id,
+        capture_session_id=req.capture_session_id,
+        device_id=req.device_id,
+        camera_position=req.camera_position,
+        accepted=req.accepted,
+        review_status=req.review_status,
+        review_notes=req.review_notes,
+        variant_tags=req.variant_tags,
+        captured_at=req.captured_at,
+    )
 
 
 @router.post("/train_landmarks")
 def train_landmarks():
-    ok = train_landmarks_model()
-    return {"ok": ok}
+    return train_landmarks_model()
 
 
 @router.post("/predict_landmarks")

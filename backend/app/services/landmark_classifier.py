@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from typing import Optional
 
 import joblib
@@ -7,7 +8,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
-from app.core.constants import LABELS
+from app.core.constants import LABELS, MOTION_ONLY_LETTER_LABELS
 from app.core.paths import LANDMARKS_DIR, LANDMARKS_MODEL_PATH
 from app.ml.landmarks import analyze_hand_landmarks, landmark_feature_vector
 
@@ -17,25 +18,191 @@ landmark_model: Optional[SVC] = None
 CONFIDENCE_OVERRIDE_MAX = 0.92
 RULE_MIN_CONFIDENCE = 0.85
 RULE_MIN_MARGIN = 0.18
+MIN_APPROVED_SAMPLES_PER_LABEL = 480
+MIN_APPROVED_PER_HAND = 240
+MIN_SIGNERS_PER_LABEL = 8
+REQUIRED_RECORD_FIELDS = (
+    "label",
+    "handedness",
+    "landmarks",
+    "signer_id",
+    "capture_session_id",
+    "camera_position",
+    "accepted",
+    "review_status",
+    "captured_at",
+)
+
+
+def _clean_optional_string(value: object) -> Optional[str]:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _normalize_handedness(value: object) -> Optional[str]:
+    text = _clean_optional_string(value)
+    if not text:
+        return None
+    lowered = text.lower()
+    if lowered == "left":
+        return "Left"
+    if lowered == "right":
+        return "Right"
+    return None
+
+
+def _normalize_camera_position(value: object) -> Optional[str]:
+    text = _clean_optional_string(value)
+    if not text:
+        return None
+    lowered = text.lower()
+    if lowered in {"front", "back"}:
+        return lowered
+    return None
+
+
+def _normalize_review_status(value: object) -> str:
+    text = _clean_optional_string(value)
+    if not text:
+        return "pending"
+    lowered = text.lower()
+    if lowered in {"pending", "approved", "rejected"}:
+        return lowered
+    return "pending"
+
+
+def _normalize_variant_tags(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        tags = [_clean_optional_string(item) for item in value]
+        return [tag for tag in tags if tag]
+    if isinstance(value, str):
+        parts = [_clean_optional_string(part) for part in value.split(",")]
+        return [part for part in parts if part]
+    return []
+
+
+def _normalize_landmark_record(raw: dict) -> dict:
+    review_status = _normalize_review_status(raw.get("review_status"))
+    accepted_raw = raw.get("accepted")
+    if accepted_raw is None:
+        accepted = review_status == "approved"
+    else:
+        accepted = bool(accepted_raw)
+
+    return {
+        "label": _clean_optional_string(raw.get("label")),
+        "handedness": _normalize_handedness(raw.get("handedness")),
+        "landmarks": raw.get("landmarks"),
+        "signer_id": _clean_optional_string(raw.get("signer_id")),
+        "capture_session_id": _clean_optional_string(raw.get("capture_session_id")),
+        "device_id": _clean_optional_string(raw.get("device_id")),
+        "camera_position": _normalize_camera_position(raw.get("camera_position")),
+        "accepted": accepted,
+        "review_status": review_status,
+        "review_notes": _clean_optional_string(raw.get("review_notes")) or "",
+        "variant_tags": _normalize_variant_tags(raw.get("variant_tags")),
+        "captured_at": _clean_optional_string(raw.get("captured_at")),
+    }
+
+
+def _record_kind(record: dict) -> str:
+    if any(record.get(field) is None for field in REQUIRED_RECORD_FIELDS):
+        return "legacy"
+    if record["review_status"] == "approved" and record["accepted"]:
+        return "approved"
+    if record["review_status"] == "rejected":
+        return "rejected"
+    return "pending"
+
+
+def _iter_label_records(label: str):
+    path = LANDMARKS_DIR / f"{label}.jsonl"
+    if not path.exists():
+        return
+
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                raw = json.loads(line)
+            except Exception:
+                continue
+
+            record = _normalize_landmark_record(raw)
+            if record["label"] != label:
+                continue
+            if not isinstance(record["landmarks"], list) or len(record["landmarks"]) != 21:
+                continue
+            yield record
+
+
+def _dataset_summary() -> dict:
+    summary: dict[str, dict] = {}
+    approved_records: list[dict] = []
+
+    for label in LABELS:
+        stats = {
+            "approved": 0,
+            "pending": 0,
+            "rejected": 0,
+            "legacy": 0,
+            "by_hand": {"Left": 0, "Right": 0},
+            "signer_ids": set(),
+        }
+
+        for record in _iter_label_records(label) or ():
+            kind = _record_kind(record)
+            stats[kind] += 1
+
+            if kind == "approved":
+                handedness = record["handedness"]
+                if handedness in stats["by_hand"]:
+                    stats["by_hand"][handedness] += 1
+                stats["signer_ids"].add(record["signer_id"])
+                approved_records.append(record)
+
+        summary[label] = stats
+
+    return {"labels": summary, "approved_records": approved_records}
+
+
+def _training_gate_failures(summary: dict) -> list[str]:
+    failures: list[str] = []
+    label_stats = summary["labels"]
+
+    for label in LABELS:
+        stats = label_stats[label]
+        signer_count = len(stats["signer_ids"])
+        if stats["approved"] < MIN_APPROVED_SAMPLES_PER_LABEL:
+            failures.append(
+                f"{label}: approved {stats['approved']}/{MIN_APPROVED_SAMPLES_PER_LABEL}"
+            )
+        if stats["by_hand"]["Left"] < MIN_APPROVED_PER_HAND:
+            failures.append(
+                f"{label}: Left hand {stats['by_hand']['Left']}/{MIN_APPROVED_PER_HAND}"
+            )
+        if stats["by_hand"]["Right"] < MIN_APPROVED_PER_HAND:
+            failures.append(
+                f"{label}: Right hand {stats['by_hand']['Right']}/{MIN_APPROVED_PER_HAND}"
+            )
+        if signer_count < MIN_SIGNERS_PER_LABEL:
+            failures.append(f"{label}: signers {signer_count}/{MIN_SIGNERS_PER_LABEL}")
+
+    return failures
 
 
 def load_landmarks_dataset():
     X, y = [], []
-    for label in LABELS:
-        path = LANDMARKS_DIR / f"{label}.jsonl"
-        if not path.exists():
-            continue
-
-        with open(path, "r", encoding="utf-8") as handle:
-            for line in handle:
-                try:
-                    obj = json.loads(line)
-                    X.append(
-                        landmark_feature_vector(obj["landmarks"], obj.get("handedness"))
-                    )
-                    y.append(obj["label"])
-                except Exception:
-                    pass
+    summary = _dataset_summary()
+    for record in summary["approved_records"]:
+        try:
+            X.append(landmark_feature_vector(record["landmarks"], record["handedness"]))
+            y.append(record["label"])
+        except Exception:
+            pass
 
     if len(X) == 0:
         return np.array([]), np.array([])
@@ -169,13 +336,28 @@ def _maybe_apply_rule_override(
     return suggested, float(final_confidence)
 
 
-def train_landmarks_model() -> bool:
+def train_landmarks_model() -> dict:
     global landmark_model
+    summary = _dataset_summary()
+    failures = _training_gate_failures(summary)
+    if failures:
+        landmark_model = None
+        return {
+            "ok": False,
+            "error": "Static landmark dataset does not meet minimum review quotas.",
+            "requirements": {
+                "min_approved_samples_per_label": MIN_APPROVED_SAMPLES_PER_LABEL,
+                "min_approved_per_hand": MIN_APPROVED_PER_HAND,
+                "min_signers_per_label": MIN_SIGNERS_PER_LABEL,
+            },
+            "deficits": failures,
+        }
+
     X, y = load_landmarks_dataset()
     if len(X) == 0:
         landmark_model = None
         print("⚠️ No landmark samples found. Collect samples first.")
-        return False
+        return {"ok": False, "error": "No approved landmark samples found."}
 
     Xtr, Xte, ytr, yte = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
@@ -192,7 +374,12 @@ def train_landmarks_model() -> bool:
 
     landmark_model = model
     joblib.dump(landmark_model, LANDMARKS_MODEL_PATH)
-    return True
+    return {
+        "ok": True,
+        "accuracy": float(acc),
+        "feature_dimensions": int(X.shape[1]),
+        "labels": LABELS,
+    }
 
 
 def bootstrap_landmark_model() -> None:
@@ -221,41 +408,108 @@ def predict_landmarks(landmarks: list, handedness: Optional[str]) -> dict:
     return {"label": label, "confidence": confidence}
 
 
-def upload_landmarks(label: str, landmarks: list, handedness: Optional[str]) -> dict:
+def upload_landmarks(
+    label: str,
+    landmarks: list,
+    handedness: Optional[str],
+    signer_id: Optional[str] = None,
+    capture_session_id: Optional[str] = None,
+    device_id: Optional[str] = None,
+    camera_position: Optional[str] = None,
+    accepted: Optional[bool] = None,
+    review_status: Optional[str] = None,
+    review_notes: Optional[str] = None,
+    variant_tags: Optional[list[str]] = None,
+    captured_at: Optional[str] = None,
+) -> dict:
     normalized_label = label.strip().upper()
+    if normalized_label in MOTION_ONLY_LETTER_LABELS:
+        return {
+            "ok": False,
+            "error": (
+                f"{normalized_label} is motion-only for static landmarks. "
+                "Collect it through the gesture pipeline instead."
+            ),
+        }
+
     if normalized_label not in LABELS:
         return {"ok": False, "error": f"Invalid label: {normalized_label}"}
 
+    normalized_handedness = _normalize_handedness(handedness)
+    if normalized_handedness is None:
+        return {"ok": False, "error": "Handedness is required and must be Left or Right."}
+
+    if not isinstance(landmarks, list) or len(landmarks) != 21:
+        return {"ok": False, "error": "Exactly 21 landmarks are required."}
+
+    normalized_record = _normalize_landmark_record(
+        {
+            "label": normalized_label,
+            "handedness": normalized_handedness,
+            "landmarks": landmarks,
+            "signer_id": signer_id,
+            "capture_session_id": capture_session_id,
+            "device_id": device_id,
+            "camera_position": camera_position,
+            "accepted": accepted,
+            "review_status": review_status,
+            "review_notes": review_notes,
+            "variant_tags": variant_tags,
+            "captured_at": captured_at
+            or datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        }
+    )
+
+    if not normalized_record["signer_id"]:
+        return {"ok": False, "error": "signer_id is required for the reviewed dataset."}
+    if not normalized_record["capture_session_id"]:
+        return {"ok": False, "error": "capture_session_id is required."}
+    if not normalized_record["camera_position"]:
+        return {"ok": False, "error": "camera_position must be front or back."}
+
+    if normalized_record["review_status"] == "approved" and not normalized_record["accepted"]:
+        return {"ok": False, "error": "Approved records must set accepted=true."}
+    if normalized_record["review_status"] != "approved":
+        normalized_record["accepted"] = False
+
     path = LANDMARKS_DIR / f"{normalized_label}.jsonl"
     with open(path, "a", encoding="utf-8") as handle:
-        handle.write(
-            json.dumps(
-                {
-                    "label": normalized_label,
-                    "handedness": handedness,
-                    "landmarks": landmarks,
-                }
-            )
-            + "\n"
-        )
+        handle.write(json.dumps(normalized_record) + "\n")
 
-    return {"ok": True, "saved": str(path)}
+    return {
+        "ok": True,
+        "saved": str(path),
+        "review_status": normalized_record["review_status"],
+        "accepted": normalized_record["accepted"],
+    }
 
 
 def health_summary() -> dict:
-    landmark_counts = {label: 0 for label in LABELS}
+    dataset = _dataset_summary()
+    counts_by_label = {}
     total = 0
-    for label in LABELS:
-        path = LANDMARKS_DIR / f"{label}.jsonl"
-        if path.exists():
-            with open(path, "r", encoding="utf-8") as handle:
-                count = sum(1 for _ in handle)
-            landmark_counts[label] = count
-            total += count
+    for label, stats in dataset["labels"].items():
+        signer_count = len(stats["signer_ids"])
+        counts_by_label[label] = {
+            "approved": stats["approved"],
+            "pending": stats["pending"],
+            "rejected": stats["rejected"],
+            "legacy": stats["legacy"],
+            "by_hand": stats["by_hand"],
+            "signer_count": signer_count,
+        }
+        total += stats["approved"] + stats["pending"] + stats["rejected"] + stats["legacy"]
 
     return {
         "trained_landmarks": LANDMARKS_MODEL_PATH.exists(),
         "landmark_total": total,
-        "landmark_counts": landmark_counts,
+        "landmark_counts": counts_by_label,
         "landmarks_dir": str(LANDMARKS_DIR),
+        "static_landmark_labels": LABELS,
+        "motion_only_letter_labels": MOTION_ONLY_LETTER_LABELS,
+        "landmark_requirements": {
+            "min_approved_samples_per_label": MIN_APPROVED_SAMPLES_PER_LABEL,
+            "min_approved_per_hand": MIN_APPROVED_PER_HAND,
+            "min_signers_per_label": MIN_SIGNERS_PER_LABEL,
+        },
     }
