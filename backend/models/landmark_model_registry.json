@@ -1,5 +1,5 @@
 {
-  "active_version_id": "legacy_20260401T101811Z",
+  "active_version_id": "landmarks_bootstrap_20260401T105650Z",
   "versions": [
     {
       "version_id": "legacy_20260401T101811Z",
@@ -33,6 +33,19 @@
       ],
       "trained_at": "2026-04-01T10:18:11+00:00",
       "source": "migrated_legacy"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T105650Z",
+      "label": "bootstrap 2026-04-01T10:56:50+00:00",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "O"
+      ],
+      "trained_at": "2026-04-01T10:56:50+00:00",
+      "source": "trained"
     }
   ]
 }
