@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { View, Text, ActivityIndicator, StyleSheet, ImageBackground, Pressable } from "react-native";
+import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
 import VideoSplashScreen from "./src/screens/VideoSplashScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
@@ -19,6 +20,18 @@ export default function App() {
 
   const [supportedTypes, setSupportedTypes] = useState([]);
   const [preferred, setPreferred] = useState("auto"); // "auto" | "face" | "fingerprint"
+  const isCameraLikeRoute = route === "camera" || route === "lab";
+  const statusBarStyle =
+    showSplash || loading || !authenticated || isCameraLikeRoute
+      ? "light"
+      : "dark";
+  const statusBarBackgroundColor =
+    showSplash || loading || !authenticated
+      ? "#000000"
+      : isCameraLikeRoute
+        ? "transparent"
+        : "#FFFFFF";
+  const statusBarTranslucent = isCameraLikeRoute;
 
   useEffect(() => {
     (async () => {
@@ -79,92 +92,163 @@ export default function App() {
   };
 
   if (showSplash) {
-    return <VideoSplashScreen onFinish={() => setShowSplash(false)} />;
+    return (
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <VideoSplashScreen onFinish={() => setShowSplash(false)} />
+      </>
+    );
   }
 
   if (loading) {
     return (
-      <ImageBackground source={require("./assets/bg-auth.jpg")} style={styles.bg} resizeMode="cover">
-        <View style={styles.overlay}>
-          <ActivityIndicator size="large" />
-          <Text style={styles.text}>Authenticating…</Text>
-        </View>
-      </ImageBackground>
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <ImageBackground source={require("./assets/bg-auth.jpg")} style={styles.bg} resizeMode="cover">
+          <View style={styles.overlay}>
+            <ActivityIndicator size="large" />
+            <Text style={styles.text}>Authenticating…</Text>
+          </View>
+        </ImageBackground>
+      </>
     );
   }
 
   if (!authenticated) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.title}>Authentication required</Text>
-        <Text style={[styles.text, { opacity: 0.7, marginBottom: 18 }]}>
-          Face is prioritized when available. You can switch below.
-        </Text>
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <View style={styles.center}>
+          <Text style={styles.title}>Authentication required</Text>
+          <Text style={[styles.text, { opacity: 0.7, marginBottom: 18 }]}>
+            Face is prioritized when available. You can switch below.
+          </Text>
 
-        <View style={styles.row}>
-          <Chip label="Auto" active={preferred === "auto"} onPress={() => setPreferred("auto")} />
-          {hasFace && <Chip label="Face" active={preferred === "face"} onPress={() => setPreferred("face")} />}
-          {hasFingerprint && (
-            <Chip
-              label="Fingerprint"
-              active={preferred === "fingerprint"}
-              onPress={() => setPreferred("fingerprint")}
-            />
-          )}
+          <View style={styles.row}>
+            <Chip label="Auto" active={preferred === "auto"} onPress={() => setPreferred("auto")} />
+            {hasFace && <Chip label="Face" active={preferred === "face"} onPress={() => setPreferred("face")} />}
+            {hasFingerprint && (
+              <Chip
+                label="Fingerprint"
+                active={preferred === "fingerprint"}
+                onPress={() => setPreferred("fingerprint")}
+              />
+            )}
+          </View>
+
+          <Pressable style={styles.btn} onPress={authenticate}>
+            <Text style={styles.btnText}>Try Again</Text>
+          </Pressable>
+
+          <Text style={[styles.text, { opacity: 0.6, marginTop: 12 }]}>
+            If biometrics aren’t available, your device PIN/Passcode will be used.
+          </Text>
         </View>
-
-        <Pressable style={styles.btn} onPress={authenticate}>
-          <Text style={styles.btnText}>Try Again</Text>
-        </Pressable>
-
-        <Text style={[styles.text, { opacity: 0.6, marginTop: 12 }]}>
-          If biometrics aren’t available, your device PIN/Passcode will be used.
-        </Text>
-      </View>
+      </>
     );
   }
 
   if (route === "camera") {
     return (
-      <CameraScreenVC
-        onBack={() => setRoute("dashboard")}
-        debugEnabled={debugEnabled}
-        showHandOverlay={showHandOverlay}
-      />
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <CameraScreenVC
+          onBack={() => setRoute("dashboard")}
+          debugEnabled={debugEnabled}
+          showHandOverlay={showHandOverlay}
+        />
+      </>
     );
   }
-  if (route === "feedback") return <FeedbackScreen onBack={() => setRoute("dashboard")} />;
-  if (route === "tutorial") return <TutorialScreen onBack={() => setRoute("dashboard")} />;
+  if (route === "feedback")
+    return (
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <FeedbackScreen onBack={() => setRoute("dashboard")} />
+      </>
+    );
+  if (route === "tutorial")
+    return (
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <TutorialScreen onBack={() => setRoute("dashboard")} />
+      </>
+    );
   if (route === "settings") {
     return (
-      <SettingsScreen
-        onBack={() => setRoute("dashboard")}
-        debugEnabled={debugEnabled}
-        setDebugEnabled={setDebugEnabled}
-        showHandOverlay={showHandOverlay}
-        setShowHandOverlay={setShowHandOverlay}
-        onOpenLab={() => setRoute("lab")}
-      />
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <SettingsScreen
+          onBack={() => setRoute("dashboard")}
+          debugEnabled={debugEnabled}
+          setDebugEnabled={setDebugEnabled}
+          showHandOverlay={showHandOverlay}
+          setShowHandOverlay={setShowHandOverlay}
+          onOpenLab={() => setRoute("lab")}
+        />
+      </>
     );
   }
   if (route === "lab") {
     return (
-      <LabScreen
-        onBack={() => setRoute("settings")}
-        debugEnabled={debugEnabled}
-        showHandOverlay={showHandOverlay}
-      />
+      <>
+        <ExpoStatusBar
+          style={statusBarStyle}
+          backgroundColor={statusBarBackgroundColor}
+          translucent={statusBarTranslucent}
+        />
+        <LabScreen
+          onBack={() => setRoute("settings")}
+          debugEnabled={debugEnabled}
+          showHandOverlay={showHandOverlay}
+        />
+      </>
     );
   }
 
   return (
-    <DashboardScreen
-      onBack={() => setRoute("dashboard")} // or whatever you want as "back"
-      onTranslate={() => setRoute("camera")}
-      onTutorial={() => setRoute("tutorial")}
-      onSettings={() => setRoute("settings")}
-      onFeedback={() => setRoute("feedback")}
-    />
+    <>
+      <ExpoStatusBar
+        style={statusBarStyle}
+        backgroundColor={statusBarBackgroundColor}
+        translucent={statusBarTranslucent}
+      />
+      <DashboardScreen
+        onBack={() => setRoute("dashboard")} // or whatever you want as "back"
+        onTranslate={() => setRoute("camera")}
+        onTutorial={() => setRoute("tutorial")}
+        onSettings={() => setRoute("settings")}
+        onFeedback={() => setRoute("feedback")}
+      />
+    </>
   );
 }
 
