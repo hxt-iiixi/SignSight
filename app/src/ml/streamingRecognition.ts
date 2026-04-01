@@ -16,6 +16,10 @@ export const LETTER_CONFIDENCE_THRESHOLD = 0.6;
 export const WORD_CONFIDENCE_THRESHOLD = 0.55;
 export const LETTER_MOTION_CONFIDENCE_THRESHOLD = 0.75;
 export const WORD_NO_HAND_GRACE_MS = 750;
+export const PARTIAL_MODEL_LETTER_CONFIDENCE_THRESHOLD = 0.78;
+export const VERY_SMALL_PARTIAL_MODEL_LETTER_CONFIDENCE_THRESHOLD = 0.84;
+export const PARTIAL_MODEL_MAX_ACTIVE_LETTERS = 6;
+export const VERY_SMALL_PARTIAL_MODEL_MAX_ACTIVE_LETTERS = 4;
 
 type SetState<T> = (value: T) => void;
 
@@ -226,6 +230,13 @@ async function processLetterFrame(
   const json = await res.json();
   let finalLabel = String(json.label ?? "?");
   let finalConf = Number(json.confidence ?? 0);
+  const acceptedPrediction =
+    typeof json.accepted_prediction === "boolean"
+      ? json.accepted_prediction
+      : null;
+  const activeStaticLetters = Array.isArray(json.active_static_letters)
+    ? json.active_static_letters.map(String)
+    : [];
 
   if (buffers.letterMotionFrames.length >= LETTER_MOTION_FRAMES) {
     const now = Date.now();
@@ -269,7 +280,16 @@ async function processLetterFrame(
     }
   }
 
-  if (finalConf < LETTER_CONFIDENCE_THRESHOLD) {
+  let localThreshold = LETTER_CONFIDENCE_THRESHOLD;
+  if (activeStaticLetters.length > 0) {
+    if (activeStaticLetters.length <= VERY_SMALL_PARTIAL_MODEL_MAX_ACTIVE_LETTERS) {
+      localThreshold = VERY_SMALL_PARTIAL_MODEL_LETTER_CONFIDENCE_THRESHOLD;
+    } else if (activeStaticLetters.length <= PARTIAL_MODEL_MAX_ACTIVE_LETTERS) {
+      localThreshold = PARTIAL_MODEL_LETTER_CONFIDENCE_THRESHOLD;
+    }
+  }
+
+  if (acceptedPrediction === false || finalConf < localThreshold) {
     context.setRawLabel("—");
     context.smootherRef.current.push("?");
 

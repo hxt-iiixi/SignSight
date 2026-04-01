@@ -28,6 +28,14 @@ TrainingMode = Literal["bootstrap", "full_reviewed"]
 CONFIDENCE_OVERRIDE_MAX = 0.92
 RULE_MIN_CONFIDENCE = 0.85
 RULE_MIN_MARGIN = 0.18
+STANDARD_ACCEPTANCE_CONFIDENCE = 0.60
+STANDARD_ACCEPTANCE_MARGIN = 0.08
+PARTIAL_ACCEPTANCE_CONFIDENCE = 0.78
+PARTIAL_ACCEPTANCE_MARGIN = 0.22
+VERY_SMALL_PARTIAL_ACCEPTANCE_CONFIDENCE = 0.84
+VERY_SMALL_PARTIAL_ACCEPTANCE_MARGIN = 0.28
+PARTIAL_MODEL_MAX_ACTIVE_LETTERS = 6
+VERY_SMALL_PARTIAL_MODEL_MAX_ACTIVE_LETTERS = 4
 DEFAULT_TRAINING_MODE: TrainingMode = "full_reviewed"
 LANDMARK_TRAINING_MODES: dict[TrainingMode, dict[str, int]] = {
     "bootstrap": {
@@ -713,6 +721,35 @@ def _maybe_apply_rule_override(
     return suggested, float(final_confidence)
 
 
+def _prediction_acceptance_policy(active_count: int) -> tuple[float, float]:
+    if active_count <= VERY_SMALL_PARTIAL_MODEL_MAX_ACTIVE_LETTERS:
+        return (
+            VERY_SMALL_PARTIAL_ACCEPTANCE_CONFIDENCE,
+            VERY_SMALL_PARTIAL_ACCEPTANCE_MARGIN,
+        )
+    if active_count <= PARTIAL_MODEL_MAX_ACTIVE_LETTERS:
+        return PARTIAL_ACCEPTANCE_CONFIDENCE, PARTIAL_ACCEPTANCE_MARGIN
+    return STANDARD_ACCEPTANCE_CONFIDENCE, STANDARD_ACCEPTANCE_MARGIN
+
+
+def _evaluate_prediction_acceptance(
+    *,
+    confidence: float,
+    margin: float,
+    active_static_letters: list[str],
+) -> tuple[bool, Optional[str]]:
+    active_count = len(active_static_letters)
+    min_confidence, min_margin = _prediction_acceptance_policy(active_count)
+
+    if confidence < min_confidence and margin < min_margin:
+        return False, "low_confidence_and_margin"
+    if confidence < min_confidence:
+        return False, "low_confidence"
+    if margin < min_margin:
+        return False, "low_margin"
+    return True, None
+
+
 def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict:
     global landmark_model, landmark_model_metadata, landmark_model_version_id
     normalized_mode = _normalize_training_mode(training_mode)
@@ -871,11 +908,31 @@ def predict_landmarks(landmarks: list, handedness: Optional[str]) -> dict:
     top_labels, top_scores = _top_predictions(landmark_model, vec)
     raw_label = str(top_labels[0])
     raw_confidence = float(top_scores[0])
+    margin = (
+        float(top_scores[0] - top_scores[1])
+        if len(top_scores) > 1
+        else float(top_scores[0])
+    )
     analysis = analyze_hand_landmarks(landmarks, handedness)
     label, confidence = _maybe_apply_rule_override(
         raw_label, raw_confidence, top_labels, top_scores, analysis
     )
-    return {"label": label, "confidence": confidence}
+    active_static_letters = _active_static_letters()
+    accepted_prediction, unknown_reason = _evaluate_prediction_acceptance(
+        confidence=confidence,
+        margin=margin,
+        active_static_letters=active_static_letters,
+    )
+    return {
+        "label": label,
+        "confidence": confidence,
+        "accepted_prediction": accepted_prediction,
+        "raw_label": raw_label,
+        "raw_confidence": raw_confidence,
+        "margin": margin,
+        "active_static_letters": active_static_letters,
+        "unknown_reason": unknown_reason,
+    }
 
 
 def upload_landmarks(
