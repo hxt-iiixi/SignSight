@@ -78,13 +78,6 @@ type LandmarkModelVersion = {
   is_active?: boolean;
   active_static_letters?: string[];
 };
-type StaticWordModelVersion = {
-  version_id: string;
-  label?: string;
-  trained_at?: string;
-  is_active?: boolean;
-  active_static_word_labels?: string[];
-};
 type LandmarkLabelSummary = {
   label: string;
   approved: number;
@@ -206,10 +199,6 @@ export default function CameraScreenVC({
     useState<string | null>(null);
   const [availableLandmarkModelVersions, setAvailableLandmarkModelVersions] =
     useState<LandmarkModelVersion[]>([]);
-  const [activeStaticWordModelVersionId, setActiveStaticWordModelVersionId] =
-    useState<string | null>(null);
-  const [availableStaticWordModelVersions, setAvailableStaticWordModelVersions] =
-    useState<StaticWordModelVersion[]>([]);
   const [activeStaticWordLabels, setActiveStaticWordLabels] = useState<string[]>([]);
   const [staticWordLandmarkCounts, setStaticWordLandmarkCounts] = useState<
     Record<string, { approved: number; pending: number; rejected: number; legacy: number }>
@@ -355,16 +344,6 @@ export default function CameraScreenVC({
       bootstrap: bootstrapReady,
       full_reviewed: fullReviewedReady,
     });
-    setActiveStaticWordModelVersionId(
-      typeof json.active_static_word_model_version_id === "string"
-        ? json.active_static_word_model_version_id
-        : null
-    );
-    setAvailableStaticWordModelVersions(
-      Array.isArray(json.available_static_word_model_versions)
-        ? json.available_static_word_model_versions
-        : []
-    );
     setActiveStaticWordLabels(
       Array.isArray(json.active_static_word_labels)
         ? json.active_static_word_labels.map(String)
@@ -767,47 +746,6 @@ export default function CameraScreenVC({
       setStatus(`Gesture training complete ✅${acc}`);
     } catch (e: any) {
       setStatus(`Gesture training error: ${e?.message ?? String(e)}`);
-    }
-  };
-
-  const trainStaticWordLandmarks = async () => {
-    try {
-      setStatus("Training static word landmark model...");
-
-      const res = await fetch(`${API_BASE}/train_static_word_landmarks`, {
-        method: "POST",
-      });
-
-      const text = await res.text();
-      let json: any = null;
-      try {
-        json = JSON.parse(text);
-      } catch {}
-
-      if (!res.ok) {
-        setStatus(`HTTP ${res.status}: ${text.slice(0, 120)}`);
-        return;
-      }
-
-      if (!json) {
-        setStatus(`Server returned non-JSON: ${text.slice(0, 120)}`);
-        return;
-      }
-
-      if (json.ok === false) {
-        setStatus(`Static word training blocked ❌ ${json.error ?? ""}`.trim());
-        await refreshLabHealth();
-        return;
-      }
-
-      const acc =
-        typeof json.accuracy === "number"
-          ? ` (acc ${Math.round(json.accuracy * 100)}%)`
-          : "";
-      await refreshLabHealth();
-      setStatus(`Static word training complete ✅${acc}`);
-    } catch (e: any) {
-      setStatus(`Static word training error: ${e?.message ?? String(e)}`);
     }
   };
 
@@ -1451,7 +1389,7 @@ export default function CameraScreenVC({
                       {selectedWord
                         ? selectedWordIsStaticLandmark
                           ? activeStaticWordLabels.includes(selectedWord)
-                            ? "Active in the serving static word landmark model."
+                            ? "Active in the serving landmark model."
                             : "Selected static landmark word target."
                           : "Selected gesture target for recording and saving."
                         : "No target selected yet."}
@@ -1551,13 +1489,11 @@ export default function CameraScreenVC({
                 ) : (
                   <Text style={styles.labStatusModelText}>
                     {selectedWordIsStaticLandmark
-                      ? `Static word model ${
-                          availableStaticWordModelVersions.find(
-                            (version) => version.is_active
-                          )?.label ??
-                          activeStaticWordModelVersionId ??
+                      ? `Landmark model ${
+                          activeLandmarkModelVersion?.label ??
+                          activeLandmarkModelVersionId ??
                           "not trained"
-                        } • ${activeStaticWordLabels.length} active words`
+                        } • ${activeStaticWordLabels.length} active static words`
                       : `Gesture buffer ${currentWordFramesCount}/${GESTURE_FRAMES}`}
                   </Text>
                 )}
@@ -1645,7 +1581,7 @@ export default function CameraScreenVC({
                   />
                   <LabSummaryPill
                     label="Model"
-                    value={activeStaticWordModelVersionId ? "Trained" : "Rule only"}
+                    value={activeStaticWordLabels.includes("I_LOVE_YOU") ? "Active" : "Rule fallback"}
                     tone="accent"
                   />
                 </View>
@@ -1654,8 +1590,8 @@ export default function CameraScreenVC({
                   <Text style={styles.datasetInsightTitle}>Training status</Text>
                   <Text style={styles.datasetInsightText}>
                     {activeStaticWordLabels.includes("I_LOVE_YOU")
-                      ? "I_LOVE_YOU is active in the serving static word landmark model."
-                      : "The static word model will not train yet unless the dataset contains at least 2 approved static word classes. Until then, live recognition falls back to the landmark rule."}
+                      ? "I_LOVE_YOU is active in the serving landmark model."
+                      : "I_LOVE_YOU stays rule-based until you retrain the main landmark model with the saved word landmark dataset included."}
                   </Text>
                 </View>
               </LabSection>
@@ -1669,7 +1605,7 @@ export default function CameraScreenVC({
                   : "Retrain from the saved landmark dataset, create a new model version, then switch the active model when you are ready."
               }
             >
-              {detectMode === "LETTERS" ? (
+              {detectMode === "LETTERS" || (detectMode === "WORDS" && selectedWordIsStaticLandmark) ? (
                 <View style={styles.trainingModeCard}>
                   <Text style={styles.labFieldLabel}>Retrain from saved dataset</Text>
                   <View style={styles.btnRow}>
@@ -1721,7 +1657,11 @@ export default function CameraScreenVC({
                     {landmarkTrainingMode === "bootstrap"
                       ? "Bootstrap mode is for solo or early internal testing with lower quotas."
                       : "Full reviewed mode uses the stricter final dataset quotas."}{" "}
-                    Retraining uses the saved approved landmark dataset and creates a new model version without overwriting the old one.
+                    Retraining uses the saved approved landmark dataset
+                    {selectedWordIsStaticLandmark
+                      ? ", including approved static word landmarks,"
+                      : ""}{" "}
+                    and creates a new model version without overwriting the old one.
                   </Text>
                   <Text style={styles.inputHelperText}>
                     Current serving mode:{" "}
@@ -1758,7 +1698,7 @@ export default function CameraScreenVC({
                 <Text style={styles.trainingNoticeText}>
                   {detectMode === "WORDS"
                     ? selectedWordIsStaticLandmark
-                      ? "Static word landmark training needs at least 2 approved static word classes before a real classifier can be trained."
+                      ? "Static word landmarks are learned through the main landmark retrain, not a separate model."
                       : "Train only after you have collected enough clean samples for the current target set."
                     : landmarkTrainingMode === "bootstrap"
                       ? "Bootstrap mode is temporary and should not be treated as the final shared model."
@@ -1768,7 +1708,7 @@ export default function CameraScreenVC({
 
               {detectMode === "WORDS" && selectedWordIsStaticLandmark ? (
                 <Pressable
-                  onPress={trainStaticWordLandmarks}
+                  onPress={trainLandmarks}
                   style={({ pressed }) => [
                     styles.btnPrimary,
                     styles.btnBlock,
@@ -1776,7 +1716,9 @@ export default function CameraScreenVC({
                   ]}
                 >
                   <Text style={styles.btnPrimaryText}>
-                    Train Static Word Landmark Model
+                    {landmarkTrainingMode === "bootstrap"
+                      ? "Create New Bootstrap Landmark Model Version"
+                      : "Create New Full Reviewed Landmark Model Version"}
                   </Text>
                 </Pressable>
               ) : null}
@@ -1813,7 +1755,7 @@ export default function CameraScreenVC({
                         <Text style={styles.labFieldLabel}>Static word capture</Text>
                         <Text style={styles.labFieldValue}>Single landmark sample</Text>
                         <Text style={styles.labHelperText}>
-                          I_LOVE_YOU uses the landmark dataset, so save one clear held pose instead of recording a gesture sequence.
+                          I_LOVE_YOU uses the word landmark dataset, then joins the main landmark model on the next retrain.
                         </Text>
                       </View>
                     </View>

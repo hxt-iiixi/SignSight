@@ -388,36 +388,6 @@ async function processWordFrame(
 
   try {
     context.onPredictionAttempt?.("landmarks");
-    const staticWordModelRes = await fetch(
-      `${context.apiBase}/predict_static_word_landmarks`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          landmarks: hand.landmarks,
-          handedness: hand.handedness ?? null,
-        }),
-      }
-    );
-
-    const staticWordModelJson = await staticWordModelRes.json();
-    const staticWordModelLabel = String(staticWordModelJson.label ?? "?");
-    const staticWordModelConf = Number(staticWordModelJson.confidence ?? 0);
-    const staticWordModelAccepted =
-      typeof staticWordModelJson.accepted_prediction === "boolean"
-        ? staticWordModelJson.accepted_prediction
-        : staticWordModelConf >= STATIC_WORD_CONFIDENCE_THRESHOLD;
-
-    if (staticWordModelAccepted && staticWordModelLabel === "I_LOVE_YOU") {
-      buffers.wordMissCount = 0;
-      if (context.isMountedRef.current) {
-        context.setRawLabel(staticWordModelLabel);
-        context.setLastLabel(staticWordModelLabel);
-        context.setLastConf(staticWordModelConf);
-      }
-      return;
-    }
-
     const landmarkRes = await fetch(`${context.apiBase}/predict_landmarks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

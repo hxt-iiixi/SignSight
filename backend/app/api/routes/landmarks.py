@@ -17,10 +17,6 @@ from app.services.landmark_classifier import (
     upload_landmarks,
     upload_static_word_landmark,
 )
-from app.services.static_word_landmark_classifier import (
-    predict_static_word_landmarks,
-    train_static_word_landmark_model,
-)
 
 
 router = APIRouter()
@@ -47,11 +43,6 @@ def upload_landmarks_route(req: UploadLandmarksReq):
 @router.post("/train_landmarks")
 def train_landmarks(req: TrainLandmarksReq):
     return train_landmarks_model(req.trainingMode)
-
-
-@router.post("/train_static_word_landmarks")
-def train_static_word_landmarks():
-    return train_static_word_landmark_model()
 
 
 @router.post("/upload_static_word_landmarks")
@@ -94,8 +85,3 @@ def landmark_label_summary_route(req: LandmarkLabelSummaryReq):
 @router.post("/predict_landmarks")
 def predict_landmarks_route(req: PredictLandmarksReq):
     return predict_landmarks(req.landmarks, req.handedness, req.labelSpace)
-
-
-@router.post("/predict_static_word_landmarks")
-def predict_static_word_landmarks_route(req: PredictLandmarksReq):
-    return predict_static_word_landmarks(req.landmarks, req.handedness)

@@ -170,8 +170,29 @@ def _iter_label_records(label: str):
             yield record
 
 
+def _iter_static_word_records(label: str):
+    path = STATIC_WORD_LANDMARKS_DIR / f"{label}.jsonl"
+    if not path.exists():
+        return
+
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            try:
+                raw = json.loads(line)
+            except Exception:
+                continue
+
+            record = _normalize_landmark_record(raw)
+            if record["label"] != label:
+                continue
+            if not isinstance(record["landmarks"], list) or len(record["landmarks"]) != 21:
+                continue
+            yield record
+
+
 def _dataset_summary() -> dict:
     summary: dict[str, dict] = {}
+    static_word_summary: dict[str, dict] = {}
     approved_records: list[dict] = []
 
     for label in LABELS:
@@ -197,7 +218,34 @@ def _dataset_summary() -> dict:
 
         summary[label] = stats
 
-    return {"labels": summary, "approved_records": approved_records}
+    for label in STATIC_WORD_LABELS:
+        stats = {
+            "approved": 0,
+            "pending": 0,
+            "rejected": 0,
+            "legacy": 0,
+            "by_hand": {"Left": 0, "Right": 0},
+            "signer_ids": set(),
+        }
+
+        for record in _iter_static_word_records(label) or ():
+            kind = _record_kind(record)
+            stats[kind] += 1
+
+            if kind == "approved":
+                handedness = record["handedness"]
+                if handedness in stats["by_hand"]:
+                    stats["by_hand"][handedness] += 1
+                stats["signer_ids"].add(record["signer_id"])
+                approved_records.append(record)
+
+        static_word_summary[label] = stats
+
+    return {
+        "labels": summary,
+        "static_word_labels": static_word_summary,
+        "approved_records": approved_records,
+    }
 
 
 def _normalize_training_mode(value: object) -> TrainingMode:
@@ -343,6 +391,11 @@ def _version_entry(
         ]
         if isinstance(metadata.get("active_static_letters"), list)
         else [],
+        "active_static_word_labels": [
+            str(label) for label in metadata.get("active_static_word_labels", [])
+        ]
+        if isinstance(metadata.get("active_static_word_labels"), list)
+        else [],
         "trained_at": metadata.get("trained_at"),
         "source": source,
     }
@@ -419,9 +472,19 @@ def _active_static_letters() -> list[str]:
     global landmark_model_metadata, landmark_model
     labels = landmark_model_metadata.get("active_static_letters")
     if isinstance(labels, list):
+        return [str(label) for label in labels if str(label) in LABELS]
+    if landmark_model is not None and hasattr(landmark_model, "classes_"):
+        return [str(label) for label in landmark_model.classes_ if str(label) in LABELS]
+    return []
+
+
+def _active_static_word_labels() -> list[str]:
+    global landmark_model_metadata, landmark_model
+    labels = landmark_model_metadata.get("active_static_word_labels")
+    if isinstance(labels, list):
         return [str(label) for label in labels]
     if landmark_model is not None and hasattr(landmark_model, "classes_"):
-        return [str(label) for label in landmark_model.classes_]
+        return [str(label) for label in landmark_model.classes_ if str(label) in STATIC_WORD_LABELS]
     return []
 
 
@@ -855,6 +918,11 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
     summary = _dataset_summary()
     ready_static_letters, deficits_by_label = _quota_status(summary, normalized_mode)
     unready_static_letters = [label for label in LABELS if label not in ready_static_letters]
+    ready_static_word_labels = [
+        label
+        for label, stats in summary["static_word_labels"].items()
+        if stats["approved"] > 0
+    ]
     if len(ready_static_letters) < requirements["min_ready_static_letters"]:
         return {
             "ok": False,
@@ -862,13 +930,16 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
             "training_mode": normalized_mode,
             "requirements": requirements,
             "ready_static_letters": ready_static_letters,
+            "ready_static_word_labels": ready_static_word_labels,
             "unready_static_letters": unready_static_letters,
             "active_static_letters": [],
+            "active_static_word_labels": [],
             "deficits_by_label": deficits_by_label,
             "deficits": [item for deficits in deficits_by_label.values() for item in deficits],
         }
 
-    X, y = load_landmarks_dataset(ready_static_letters)
+    training_labels = ready_static_letters + ready_static_word_labels
+    X, y = load_landmarks_dataset(training_labels)
     if len(X) == 0:
         print("⚠️ No landmark samples found. Collect samples first.")
         return {
@@ -877,8 +948,10 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
             "training_mode": normalized_mode,
             "requirements": requirements,
             "ready_static_letters": ready_static_letters,
+            "ready_static_word_labels": ready_static_word_labels,
             "unready_static_letters": unready_static_letters,
             "active_static_letters": [],
+            "active_static_word_labels": [],
             "deficits_by_label": deficits_by_label,
         }
 
@@ -889,7 +962,9 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
     train_labels = set(ytr.tolist())
     test_labels = set(yte.tolist())
     missing_after_split = [
-        label for label in ready_static_letters if label not in train_labels or label not in test_labels
+        label
+        for label in training_labels
+        if label not in train_labels or label not in test_labels
     ]
     if missing_after_split:
         return {
@@ -898,8 +973,10 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
             "training_mode": normalized_mode,
             "requirements": requirements,
             "ready_static_letters": ready_static_letters,
+            "ready_static_word_labels": ready_static_word_labels,
             "unready_static_letters": unready_static_letters,
             "active_static_letters": [],
+            "active_static_word_labels": [],
             "deficits_by_label": deficits_by_label,
             "split_missing_labels": missing_after_split,
         }
@@ -925,13 +1002,23 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
         "version_id": version_id,
         "label": f"{normalized_mode.replace('_', ' ')} {trained_at}",
         "training_mode": normalized_mode,
-        "active_static_letters": sorted(str(label) for label in model.classes_),
+        "active_static_letters": sorted(
+            str(label) for label in model.classes_ if str(label) in LABELS
+        ),
+        "active_static_word_labels": sorted(
+            str(label) for label in model.classes_ if str(label) in STATIC_WORD_LABELS
+        ),
         "ready_static_letters": ready_static_letters,
+        "ready_static_word_labels": ready_static_word_labels,
         "unready_static_letters": unready_static_letters,
         "deficits_by_label": deficits_by_label,
         "trained_at": trained_at,
         "training_sample_counts": {
             label: int(summary["labels"][label]["approved"]) for label in ready_static_letters
+        }
+        | {
+            label: int(summary["static_word_labels"][label]["approved"])
+            for label in ready_static_word_labels
         },
         "quotas_used": requirements,
     }
@@ -960,7 +1047,9 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
         "training_mode": normalized_mode,
         "requirements": requirements,
         "active_static_letters": landmark_model_metadata["active_static_letters"],
+        "active_static_word_labels": landmark_model_metadata["active_static_word_labels"],
         "ready_static_letters": ready_static_letters,
+        "ready_static_word_labels": ready_static_word_labels,
         "unready_static_letters": unready_static_letters,
         "deficits_by_label": deficits_by_label,
     }
@@ -1020,6 +1109,21 @@ def predict_landmarks(
         raw_label, raw_confidence, top_labels, top_scores, analysis
     )
     active_static_letters = _active_static_letters()
+    active_static_word_labels = _active_static_word_labels()
+    if _clean_optional_string(label_space) == "words":
+        if label in active_static_word_labels:
+            return {
+                "label": label,
+                "confidence": confidence,
+                "accepted_prediction": True,
+                "raw_label": raw_label,
+                "raw_confidence": raw_confidence,
+                "margin": margin,
+                "active_static_letters": active_static_letters,
+                "active_static_word_labels": active_static_word_labels,
+                "unknown_reason": None,
+            }
+
     static_word_label = _suggest_static_word_label(analysis, label_space)
     if static_word_label:
         label = static_word_label
@@ -1032,6 +1136,7 @@ def predict_landmarks(
             "raw_confidence": raw_confidence,
             "margin": margin,
             "active_static_letters": active_static_letters,
+            "active_static_word_labels": active_static_word_labels,
             "unknown_reason": None,
         }
 
@@ -1048,6 +1153,7 @@ def predict_landmarks(
         "raw_confidence": raw_confidence,
         "margin": margin,
         "active_static_letters": active_static_letters,
+        "active_static_word_labels": active_static_word_labels,
         "unknown_reason": unknown_reason,
     }
 
@@ -1270,6 +1376,7 @@ def health_summary() -> dict:
     unready_static_letters = unready_by_mode[current_mode]
     deficits_by_label = deficits_by_mode[current_mode]
     counts_by_label = {}
+    static_word_counts_by_label = {}
     total = 0
     for label, stats in dataset["labels"].items():
         signer_count = len(stats["signer_ids"])
@@ -1282,6 +1389,15 @@ def health_summary() -> dict:
             "signer_count": signer_count,
         }
         total += stats["approved"] + stats["pending"] + stats["rejected"] + stats["legacy"]
+    for label, stats in dataset["static_word_labels"].items():
+        static_word_counts_by_label[label] = {
+            "approved": stats["approved"],
+            "pending": stats["pending"],
+            "rejected": stats["rejected"],
+            "legacy": stats["legacy"],
+            "by_hand": stats["by_hand"],
+            "signer_count": len(stats["signer_ids"]),
+        }
 
     return {
         "trained_landmarks": bool(active_version_id or LANDMARKS_MODEL_PATH.exists()),
@@ -1297,6 +1413,9 @@ def health_summary() -> dict:
         "ready_static_letters_by_mode": readiness_by_mode,
         "unready_static_letters_by_mode": unready_by_mode,
         "active_static_letters": _active_static_letters(),
+        "active_static_word_labels": _active_static_word_labels(),
+        "static_word_landmark_counts": static_word_counts_by_label,
+        "static_word_labels": STATIC_WORD_LABELS,
         "deficits_by_label": deficits_by_label,
         "deficits_by_label_by_mode": deficits_by_mode,
         "motion_only_letter_labels": MOTION_ONLY_LETTER_LABELS,
