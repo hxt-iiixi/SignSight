@@ -1,6 +1,6 @@
 {
-  "version_id": "landmarks_bootstrap_20260401T151115Z",
-  "label": "bootstrap 2026-04-01T15:11:15+00:00",
+  "version_id": "landmarks_bootstrap_20260401T150324Z",
+  "label": "bootstrap 2026-04-01T15:03:24+00:00",
   "training_mode": "bootstrap",
   "active_static_letters": [
     "A",
@@ -139,14 +139,14 @@
       "Y: signers 0/1"
     ]
   },
-  "trained_at": "2026-04-01T15:11:15+00:00",
+  "trained_at": "2026-04-01T15:03:24+00:00",
   "training_sample_counts": {
     "A": 189,
     "B": 212,
     "C": 239,
     "F": 203,
     "M": 198,
-    "N": 332,
+    "N": 169,
     "O": 236,
     "S": 186,
     "T": 257,
