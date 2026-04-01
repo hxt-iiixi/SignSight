@@ -283,30 +283,7 @@ def _suggest_rule_label(
             return "D"
 
     if _family_active(raw_label, top_labels, {"C", "O", "F"}):
-        thumb_index_closed = float(thumb_to_tip_distance[0]) < 0.24
-        thumb_middle_near = float(thumb_to_tip_distance[1]) < 0.36
-        thumb_ring_near = float(thumb_to_tip_distance[2]) < 0.52
-        fingers_curved = float(np.mean(curl_scores[1:])) > 0.24
-        fingers_not_fully_extended = float(np.mean(extension_scores[1:4])) < 0.72
-
-        if (
-            thumb_index_closed
-            and fingers_curved
-            and fingers_not_fully_extended
-            and (thumb_middle_near or thumb_ring_near)
-            and aperture < 0.94
-        ):
-            return "O"
-
-        if float(thumb_to_tip_distance[0]) < 0.16:
-            return (
-                "F"
-                if int(np.sum(extended[1:4])) >= 2
-                and float(np.mean(curl_scores[1:4])) < 0.45
-                else "O"
-            )
-        if aperture > 0.92:
-            return "C"
+        return _classify_cof_family(analysis)
 
     if _family_active(raw_label, top_labels, {"A", "S"}):
         if fist_like:
@@ -333,26 +310,100 @@ def _suggest_rule_label(
     return None
 
 
-def _rule_confidence_floor(suggested: str, analysis: dict) -> Optional[float]:
-    if suggested != "O":
-        return None
-
+def _classify_cof_family(analysis: dict) -> Optional[str]:
     thumb_to_tip_distance = analysis["thumb_to_tip_distance"]
+    extension_scores = analysis["extension_scores"]
     curl_scores = analysis["curl_scores"]
     aperture = float(analysis["aperture"])
+    extended = analysis["extended_flags"] > 0.5
 
+    middle_up = float(extension_scores[2]) >= 0.68 or bool(extended[2])
+    ring_up = float(extension_scores[3]) >= 0.66 or bool(extended[3])
+    pinky_up = float(extension_scores[4]) >= 0.66 or bool(extended[4])
+
+    thumb_index_tight = float(thumb_to_tip_distance[0]) < 0.17
     thumb_index_closed = float(thumb_to_tip_distance[0]) < 0.24
     thumb_middle_near = float(thumb_to_tip_distance[1]) < 0.36
     thumb_ring_near = float(thumb_to_tip_distance[2]) < 0.52
-    fingers_curved = float(np.mean(curl_scores[1:])) > 0.24
+    mean_inner_extension = float(np.mean(extension_scores[1:4]))
+    mean_inner_curl = float(np.mean(curl_scores[1:4]))
 
-    if (
+    strong_f = (
+        thumb_index_tight
+        and middle_up
+        and ring_up
+        and pinky_up
+        and float(thumb_to_tip_distance[1]) >= 0.30
+        and float(thumb_to_tip_distance[2]) >= 0.44
+        and mean_inner_extension >= 0.67
+        and mean_inner_curl <= 0.27
+    )
+    if strong_f:
+        return "F"
+
+    strong_o = (
         thumb_index_closed
-        and fingers_curved
         and (thumb_middle_near or thumb_ring_near)
-        and aperture < 0.94
-    ):
-        return 0.68
+        and mean_inner_curl >= 0.23
+        and mean_inner_extension <= 0.73
+        and aperture <= 0.93
+        and not strong_f
+    )
+    if strong_o:
+        return "O"
+
+    if aperture >= 0.94 or not thumb_index_closed:
+        return "C"
+
+    return None
+
+
+def _rule_confidence_floor(suggested: str, analysis: dict) -> Optional[float]:
+    if suggested == "O":
+        thumb_to_tip_distance = analysis["thumb_to_tip_distance"]
+        extension_scores = analysis["extension_scores"]
+        curl_scores = analysis["curl_scores"]
+        aperture = float(analysis["aperture"])
+
+        thumb_index_closed = float(thumb_to_tip_distance[0]) < 0.24
+        thumb_middle_near = float(thumb_to_tip_distance[1]) < 0.36
+        thumb_ring_near = float(thumb_to_tip_distance[2]) < 0.52
+        mean_inner_extension = float(np.mean(extension_scores[1:4]))
+        mean_inner_curl = float(np.mean(curl_scores[1:4]))
+
+        if (
+            thumb_index_closed
+            and (thumb_middle_near or thumb_ring_near)
+            and mean_inner_curl >= 0.23
+            and mean_inner_extension <= 0.73
+            and aperture <= 0.93
+        ):
+            return 0.68
+
+    if suggested == "F":
+        thumb_to_tip_distance = analysis["thumb_to_tip_distance"]
+        extension_scores = analysis["extension_scores"]
+        curl_scores = analysis["curl_scores"]
+        extended = analysis["extended_flags"] > 0.5
+
+        middle_up = float(extension_scores[2]) >= 0.68 or bool(extended[2])
+        ring_up = float(extension_scores[3]) >= 0.66 or bool(extended[3])
+        pinky_up = float(extension_scores[4]) >= 0.66 or bool(extended[4])
+        thumb_index_tight = float(thumb_to_tip_distance[0]) < 0.17
+        mean_inner_extension = float(np.mean(extension_scores[1:4]))
+        mean_inner_curl = float(np.mean(curl_scores[1:4]))
+
+        if (
+            thumb_index_tight
+            and middle_up
+            and ring_up
+            and pinky_up
+            and float(thumb_to_tip_distance[1]) >= 0.30
+            and float(thumb_to_tip_distance[2]) >= 0.44
+            and mean_inner_extension >= 0.67
+            and mean_inner_curl <= 0.27
+        ):
+            return 0.72
 
     return None
 

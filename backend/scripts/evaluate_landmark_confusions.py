@@ -17,6 +17,7 @@ from app.core.paths import LANDMARKS_DIR
 from app.ml.landmarks import analyze_hand_landmarks, landmark_feature_vector
 from app.services.landmark_classifier import (
     _maybe_apply_rule_override,
+    _classify_cof_family,
     _top_predictions,
     load_landmarks_dataset,
 )
@@ -124,7 +125,38 @@ def print_family_report(rows: list[EvalRow], name: str, labels: list[str]) -> No
     print(adj_cm)
 
 
+def print_cof_probe() -> None:
+    import json
+
+    print("\n=== C/O/F Probe ===")
+    for label in ["O", "C", "F"]:
+        path = LANDMARKS_DIR / f"{label}.jsonl"
+        if not path.exists():
+            print(f"{label}: no fixture file")
+            continue
+
+        lines = path.read_text(encoding="utf-8").splitlines()
+        if not lines:
+            print(f"{label}: empty fixture file")
+            continue
+
+        suggested: list[str] = []
+        for line in lines:
+            try:
+                obj = json.loads(line)
+            except Exception:
+                continue
+            analysis = analyze_hand_landmarks(obj["landmarks"], obj.get("handedness"))
+            suggested.append(_classify_cof_family(analysis) or "None")
+
+        counts: dict[str, int] = {}
+        for item in suggested:
+            counts[item] = counts.get(item, 0) + 1
+        print(f"{label}: {counts}")
+
+
 def main() -> None:
+    print_cof_probe()
     model, Xte, yte = train_eval_model()
     rows = evaluate_rows_with_rules(model, Xte, yte)
 
