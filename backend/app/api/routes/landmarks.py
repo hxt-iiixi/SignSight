@@ -1,7 +1,13 @@
 from fastapi import APIRouter
 
-from app.schemas.ml import PredictLandmarksReq, UploadLandmarksReq
+from app.schemas.ml import (
+    ActivateLandmarkModelReq,
+    PredictLandmarksReq,
+    TrainLandmarksReq,
+    UploadLandmarksReq,
+)
 from app.services.landmark_classifier import (
+    activate_landmark_model_version,
     predict_landmarks,
     train_landmarks_model,
     upload_landmarks,
@@ -30,8 +36,13 @@ def upload_landmarks_route(req: UploadLandmarksReq):
 
 
 @router.post("/train_landmarks")
-def train_landmarks():
-    return train_landmarks_model()
+def train_landmarks(req: TrainLandmarksReq):
+    return train_landmarks_model(req.trainingMode)
+
+
+@router.post("/activate_landmark_model")
+def activate_landmark_model(req: ActivateLandmarkModelReq):
+    return activate_landmark_model_version(req.versionId)
 
 
 @router.post("/predict_landmarks")

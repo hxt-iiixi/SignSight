@@ -66,6 +66,16 @@ const WORD_LABELS = [
   "Z",
 ] as const;
 
+type LandmarkTrainingMode = "bootstrap" | "full_reviewed";
+type LandmarkModelVersion = {
+  version_id: string;
+  label?: string;
+  training_mode?: LandmarkTrainingMode;
+  trained_at?: string;
+  is_active?: boolean;
+  active_static_letters?: string[];
+};
+
 function createDefaultCaptureSessionId() {
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -151,6 +161,21 @@ export default function CameraScreenVC({
   const [status, setStatus] = useState("");
   const [lastHandedness, setLastHandedness] = useState<string | null>(null);
   const [rawLabel, setRawLabel] = useState("?");
+  const [activeStaticLetters, setActiveStaticLetters] = useState<string[]>([]);
+  const [readyStaticLettersByMode, setReadyStaticLettersByMode] = useState<
+    Record<LandmarkTrainingMode, string[]>
+  >({
+    bootstrap: [],
+    full_reviewed: [],
+  });
+  const [landmarkTrainingMode, setLandmarkTrainingMode] =
+    useState<LandmarkTrainingMode>("full_reviewed");
+  const [currentLandmarkTrainingMode, setCurrentLandmarkTrainingMode] =
+    useState<LandmarkTrainingMode>("full_reviewed");
+  const [activeLandmarkModelVersionId, setActiveLandmarkModelVersionId] =
+    useState<string | null>(null);
+  const [availableLandmarkModelVersions, setAvailableLandmarkModelVersions] =
+    useState<LandmarkModelVersion[]>([]);
 
   type WordLabel = (typeof WORD_LABELS)[number];
   const [selectedWord, setSelectedWord] = useState<WordLabel>("HELLO");
@@ -293,15 +318,47 @@ export default function CameraScreenVC({
 
   const trainLandmarks = async () => {
     try {
-      setStatus("Training landmarks...");
-      const res = await fetch(`${API_BASE}/train_landmarks`, { method: "POST" });
+      setStatus(
+        `Training landmarks (${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"})...`
+      );
+      const res = await fetch(`${API_BASE}/train_landmarks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingMode: landmarkTrainingMode }),
+      });
       const json = await res.json();
       if (json.ok) {
         const acc =
           typeof json.accuracy === "number"
             ? ` (acc ${Math.round(json.accuracy * 100)}%)`
             : "";
-        setStatus(`Training complete ✅${acc}`);
+        const active = Array.isArray(json.active_static_letters)
+          ? json.active_static_letters
+          : [];
+        const ready = Array.isArray(json.ready_static_letters)
+          ? json.ready_static_letters
+          : [];
+        setActiveStaticLetters(active);
+        setReadyStaticLettersByMode((current) => ({
+          ...current,
+          [landmarkTrainingMode]: ready.map(String),
+        }));
+        setCurrentLandmarkTrainingMode(
+          json.training_mode === "bootstrap" ? "bootstrap" : "full_reviewed"
+        );
+        setActiveLandmarkModelVersionId(
+          typeof json.active_version_id === "string"
+            ? json.active_version_id
+            : null
+        );
+        setAvailableLandmarkModelVersions(
+          Array.isArray(json.available_versions)
+            ? json.available_versions
+            : []
+        );
+        setStatus(
+          `Training complete ✅${acc} ${json.training_mode === "bootstrap" ? "Bootstrap" : "Full reviewed"} model: ${active.length}/${STATIC_ASL_LABELS.length} active`
+        );
         return;
       }
 
@@ -312,6 +369,46 @@ export default function CameraScreenVC({
       setStatus(`Training blocked ❌ ${json.error ?? "unknown"}${firstDeficit}`);
     } catch {
       setStatus("Training error");
+    }
+  };
+
+  const activateLandmarkModelVersion = async (versionId: string) => {
+    try {
+      setStatus("Switching landmark model version...");
+      const res = await fetch(`${API_BASE}/activate_landmark_model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setStatus(`Version switch failed: ${json.error ?? "unknown"}`);
+        return;
+      }
+
+      const active = Array.isArray(json.active_static_letters)
+        ? json.active_static_letters.map(String)
+        : [];
+      setActiveStaticLetters(active);
+      setCurrentLandmarkTrainingMode(
+        json.training_mode === "bootstrap" ? "bootstrap" : "full_reviewed"
+      );
+      setLandmarkTrainingMode(
+        json.training_mode === "bootstrap" ? "bootstrap" : "full_reviewed"
+      );
+      setActiveLandmarkModelVersionId(
+        typeof json.active_version_id === "string"
+          ? json.active_version_id
+          : versionId
+      );
+      setAvailableLandmarkModelVersions(
+        Array.isArray(json.available_versions)
+          ? json.available_versions
+          : []
+      );
+      setStatus(`Switched active model ✅ ${versionId}`);
+    } catch {
+      setStatus("Version switch error");
     }
   };
 
@@ -472,6 +569,61 @@ export default function CameraScreenVC({
     );
   }, [ready, isSupported]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/health`);
+        const json = await res.json();
+        if (cancelled) {
+          return;
+        }
+        setActiveStaticLetters(
+          Array.isArray(json.active_static_letters)
+            ? json.active_static_letters.map(String)
+            : []
+        );
+        const currentMode =
+          json.current_landmark_training_mode === "bootstrap"
+            ? "bootstrap"
+            : "full_reviewed";
+        const bootstrapReady = Array.isArray(
+          json.ready_static_letters_by_mode?.bootstrap
+        )
+          ? json.ready_static_letters_by_mode.bootstrap.map(String)
+          : [];
+        const fullReviewedReady = Array.isArray(
+          json.ready_static_letters_by_mode?.full_reviewed
+        )
+          ? json.ready_static_letters_by_mode.full_reviewed.map(String)
+          : Array.isArray(json.ready_static_letters)
+            ? json.ready_static_letters.map(String)
+            : [];
+        setCurrentLandmarkTrainingMode(currentMode);
+        setLandmarkTrainingMode(currentMode);
+        setActiveLandmarkModelVersionId(
+          typeof json.active_landmark_model_version_id === "string"
+            ? json.active_landmark_model_version_id
+            : null
+        );
+        setAvailableLandmarkModelVersions(
+          Array.isArray(json.available_landmark_model_versions)
+            ? json.available_landmark_model_versions
+            : []
+        );
+        setReadyStaticLettersByMode({
+          bootstrap: bootstrapReady,
+          full_reviewed: fullReviewedReady,
+        });
+      } catch {}
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const orientedFrame = useMemo(() => {
     if (!format) {
       return { width: 0, height: 0 };
@@ -511,6 +663,9 @@ export default function CameraScreenVC({
 
   const centerTitle = detectMode === "LETTERS" ? "LETTER" : "WORD";
   const displayLabel = lastLabel;
+  const selectedLabelIsActive = activeStaticLetters.includes(selectedLabel);
+  const selectedLabelIsReady =
+    readyStaticLettersByMode[landmarkTrainingMode].includes(selectedLabel);
   const currentWordFramesCount = isRecordingGesture
     ? recordingGestureFramesCount
     : liveGestureFramesCount;
@@ -670,15 +825,22 @@ export default function CameraScreenVC({
             )}
           </View>
         ) : (
-          <View style={styles.chipsRow}>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                {detectMode === "LETTERS" ? "Letters" : "Words"}
-              </Text>
-            </View>
-            {!!status && (
+            <View style={styles.chipsRow}>
               <View style={styles.chip}>
-                <Text style={styles.chipText} numberOfLines={1}>
+                <Text style={styles.chipText}>
+                  {detectMode === "LETTERS" ? "Letters" : "Words"}
+                </Text>
+              </View>
+              {detectMode === "LETTERS" && (
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    Active {activeStaticLetters.length}/{STATIC_ASL_LABELS.length}
+                  </Text>
+                </View>
+              )}
+              {!!status && (
+                <View style={styles.chip}>
+                  <Text style={styles.chipText} numberOfLines={1}>
                   {status}
                 </Text>
               </View>
@@ -755,6 +917,15 @@ export default function CameraScreenVC({
                   <Text style={styles.labFieldValue}>
                     {detectMode === "WORDS" ? selectedWord : selectedLabel}
                   </Text>
+                  {detectMode === "LETTERS" ? (
+                    <Text style={styles.labHelperText}>
+                      {selectedLabelIsActive
+                        ? "Active in the trained static model."
+                        : selectedLabelIsReady
+                          ? `Quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"}, but not active until the next train.`
+                          : `Collectable now, but not quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} yet.`}
+                    </Text>
+                  ) : null}
                 </View>
                 <Pressable
                   onPress={detectMode === "WORDS" ? nextWord : nextLabel}
@@ -935,10 +1106,119 @@ export default function CameraScreenVC({
               title="Training"
               subtitle="Model training is separate from capture so it is harder to trigger by accident."
             >
+              {detectMode === "LETTERS" ? (
+                <View style={styles.trainingModeCard}>
+                  <Text style={styles.labFieldLabel}>Training mode</Text>
+                  <View style={styles.btnRow}>
+                    <Pressable
+                      onPress={() => setLandmarkTrainingMode("bootstrap")}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        landmarkTrainingMode === "bootstrap" && styles.btnAccent,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.btnText,
+                          landmarkTrainingMode === "bootstrap" &&
+                            styles.btnTextDark,
+                        ]}
+                      >
+                        Bootstrap
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => setLandmarkTrainingMode("full_reviewed")}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        landmarkTrainingMode === "full_reviewed" &&
+                          styles.btnAccent,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.btnText,
+                          landmarkTrainingMode === "full_reviewed" &&
+                            styles.btnTextDark,
+                        ]}
+                      >
+                        Full Reviewed
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.labHelperText}>
+                    {landmarkTrainingMode === "bootstrap"
+                      ? "Bootstrap mode is for solo or early internal testing with lower quotas."
+                      : "Full reviewed mode uses the stricter final dataset quotas."}
+                  </Text>
+                  <Text style={styles.inputHelperText}>
+                    Current trained model:{" "}
+                    {currentLandmarkTrainingMode === "bootstrap"
+                      ? "bootstrap"
+                      : "full reviewed"}
+                    .
+                  </Text>
+                  {activeLandmarkModelVersionId ? (
+                    <Text style={styles.inputHelperText}>
+                      Active version: {activeLandmarkModelVersionId}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {detectMode === "LETTERS" && availableLandmarkModelVersions.length > 0 ? (
+                <View style={styles.trainingModeCard}>
+                  <Text style={styles.labFieldLabel}>Model versions</Text>
+                  <View style={styles.versionList}>
+                    {availableLandmarkModelVersions.map((version) => {
+                      const versionId = String(version.version_id);
+                      const isActive = versionId === activeLandmarkModelVersionId;
+                      const mode =
+                        version.training_mode === "bootstrap"
+                          ? "bootstrap"
+                          : "full reviewed";
+                      return (
+                        <Pressable
+                          key={versionId}
+                          onPress={() => activateLandmarkModelVersion(versionId)}
+                          style={({ pressed }) => [
+                            styles.versionCard,
+                            isActive && styles.versionCardActive,
+                            pressed && { opacity: 0.88 },
+                          ]}
+                        >
+                          <Text style={styles.versionTitle}>
+                            {String(version.label ?? versionId)}
+                          </Text>
+                          <Text style={styles.inputHelperText}>
+                            {mode} •{" "}
+                            {Array.isArray(version.active_static_letters)
+                              ? `${version.active_static_letters.length} active letters`
+                              : "unknown classes"}
+                          </Text>
+                          {version.trained_at ? (
+                            <Text style={styles.inputHelperText}>
+                              {version.trained_at}
+                            </Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : null}
+
               <View style={styles.trainingNotice}>
                 <Ionicons name="alert-circle-outline" size={18} color={ACCENT} />
                 <Text style={styles.trainingNoticeText}>
-                  Train only after you have collected enough clean samples for the current target set.
+                  {detectMode === "WORDS"
+                    ? "Train only after you have collected enough clean samples for the current target set."
+                    : landmarkTrainingMode === "bootstrap"
+                      ? "Bootstrap mode is temporary and should not be treated as the final shared model."
+                      : "Full reviewed mode expects the stricter final dataset quotas and signer diversity."}
                 </Text>
               </View>
 
@@ -1409,6 +1689,34 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   btnPrimaryText: { color: ACCENT, fontWeight: "900" },
+  trainingModeCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 10,
+  },
+  versionList: {
+    gap: 8,
+  },
+  versionCard: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "rgba(249,250,251,0.92)",
+    gap: 4,
+  },
+  versionCardActive: {
+    backgroundColor: SOFT_BLUE,
+    borderColor: "rgba(96,165,250,0.35)",
+  },
+  versionTitle: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 13,
+  },
   trainingNotice: {
     flexDirection: "row",
     gap: 10,

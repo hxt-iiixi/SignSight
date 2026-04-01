@@ -1,6 +1,7 @@
 import json
+import shutil
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 import joblib
 import numpy as np
@@ -9,18 +10,39 @@ from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
 from app.core.constants import LABELS, MOTION_ONLY_LETTER_LABELS
-from app.core.paths import LANDMARKS_DIR, LANDMARKS_MODEL_PATH
+from app.core.paths import (
+    LANDMARKS_DIR,
+    LANDMARKS_MODEL_METADATA_PATH,
+    LANDMARKS_MODEL_PATH,
+    LANDMARKS_MODEL_REGISTRY_PATH,
+    LANDMARKS_MODEL_VERSIONS_DIR,
+)
 from app.ml.landmarks import analyze_hand_landmarks, landmark_feature_vector
 
 
 landmark_model: Optional[SVC] = None
+landmark_model_metadata: dict[str, object] = {}
+landmark_model_version_id: Optional[str] = None
+TrainingMode = Literal["bootstrap", "full_reviewed"]
 
 CONFIDENCE_OVERRIDE_MAX = 0.92
 RULE_MIN_CONFIDENCE = 0.85
 RULE_MIN_MARGIN = 0.18
-MIN_APPROVED_SAMPLES_PER_LABEL = 480
-MIN_APPROVED_PER_HAND = 240
-MIN_SIGNERS_PER_LABEL = 8
+DEFAULT_TRAINING_MODE: TrainingMode = "full_reviewed"
+LANDMARK_TRAINING_MODES: dict[TrainingMode, dict[str, int]] = {
+    "bootstrap": {
+        "min_approved_samples_per_label": 40,
+        "min_approved_per_hand": 20,
+        "min_signers_per_label": 1,
+        "min_ready_static_letters": 3,
+    },
+    "full_reviewed": {
+        "min_approved_samples_per_label": 480,
+        "min_approved_per_hand": 240,
+        "min_signers_per_label": 8,
+        "min_ready_static_letters": 3,
+    },
+}
 REQUIRED_RECORD_FIELDS = (
     "label",
     "handedness",
@@ -169,38 +191,72 @@ def _dataset_summary() -> dict:
     return {"labels": summary, "approved_records": approved_records}
 
 
-def load_approved_landmark_records() -> list[dict]:
-    return list(_dataset_summary()["approved_records"])
+def _normalize_training_mode(value: object) -> TrainingMode:
+    text = _clean_optional_string(value)
+    if text == "bootstrap":
+        return "bootstrap"
+    if text == "full_reviewed":
+        return "full_reviewed"
+    return DEFAULT_TRAINING_MODE
 
 
-def _training_gate_failures(summary: dict) -> list[str]:
-    failures: list[str] = []
+def _training_requirements(mode: object) -> dict[str, int]:
+    normalized_mode = _normalize_training_mode(mode)
+    requirements = LANDMARK_TRAINING_MODES[normalized_mode]
+    return {
+        "min_approved_samples_per_label": requirements["min_approved_samples_per_label"],
+        "min_approved_per_hand": requirements["min_approved_per_hand"],
+        "min_signers_per_label": requirements["min_signers_per_label"],
+        "min_ready_static_letters": requirements["min_ready_static_letters"],
+    }
+
+
+def load_approved_landmark_records(target_labels: Optional[list[str]] = None) -> list[dict]:
+    records = list(_dataset_summary()["approved_records"])
+    if target_labels is None:
+        return records
+    target_set = set(target_labels)
+    return [record for record in records if record["label"] in target_set]
+
+
+def _quota_status(summary: dict, mode: object = DEFAULT_TRAINING_MODE) -> tuple[list[str], dict[str, list[str]]]:
+    requirements = _training_requirements(mode)
+    ready: list[str] = []
+    deficits_by_label: dict[str, list[str]] = {}
     label_stats = summary["labels"]
 
     for label in LABELS:
         stats = label_stats[label]
         signer_count = len(stats["signer_ids"])
-        if stats["approved"] < MIN_APPROVED_SAMPLES_PER_LABEL:
-            failures.append(
-                f"{label}: approved {stats['approved']}/{MIN_APPROVED_SAMPLES_PER_LABEL}"
+        deficits: list[str] = []
+        if stats["approved"] < requirements["min_approved_samples_per_label"]:
+            deficits.append(
+                f"{label}: approved {stats['approved']}/{requirements['min_approved_samples_per_label']}"
             )
-        if stats["by_hand"]["Left"] < MIN_APPROVED_PER_HAND:
-            failures.append(
-                f"{label}: Left hand {stats['by_hand']['Left']}/{MIN_APPROVED_PER_HAND}"
+        if stats["by_hand"]["Left"] < requirements["min_approved_per_hand"]:
+            deficits.append(
+                f"{label}: Left hand {stats['by_hand']['Left']}/{requirements['min_approved_per_hand']}"
             )
-        if stats["by_hand"]["Right"] < MIN_APPROVED_PER_HAND:
-            failures.append(
-                f"{label}: Right hand {stats['by_hand']['Right']}/{MIN_APPROVED_PER_HAND}"
+        if stats["by_hand"]["Right"] < requirements["min_approved_per_hand"]:
+            deficits.append(
+                f"{label}: Right hand {stats['by_hand']['Right']}/{requirements['min_approved_per_hand']}"
             )
-        if signer_count < MIN_SIGNERS_PER_LABEL:
-            failures.append(f"{label}: signers {signer_count}/{MIN_SIGNERS_PER_LABEL}")
+        if signer_count < requirements["min_signers_per_label"]:
+            deficits.append(
+                f"{label}: signers {signer_count}/{requirements['min_signers_per_label']}"
+            )
 
-    return failures
+        if deficits:
+            deficits_by_label[label] = deficits
+        else:
+            ready.append(label)
+
+    return ready, deficits_by_label
 
 
-def load_landmarks_dataset():
+def load_landmarks_dataset(target_labels: Optional[list[str]] = None):
     X, y = [], []
-    for record in load_approved_landmark_records():
+    for record in load_approved_landmark_records(target_labels):
         try:
             X.append(landmark_feature_vector(record["landmarks"], record["handedness"]))
             y.append(record["label"])
@@ -211,6 +267,223 @@ def load_landmarks_dataset():
         return np.array([]), np.array([])
 
     return np.stack(X).astype(np.float32), np.array(y)
+
+
+def _load_landmark_model_metadata() -> dict[str, object]:
+    if not LANDMARKS_MODEL_METADATA_PATH.exists():
+        return {}
+    try:
+        return json.loads(LANDMARKS_MODEL_METADATA_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _persist_landmark_model_metadata(metadata: dict[str, object]) -> None:
+    LANDMARKS_MODEL_METADATA_PATH.write_text(
+        json.dumps(metadata, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _landmark_model_path_for_version(version_id: str):
+    return LANDMARKS_MODEL_VERSIONS_DIR / f"{version_id}.joblib"
+
+
+def _landmark_model_metadata_path_for_version(version_id: str):
+    return LANDMARKS_MODEL_VERSIONS_DIR / f"{version_id}.json"
+
+
+def _load_landmark_model_registry() -> dict[str, object]:
+    if not LANDMARKS_MODEL_REGISTRY_PATH.exists():
+        return {"active_version_id": None, "versions": []}
+    try:
+        data = json.loads(LANDMARKS_MODEL_REGISTRY_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {"active_version_id": None, "versions": []}
+    versions = data.get("versions")
+    if not isinstance(versions, list):
+        versions = []
+    active_version_id = data.get("active_version_id")
+    if active_version_id is not None:
+        active_version_id = str(active_version_id)
+    return {
+        "active_version_id": active_version_id,
+        "versions": versions,
+    }
+
+
+def _persist_landmark_model_registry(registry: dict[str, object]) -> None:
+    LANDMARKS_MODEL_REGISTRY_PATH.write_text(
+        json.dumps(registry, indent=2),
+        encoding="utf-8",
+    )
+
+
+def _version_entry(
+    version_id: str,
+    metadata: dict[str, object],
+    *,
+    source: str,
+) -> dict[str, object]:
+    return {
+        "version_id": version_id,
+        "label": str(metadata.get("label") or version_id),
+        "training_mode": _normalize_training_mode(metadata.get("training_mode")),
+        "active_static_letters": [
+            str(label) for label in metadata.get("active_static_letters", [])
+        ]
+        if isinstance(metadata.get("active_static_letters"), list)
+        else [],
+        "trained_at": metadata.get("trained_at"),
+        "source": source,
+    }
+
+
+def _sync_active_model_aliases(version_id: str, metadata: dict[str, object]) -> None:
+    version_model_path = _landmark_model_path_for_version(version_id)
+    version_meta_path = _landmark_model_metadata_path_for_version(version_id)
+    if version_model_path.exists():
+        shutil.copy2(version_model_path, LANDMARKS_MODEL_PATH)
+    if version_meta_path.exists():
+        shutil.copy2(version_meta_path, LANDMARKS_MODEL_METADATA_PATH)
+    else:
+        _persist_landmark_model_metadata(metadata)
+
+
+def _ensure_legacy_landmark_model_versioned() -> dict[str, object]:
+    registry = _load_landmark_model_registry()
+    if registry["versions"]:
+        return registry
+    if not LANDMARKS_MODEL_PATH.exists():
+        return registry
+
+    legacy_metadata = _load_landmark_model_metadata()
+    trained_at = legacy_metadata.get("trained_at")
+    if not trained_at:
+        trained_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        legacy_metadata["trained_at"] = trained_at
+    legacy_metadata.setdefault("training_mode", DEFAULT_TRAINING_MODE)
+    if not isinstance(legacy_metadata.get("active_static_letters"), list):
+        try:
+            legacy_model = joblib.load(LANDMARKS_MODEL_PATH)
+            legacy_metadata["active_static_letters"] = [
+                str(label) for label in getattr(legacy_model, "classes_", [])
+            ]
+        except Exception:
+            legacy_metadata["active_static_letters"] = []
+
+    version_id = "legacy_" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    version_model_path = _landmark_model_path_for_version(version_id)
+    version_meta_path = _landmark_model_metadata_path_for_version(version_id)
+    shutil.copy2(LANDMARKS_MODEL_PATH, version_model_path)
+    version_meta_path.write_text(json.dumps(legacy_metadata, indent=2), encoding="utf-8")
+    registry = {
+        "active_version_id": version_id,
+        "versions": [
+            _version_entry(version_id, legacy_metadata, source="migrated_legacy")
+        ],
+    }
+    _persist_landmark_model_registry(registry)
+    _sync_active_model_aliases(version_id, legacy_metadata)
+    return registry
+
+
+def _available_landmark_model_versions() -> list[dict[str, object]]:
+    registry = _load_landmark_model_registry()
+    active_version_id = registry.get("active_version_id")
+    versions: list[dict[str, object]] = []
+    for entry in registry.get("versions", []):
+        if not isinstance(entry, dict):
+            continue
+        normalized = dict(entry)
+        normalized["version_id"] = str(entry.get("version_id"))
+        normalized["is_active"] = normalized["version_id"] == active_version_id
+        versions.append(normalized)
+    versions.sort(
+        key=lambda item: str(item.get("trained_at") or ""),
+        reverse=True,
+    )
+    return versions
+
+
+def _active_static_letters() -> list[str]:
+    global landmark_model_metadata, landmark_model
+    labels = landmark_model_metadata.get("active_static_letters")
+    if isinstance(labels, list):
+        return [str(label) for label in labels]
+    if landmark_model is not None and hasattr(landmark_model, "classes_"):
+        return [str(label) for label in landmark_model.classes_]
+    return []
+
+
+def _active_landmark_model_version_id() -> Optional[str]:
+    global landmark_model_version_id
+    if landmark_model_version_id:
+        return landmark_model_version_id
+    registry = _load_landmark_model_registry()
+    active = registry.get("active_version_id")
+    return str(active) if active else None
+
+
+def _current_landmark_training_mode() -> TrainingMode:
+    global landmark_model_metadata
+    return _normalize_training_mode(landmark_model_metadata.get("training_mode"))
+
+
+def _load_landmark_model_version(version_id: str) -> bool:
+    global landmark_model, landmark_model_metadata, landmark_model_version_id
+    model_path = _landmark_model_path_for_version(version_id)
+    if not model_path.exists():
+        return False
+    try:
+        landmark_model = joblib.load(model_path)
+    except Exception:
+        return False
+    metadata_path = _landmark_model_metadata_path_for_version(version_id)
+    if metadata_path.exists():
+        try:
+            landmark_model_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            landmark_model_metadata = {}
+    else:
+        landmark_model_metadata = {}
+    if not landmark_model_metadata and hasattr(landmark_model, "classes_"):
+        landmark_model_metadata = {
+            "active_static_letters": [str(label) for label in landmark_model.classes_]
+        }
+    landmark_model_version_id = version_id
+    return True
+
+
+def activate_landmark_model_version(version_id: str) -> dict:
+    global landmark_model_metadata
+    requested_version = _clean_optional_string(version_id)
+    if not requested_version:
+        return {"ok": False, "error": "version_id is required."}
+
+    registry = _ensure_legacy_landmark_model_versioned()
+    versions = registry.get("versions", [])
+    matching = next(
+        (entry for entry in versions if str(entry.get("version_id")) == requested_version),
+        None,
+    )
+    if not matching:
+        return {"ok": False, "error": f"Unknown landmark model version: {requested_version}"}
+
+    if not _load_landmark_model_version(requested_version):
+        return {"ok": False, "error": f"Failed to load landmark model version: {requested_version}"}
+
+    registry["active_version_id"] = requested_version
+    _persist_landmark_model_registry(registry)
+    _sync_active_model_aliases(requested_version, landmark_model_metadata)
+
+    return {
+        "ok": True,
+        "active_version_id": requested_version,
+        "active_static_letters": _active_static_letters(),
+        "training_mode": _current_landmark_training_mode(),
+        "available_versions": _available_landmark_model_versions(),
+    }
 
 
 def _top_predictions(model: SVC, vec: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -440,32 +713,61 @@ def _maybe_apply_rule_override(
     return suggested, float(final_confidence)
 
 
-def train_landmarks_model() -> dict:
-    global landmark_model
+def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict:
+    global landmark_model, landmark_model_metadata, landmark_model_version_id
+    normalized_mode = _normalize_training_mode(training_mode)
+    requirements = _training_requirements(normalized_mode)
     summary = _dataset_summary()
-    failures = _training_gate_failures(summary)
-    if failures:
-        landmark_model = None
+    ready_static_letters, deficits_by_label = _quota_status(summary, normalized_mode)
+    unready_static_letters = [label for label in LABELS if label not in ready_static_letters]
+    if len(ready_static_letters) < requirements["min_ready_static_letters"]:
         return {
             "ok": False,
-            "error": "Static landmark dataset does not meet minimum review quotas.",
-            "requirements": {
-                "min_approved_samples_per_label": MIN_APPROVED_SAMPLES_PER_LABEL,
-                "min_approved_per_hand": MIN_APPROVED_PER_HAND,
-                "min_signers_per_label": MIN_SIGNERS_PER_LABEL,
-            },
-            "deficits": failures,
+            "error": "Not enough quota-ready static letters to train a partial model.",
+            "training_mode": normalized_mode,
+            "requirements": requirements,
+            "ready_static_letters": ready_static_letters,
+            "unready_static_letters": unready_static_letters,
+            "active_static_letters": [],
+            "deficits_by_label": deficits_by_label,
+            "deficits": [item for deficits in deficits_by_label.values() for item in deficits],
         }
 
-    X, y = load_landmarks_dataset()
+    X, y = load_landmarks_dataset(ready_static_letters)
     if len(X) == 0:
-        landmark_model = None
         print("⚠️ No landmark samples found. Collect samples first.")
-        return {"ok": False, "error": "No approved landmark samples found."}
+        return {
+            "ok": False,
+            "error": "No approved landmark samples found.",
+            "training_mode": normalized_mode,
+            "requirements": requirements,
+            "ready_static_letters": ready_static_letters,
+            "unready_static_letters": unready_static_letters,
+            "active_static_letters": [],
+            "deficits_by_label": deficits_by_label,
+        }
 
     Xtr, Xte, ytr, yte = train_test_split(
         X, y, test_size=0.2, random_state=42, stratify=y
     )
+
+    train_labels = set(ytr.tolist())
+    test_labels = set(yte.tolist())
+    missing_after_split = [
+        label for label in ready_static_letters if label not in train_labels or label not in test_labels
+    ]
+    if missing_after_split:
+        return {
+            "ok": False,
+            "error": "Ready static subset is too small to produce a valid train/holdout split.",
+            "training_mode": normalized_mode,
+            "requirements": requirements,
+            "ready_static_letters": ready_static_letters,
+            "unready_static_letters": unready_static_letters,
+            "active_static_letters": [],
+            "deficits_by_label": deficits_by_label,
+            "split_missing_labels": missing_after_split,
+        }
 
     model = SVC(kernel="rbf", probability=True, gamma="scale", C=12)
     model.fit(Xtr, ytr)
@@ -477,27 +779,91 @@ def train_landmarks_model() -> dict:
     print(classification_report(yte, pred, zero_division=0))
 
     landmark_model = model
-    joblib.dump(landmark_model, LANDMARKS_MODEL_PATH)
+    trained_at = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    version_id = datetime.now(timezone.utc).strftime(
+        f"landmarks_{normalized_mode}_%Y%m%dT%H%M%SZ"
+    )
+    version_model_path = _landmark_model_path_for_version(version_id)
+    version_metadata_path = _landmark_model_metadata_path_for_version(version_id)
+    joblib.dump(landmark_model, version_model_path)
+    landmark_model_metadata = {
+        "version_id": version_id,
+        "label": f"{normalized_mode.replace('_', ' ')} {trained_at}",
+        "training_mode": normalized_mode,
+        "active_static_letters": sorted(str(label) for label in model.classes_),
+        "ready_static_letters": ready_static_letters,
+        "unready_static_letters": unready_static_letters,
+        "deficits_by_label": deficits_by_label,
+        "trained_at": trained_at,
+        "training_sample_counts": {
+            label: int(summary["labels"][label]["approved"]) for label in ready_static_letters
+        },
+        "quotas_used": requirements,
+    }
+    version_metadata_path.write_text(
+        json.dumps(landmark_model_metadata, indent=2),
+        encoding="utf-8",
+    )
+    registry = _ensure_legacy_landmark_model_versioned()
+    versions = [
+        entry
+        for entry in registry.get("versions", [])
+        if str(entry.get("version_id")) != version_id
+    ]
+    versions.append(_version_entry(version_id, landmark_model_metadata, source="trained"))
+    registry["versions"] = versions
+    registry["active_version_id"] = version_id
+    _persist_landmark_model_registry(registry)
+    _sync_active_model_aliases(version_id, landmark_model_metadata)
+    landmark_model_version_id = version_id
     return {
         "ok": True,
         "accuracy": float(acc),
         "feature_dimensions": int(X.shape[1]),
-        "labels": LABELS,
+        "active_version_id": version_id,
+        "available_versions": _available_landmark_model_versions(),
+        "training_mode": normalized_mode,
+        "requirements": requirements,
+        "active_static_letters": landmark_model_metadata["active_static_letters"],
+        "ready_static_letters": ready_static_letters,
+        "unready_static_letters": unready_static_letters,
+        "deficits_by_label": deficits_by_label,
     }
 
 
 def bootstrap_landmark_model() -> None:
-    global landmark_model
+    global landmark_model, landmark_model_metadata, landmark_model_version_id
+    registry = _ensure_legacy_landmark_model_versioned()
+    active_version_id = registry.get("active_version_id")
+    if active_version_id and _load_landmark_model_version(str(active_version_id)):
+        print(f"✅ Loaded landmark model version {active_version_id}")
+        return
+
+    landmark_model_version_id = None
+    landmark_model_metadata = _load_landmark_model_metadata()
     if LANDMARKS_MODEL_PATH.exists():
         landmark_model = joblib.load(LANDMARKS_MODEL_PATH)
+        if not landmark_model_metadata and hasattr(landmark_model, "classes_"):
+            landmark_model_metadata = {
+                "active_static_letters": [str(label) for label in landmark_model.classes_]
+            }
         print("✅ Loaded landmark model from disk")
 
 
 def predict_landmarks(landmarks: list, handedness: Optional[str]) -> dict:
-    global landmark_model
+    global landmark_model, landmark_model_metadata
     if landmark_model is None:
-        if LANDMARKS_MODEL_PATH.exists():
+        active_version_id = _active_landmark_model_version_id()
+        if active_version_id and _load_landmark_model_version(active_version_id):
+            pass
+        elif LANDMARKS_MODEL_PATH.exists():
             landmark_model = joblib.load(LANDMARKS_MODEL_PATH)
+            if not landmark_model_metadata:
+                landmark_model_metadata = _load_landmark_model_metadata()
+            if not landmark_model_metadata and hasattr(landmark_model, "classes_"):
+                landmark_model_metadata = {
+                    "active_static_letters": [str(label) for label in landmark_model.classes_]
+                }
         else:
             return {"label": "NO_LANDMARK_MODEL", "confidence": 0.0}
 
@@ -590,6 +956,20 @@ def upload_landmarks(
 
 def health_summary() -> dict:
     dataset = _dataset_summary()
+    available_versions = _available_landmark_model_versions()
+    active_version_id = _active_landmark_model_version_id()
+    current_mode = _current_landmark_training_mode()
+    readiness_by_mode: dict[str, list[str]] = {}
+    unready_by_mode: dict[str, list[str]] = {}
+    deficits_by_mode: dict[str, dict[str, list[str]]] = {}
+    for mode_name in LANDMARK_TRAINING_MODES:
+        mode_ready, mode_deficits = _quota_status(dataset, mode_name)
+        readiness_by_mode[mode_name] = mode_ready
+        unready_by_mode[mode_name] = [label for label in LABELS if label not in mode_ready]
+        deficits_by_mode[mode_name] = mode_deficits
+    ready_static_letters = readiness_by_mode[current_mode]
+    unready_static_letters = unready_by_mode[current_mode]
+    deficits_by_label = deficits_by_mode[current_mode]
     counts_by_label = {}
     total = 0
     for label, stats in dataset["labels"].items():
@@ -605,15 +985,28 @@ def health_summary() -> dict:
         total += stats["approved"] + stats["pending"] + stats["rejected"] + stats["legacy"]
 
     return {
-        "trained_landmarks": LANDMARKS_MODEL_PATH.exists(),
+        "trained_landmarks": bool(active_version_id or LANDMARKS_MODEL_PATH.exists()),
         "landmark_total": total,
         "landmark_counts": counts_by_label,
         "landmarks_dir": str(LANDMARKS_DIR),
         "static_landmark_labels": LABELS,
+        "current_landmark_training_mode": current_mode,
+        "active_landmark_model_version_id": active_version_id,
+        "available_landmark_model_versions": available_versions,
+        "ready_static_letters": ready_static_letters,
+        "unready_static_letters": unready_static_letters,
+        "ready_static_letters_by_mode": readiness_by_mode,
+        "unready_static_letters_by_mode": unready_by_mode,
+        "active_static_letters": _active_static_letters(),
+        "deficits_by_label": deficits_by_label,
+        "deficits_by_label_by_mode": deficits_by_mode,
         "motion_only_letter_labels": MOTION_ONLY_LETTER_LABELS,
         "landmark_requirements": {
-            "min_approved_samples_per_label": MIN_APPROVED_SAMPLES_PER_LABEL,
-            "min_approved_per_hand": MIN_APPROVED_PER_HAND,
-            "min_signers_per_label": MIN_SIGNERS_PER_LABEL,
+            "current_mode": current_mode,
+            "current": _training_requirements(current_mode),
+            "modes": {
+                mode_name: _training_requirements(mode_name)
+                for mode_name in LANDMARK_TRAINING_MODES
+            },
         },
     }

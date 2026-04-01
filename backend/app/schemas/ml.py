@@ -23,6 +23,14 @@ class PredictLandmarksReq(BaseModel):
     handedness: Optional[str] = None
 
 
+class TrainLandmarksReq(BaseModel):
+    trainingMode: Optional[Literal["bootstrap", "full_reviewed"]] = None
+
+
+class ActivateLandmarkModelReq(BaseModel):
+    versionId: str
+
+
 class UploadGestureReq(BaseModel):
     label: str
     frames: list

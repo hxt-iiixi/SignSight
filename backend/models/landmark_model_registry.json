@@ -1,0 +1,38 @@
+{
+  "active_version_id": "legacy_20260401T101811Z",
+  "versions": [
+    {
+      "version_id": "legacy_20260401T101811Z",
+      "label": "legacy_20260401T101811Z",
+      "training_mode": "full_reviewed",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "X",
+        "Y"
+      ],
+      "trained_at": "2026-04-01T10:18:11+00:00",
+      "source": "migrated_legacy"
+    }
+  ]
+}

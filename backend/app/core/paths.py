@@ -12,6 +12,9 @@ AUDIT_UPLOAD_DIR = UPLOADS_DIR / "audit"
 MODELS_DIR = BASE_DIR / "models"
 
 LANDMARKS_MODEL_PATH = MODELS_DIR / "asl_landmarks_model.joblib"
+LANDMARKS_MODEL_METADATA_PATH = MODELS_DIR / "asl_landmarks_model_meta.json"
+LANDMARKS_MODEL_VERSIONS_DIR = MODELS_DIR / "landmark_versions"
+LANDMARKS_MODEL_REGISTRY_PATH = MODELS_DIR / "landmark_model_registry.json"
 GESTURE_MODEL_PATH = MODELS_DIR / "asl_gesture_model.joblib"
 
 for path in (
@@ -20,5 +23,6 @@ for path in (
     FEEDBACK_UPLOAD_DIR,
     AUDIT_UPLOAD_DIR,
     MODELS_DIR,
+    LANDMARKS_MODEL_VERSIONS_DIR,
 ):
     path.mkdir(parents=True, exist_ok=True)
