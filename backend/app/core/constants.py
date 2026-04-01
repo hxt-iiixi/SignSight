@@ -17,5 +17,6 @@ GESTURE_LABELS = [
     "J",
     "Z",
 ]
+STATIC_WORD_LABELS = ["I_LOVE_YOU"]
 GESTURE_FRAMES = 8
 AUDIT_CATEGORIES = ["ui", "bug", "performance", "feature", "security", "other"]

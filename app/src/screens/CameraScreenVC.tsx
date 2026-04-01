@@ -63,6 +63,7 @@ const WORD_LABELS = [
   "GOODBYE",
   "WHAT",
   "WHERE",
+  "I_LOVE_YOU",
   "J",
   "Z",
 ] as const;
@@ -171,8 +172,9 @@ export default function CameraScreenVC({
   const [lastConf, setLastConf] = useState(0);
 
   const smootherRef = useRef(new MajorityVoteSmoother(3));
-  const [selectedLabel, setSelectedLabel] =
-    useState<(typeof STATIC_ASL_LABELS)[number]>("A");
+  const [selectedLabel, setSelectedLabel] = useState<
+    ((typeof STATIC_ASL_LABELS)[number]) | null
+  >(null);
   const [signerId, setSignerId] = useState("person_01");
   const [captureSessionId, setCaptureSessionId] = useState(
     createDefaultCaptureSessionId
@@ -200,7 +202,7 @@ export default function CameraScreenVC({
     useState<LandmarkLabelSummary | null>(null);
 
   type WordLabel = (typeof WORD_LABELS)[number];
-  const [selectedWord, setSelectedWord] = useState<WordLabel>("HELLO");
+  const [selectedWord, setSelectedWord] = useState<WordLabel | null>(null);
   const [isRecordingGesture, setIsRecordingGesture] = useState(false);
   const [liveGestureFramesCount, setLiveGestureFramesCount] = useState(0);
   const [recordingGestureFramesCount, setRecordingGestureFramesCount] =
@@ -214,6 +216,7 @@ export default function CameraScreenVC({
   const [isOverlaySmoothing, setIsOverlaySmoothing] = useState(false);
   const [showLabDiagnostics, setShowLabDiagnostics] = useState(false);
   const [showModelVersions, setShowModelVersions] = useState(false);
+  const [showTargetChoices, setShowTargetChoices] = useState(false);
   const [modelRenameDrafts, setModelRenameDrafts] = useState<ModelRenameDrafts>(
     {}
   );
@@ -272,33 +275,6 @@ export default function CameraScreenVC({
       enabled: ready && !!device && !!format,
       onFrameTick,
     });
-
-  const nextLabel = () => {
-    const i = STATIC_ASL_LABELS.indexOf(selectedLabel);
-    const nextIndex = i >= 0 ? (i + 1) % STATIC_ASL_LABELS.length : 0;
-    setSelectedLabel(STATIC_ASL_LABELS[nextIndex]);
-  };
-
-  const previousLabel = () => {
-    const i = STATIC_ASL_LABELS.indexOf(selectedLabel);
-    const previousIndex =
-      i >= 0
-        ? (i - 1 + STATIC_ASL_LABELS.length) % STATIC_ASL_LABELS.length
-        : 0;
-    setSelectedLabel(STATIC_ASL_LABELS[previousIndex]);
-  };
-
-  const nextWord = () => {
-    const i = WORD_LABELS.indexOf(selectedWord);
-    setSelectedWord(WORD_LABELS[(i + 1) % WORD_LABELS.length]);
-  };
-
-  const previousWord = () => {
-    const i = WORD_LABELS.indexOf(selectedWord);
-    const previousIndex =
-      i >= 0 ? (i - 1 + WORD_LABELS.length) % WORD_LABELS.length : 0;
-    setSelectedWord(WORD_LABELS[previousIndex]);
-  };
 
   const onCameraLayout = (event: LayoutChangeEvent) => {
     const { width: nextWidth, height: nextHeight } = event.nativeEvent.layout;
@@ -366,6 +342,10 @@ export default function CameraScreenVC({
     nextSessionId = captureSessionId,
     nextSignerId = signerId
   ) => {
+    if (!nextLabel) {
+      setSelectedLabelSummary(null);
+      return;
+    }
     const res = await fetch(`${API_BASE}/landmark_label_summary`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -397,6 +377,11 @@ export default function CameraScreenVC({
 
       if (!normalizedSessionId) {
         setStatus("Session ID is required.");
+        return;
+      }
+
+      if (!selectedLabel) {
+        setStatus("Select a label first.");
         return;
       }
 
@@ -605,9 +590,21 @@ export default function CameraScreenVC({
 
   const saveGestureSample = async () => {
     try {
+      if (selectedWord === "I_LOVE_YOU") {
+        setStatus(
+          "I_LOVE_YOU is a static landmark word. It is recognized live from landmarks and is not saved as a gesture."
+        );
+        return;
+      }
+
       const MIN_FRAMES = 8;
       if (buffersRef.current.recordingFrames.length < MIN_FRAMES) {
         setStatus(`Need at least ${MIN_FRAMES} frames to save.`);
+        return;
+      }
+
+      if (!selectedWord) {
+        setStatus("Select a word first.");
         return;
       }
 
@@ -766,6 +763,10 @@ export default function CameraScreenVC({
     void refreshSelectedLabelSummary();
   }, [isLab, detectMode, selectedLabel, captureSessionId, signerId]);
 
+  useEffect(() => {
+    setShowTargetChoices(false);
+  }, [detectMode]);
+
   const orientedFrame = useMemo(() => {
     if (!format) {
       return { width: 0, height: 0 };
@@ -805,12 +806,20 @@ export default function CameraScreenVC({
 
   const centerTitle = detectMode === "LETTERS" ? "LETTER" : "WORD";
   const displayLabel = lastLabel;
-  const selectedLabelIsActive = activeStaticLetters.includes(selectedLabel);
+  const selectedLabelIsActive = selectedLabel
+    ? activeStaticLetters.includes(selectedLabel)
+    : false;
   const selectedLabelIsReady =
-    readyStaticLettersByMode[landmarkTrainingMode].includes(selectedLabel);
+    selectedLabel
+      ? readyStaticLettersByMode[landmarkTrainingMode].includes(selectedLabel)
+      : false;
   const activeLandmarkModelVersion = availableLandmarkModelVersions.find(
     (version) => String(version.version_id) === activeLandmarkModelVersionId
   );
+  const currentTargetChoices =
+    detectMode === "WORDS" ? WORD_LABELS : STATIC_ASL_LABELS;
+  const selectedTargetValue =
+    detectMode === "WORDS" ? selectedWord : selectedLabel;
   const currentWordFramesCount = isRecordingGesture
     ? recordingGestureFramesCount
     : liveGestureFramesCount;
@@ -1165,48 +1174,143 @@ export default function CameraScreenVC({
                 </View>
               ) : null}
 
+              <View style={styles.targetPickerCard}>
+                <Text style={styles.labFieldLabel}>
+                  {detectMode === "WORDS" ? "Select word" : "Select label"}
+                </Text>
+                <Pressable
+                  onPress={() => setShowTargetChoices((value) => !value)}
+                  style={({ pressed }) => [
+                    styles.targetPickerTrigger,
+                    pressed && { opacity: 0.88 },
+                  ]}
+                >
+                  <View style={styles.targetPickerTriggerTextWrap}>
+                    <Text style={styles.targetPickerPrimary} numberOfLines={1}>
+                      {selectedTargetValue ?? "N/A"}
+                    </Text>
+                    <Text style={styles.targetPickerMeta} numberOfLines={2}>
+                      {detectMode === "WORDS"
+                        ? "Choose which gesture label to record and save."
+                        : selectedLabel
+                          ? selectedLabelIsActive
+                            ? "Active in the serving static model."
+                            : selectedLabelIsReady
+                              ? `Quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"}, but not active until the next train.`
+                              : `Collectable now, but not quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} yet.`
+                          : "Choose which static letter label to collect and save."}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={showTargetChoices ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={TEXT}
+                  />
+                </Pressable>
+
+                {showTargetChoices ? (
+                  <View style={styles.targetDropdownList}>
+                    <ScrollView
+                      style={styles.targetChoicesScroll}
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator={false}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          if (detectMode === "WORDS") {
+                            setSelectedWord(null);
+                          } else {
+                            setSelectedLabel(null);
+                            setSelectedLabelSummary(null);
+                          }
+                          setShowTargetChoices(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.targetChoiceCard,
+                          !selectedTargetValue && styles.targetChoiceCardActive,
+                          pressed && { opacity: 0.88 },
+                        ]}
+                      >
+                        <Text style={styles.targetChoiceTitle}>N/A</Text>
+                        <Text style={styles.inputHelperText}>
+                          No target selected yet.
+                        </Text>
+                      </Pressable>
+
+                      {currentTargetChoices.map((choice) => {
+                        const isSelected = selectedTargetValue === choice;
+                        return (
+                          <Pressable
+                            key={choice}
+                            onPress={() => {
+                              if (detectMode === "WORDS") {
+                                setSelectedWord(choice as WordLabel);
+                              } else {
+                                setSelectedLabel(
+                                  choice as (typeof STATIC_ASL_LABELS)[number]
+                                );
+                              }
+                              setShowTargetChoices(false);
+                            }}
+                            style={({ pressed }) => [
+                              styles.targetChoiceCard,
+                              isSelected && styles.targetChoiceCardActive,
+                              pressed && { opacity: 0.88 },
+                            ]}
+                          >
+                            <Text style={styles.targetChoiceTitle}>{choice}</Text>
+                            <Text style={styles.inputHelperText}>
+                              {detectMode === "WORDS"
+                                ? choice === "I_LOVE_YOU"
+                                  ? "Static landmark word"
+                                  : "Gesture label"
+                                : activeStaticLetters.includes(
+                                      choice as (typeof STATIC_ASL_LABELS)[number]
+                                    )
+                                  ? "Active in serving model"
+                                  : readyStaticLettersByMode[
+                                        landmarkTrainingMode
+                                      ].includes(
+                                        choice as (typeof STATIC_ASL_LABELS)[number]
+                                      )
+                                    ? "Quota-ready for next retrain"
+                                    : "Still in collection"}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </View>
+                ) : null}
+              </View>
+
               <View style={styles.labFieldCard}>
                 <View>
                   <Text style={styles.labFieldLabel}>
                     {detectMode === "WORDS" ? "Target word" : "Target label"}
                   </Text>
                   <Text style={styles.labFieldValue}>
-                    {detectMode === "WORDS" ? selectedWord : selectedLabel}
+                    {detectMode === "WORDS"
+                      ? selectedWord ?? "N/A"
+                      : selectedLabel ?? "N/A"}
                   </Text>
                   {detectMode === "LETTERS" ? (
                     <Text style={styles.labHelperText}>
-                      {selectedLabelIsActive
+                      {selectedLabel
+                        ? selectedLabelIsActive
                         ? "Active in the trained static model."
                         : selectedLabelIsReady
                           ? `Quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"}, but not active until the next train.`
-                          : `Collectable now, but not quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} yet.`}
+                          : `Collectable now, but not quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} yet.`
+                        : "No target selected yet."}
                     </Text>
-                  ) : null}
-                </View>
-                <View style={styles.targetNavRow}>
-                  <Pressable
-                    onPress={detectMode === "WORDS" ? previousWord : previousLabel}
-                    style={({ pressed }) => [
-                      styles.targetNavButton,
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  >
-                    <Text style={styles.targetNavButtonText}>
-                      {detectMode === "WORDS" ? "Previous Word" : "Previous Label"}
+                  ) : (
+                    <Text style={styles.labHelperText}>
+                      {selectedWord
+                        ? "Selected gesture target for recording and saving."
+                        : "No target selected yet."}
                     </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={detectMode === "WORDS" ? nextWord : nextLabel}
-                    style={({ pressed }) => [
-                      styles.targetNavButton,
-                      styles.targetNavButtonAccent,
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  >
-                    <Text style={styles.targetNavButtonTextAccent}>
-                      {detectMode === "WORDS" ? "Next Word" : "Next Label"}
-                    </Text>
-                  </Pressable>
+                  )}
                 </View>
               </View>
 
@@ -1230,7 +1334,7 @@ export default function CameraScreenVC({
                 <View style={styles.labSummaryRow}>
                   <LabSummaryPill
                     label="Target"
-                    value={selectedLabel}
+                    value={selectedLabel ?? "N/A"}
                   />
                   <LabSummaryPill
                     label="Session"
@@ -2199,6 +2303,65 @@ const styles = StyleSheet.create({
   modelDropdownSelect: {
     gap: 4,
   },
+  targetPickerCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 10,
+  },
+  targetPickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "rgba(249,250,251,0.92)",
+  },
+  targetPickerTriggerTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  targetPickerPrimary: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 14,
+  },
+  targetPickerMeta: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  targetDropdownList: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "rgba(249,250,251,0.96)",
+    overflow: "hidden",
+  },
+  targetChoicesScroll: {
+    maxHeight: 220,
+  },
+  targetChoiceCard: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(229,231,235,0.9)",
+    gap: 4,
+  },
+  targetChoiceCardActive: {
+    backgroundColor: SOFT_BLUE,
+  },
+  targetChoiceTitle: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 13,
+  },
   versionList: {
     gap: 8,
   },
@@ -2258,40 +2421,6 @@ const styles = StyleSheet.create({
   smallValue: { color: TEXT, fontWeight: "900" },
   smallMuted: { color: MUTED, fontWeight: "800" },
 
-  targetNavRow: {
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-    marginTop: 8,
-  },
-  targetNavButton: {
-    flexGrow: 1,
-    minWidth: 120,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: BORDER,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  targetNavButtonAccent: {
-    backgroundColor: SOFT_YELLOW,
-    borderColor: "rgba(253,230,138,0.45)",
-  },
-  targetNavButtonText: {
-    color: TEXT,
-    fontWeight: "900",
-    textAlign: "center",
-    fontSize: 12,
-  },
-  targetNavButtonTextAccent: {
-    color: "#92400E",
-    fontWeight: "900",
-    textAlign: "center",
-    fontSize: 12,
-  },
   pillMini: {
     paddingVertical: 8,
     paddingHorizontal: 12,

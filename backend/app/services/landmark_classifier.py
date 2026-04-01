@@ -9,7 +9,7 @@ from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 
-from app.core.constants import LABELS, MOTION_ONLY_LETTER_LABELS
+from app.core.constants import LABELS, MOTION_ONLY_LETTER_LABELS, STATIC_WORD_LABELS
 from app.core.paths import (
     LANDMARKS_DIR,
     LANDMARKS_MODEL_METADATA_PATH,
@@ -743,6 +743,49 @@ def _rule_confidence_floor(suggested: str, analysis: dict) -> Optional[float]:
     return None
 
 
+def _suggest_static_word_label(
+    analysis: dict,
+    label_space: object,
+) -> Optional[str]:
+    if _clean_optional_string(label_space) != "words":
+        return None
+
+    extension_scores = analysis["extension_scores"]
+    curl_scores = analysis["curl_scores"]
+    adjacent_tip_distance = analysis["adjacent_tip_distance"]
+    thumb_to_tip_distance = analysis["thumb_to_tip_distance"]
+    extended = analysis["extended_flags"] > 0.5
+
+    thumb_up = float(extension_scores[0]) >= 0.52 or bool(extended[0])
+    index_up = float(extension_scores[1]) >= 0.70 or bool(extended[1])
+    middle_down = float(extension_scores[2]) <= 0.42 and float(curl_scores[2]) >= 0.34
+    ring_down = float(extension_scores[3]) <= 0.42 and float(curl_scores[3]) >= 0.34
+    pinky_up = float(extension_scores[4]) >= 0.68 or bool(extended[4])
+    thumb_index_open = float(thumb_to_tip_distance[0]) >= 0.24
+    index_middle_split = float(adjacent_tip_distance[1]) >= 0.12
+    ring_pinky_split = float(adjacent_tip_distance[3]) >= 0.12
+
+    if (
+        thumb_up
+        and index_up
+        and middle_down
+        and ring_down
+        and pinky_up
+        and thumb_index_open
+        and index_middle_split
+        and ring_pinky_split
+    ):
+        return STATIC_WORD_LABELS[0]
+
+    return None
+
+
+def _static_word_confidence_floor(label: str) -> Optional[float]:
+    if label == "I_LOVE_YOU":
+        return 0.84
+    return None
+
+
 def _maybe_apply_rule_override(
     raw_label: str,
     raw_confidence: float,
@@ -941,7 +984,11 @@ def bootstrap_landmark_model() -> None:
         print("✅ Loaded landmark model from disk")
 
 
-def predict_landmarks(landmarks: list, handedness: Optional[str]) -> dict:
+def predict_landmarks(
+    landmarks: list,
+    handedness: Optional[str],
+    label_space: Optional[str] = None,
+) -> dict:
     global landmark_model, landmark_model_metadata
     if landmark_model is None:
         active_version_id = _active_landmark_model_version_id()
@@ -972,6 +1019,21 @@ def predict_landmarks(landmarks: list, handedness: Optional[str]) -> dict:
         raw_label, raw_confidence, top_labels, top_scores, analysis
     )
     active_static_letters = _active_static_letters()
+    static_word_label = _suggest_static_word_label(analysis, label_space)
+    if static_word_label:
+        label = static_word_label
+        confidence = max(confidence, _static_word_confidence_floor(static_word_label) or confidence)
+        return {
+            "label": label,
+            "confidence": confidence,
+            "accepted_prediction": True,
+            "raw_label": raw_label,
+            "raw_confidence": raw_confidence,
+            "margin": margin,
+            "active_static_letters": active_static_letters,
+            "unknown_reason": None,
+        }
+
     accepted_prediction, unknown_reason = _evaluate_prediction_acceptance(
         confidence=confidence,
         margin=margin,

@@ -16,6 +16,7 @@ export const LETTER_CONFIDENCE_THRESHOLD = 0.6;
 export const WORD_CONFIDENCE_THRESHOLD = 0.55;
 export const LETTER_MOTION_CONFIDENCE_THRESHOLD = 0.75;
 export const WORD_NO_HAND_GRACE_MS = 750;
+export const STATIC_WORD_CONFIDENCE_THRESHOLD = 0.78;
 export const PARTIAL_MODEL_LETTER_CONFIDENCE_THRESHOLD = 0.78;
 export const VERY_SMALL_PARTIAL_MODEL_LETTER_CONFIDENCE_THRESHOLD = 0.84;
 export const PARTIAL_MODEL_MAX_ACTIVE_LETTERS = 6;
@@ -337,6 +338,37 @@ async function processWordFrame(
     }
     return;
   }
+
+  try {
+    context.onPredictionAttempt?.("landmarks");
+    const landmarkRes = await fetch(`${context.apiBase}/predict_landmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        landmarks: hand.landmarks,
+        handedness: hand.handedness ?? null,
+        labelSpace: "words",
+      }),
+    });
+
+    const landmarkJson = await landmarkRes.json();
+    const landmarkLabel = String(landmarkJson.label ?? "?");
+    const landmarkConf = Number(landmarkJson.confidence ?? 0);
+    const landmarkAccepted =
+      typeof landmarkJson.accepted_prediction === "boolean"
+        ? landmarkJson.accepted_prediction
+        : landmarkConf >= STATIC_WORD_CONFIDENCE_THRESHOLD;
+
+    if (landmarkAccepted && landmarkLabel === "I_LOVE_YOU") {
+      buffers.wordMissCount = 0;
+      if (context.isMountedRef.current) {
+        context.setRawLabel(landmarkLabel);
+        context.setLastLabel(landmarkLabel);
+        context.setLastConf(landmarkConf);
+      }
+      return;
+    }
+  } catch {}
 
   buffers.liveWordFrames.push({ landmarks: hand.landmarks! });
   if (buffers.liveWordFrames.length > GESTURE_FRAMES) {

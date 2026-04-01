@@ -1,28 +1,22 @@
 {
-  "version_id": "landmarks_bootstrap_20260401T130318Z",
-  "label": "mnt letter",
+  "version_id": "landmarks_bootstrap_20260401T124401Z",
+  "label": "bootst-latest",
   "training_mode": "bootstrap",
   "active_static_letters": [
     "A",
     "B",
     "C",
     "F",
-    "M",
-    "N",
     "O",
-    "S",
-    "T"
+    "S"
   ],
   "ready_static_letters": [
     "A",
     "B",
     "C",
     "F",
-    "M",
-    "N",
     "O",
-    "S",
-    "T"
+    "S"
   ],
   "unready_static_letters": [
     "D",
@@ -32,9 +26,12 @@
     "I",
     "K",
     "L",
+    "M",
+    "N",
     "P",
     "Q",
     "R",
+    "T",
     "U",
     "V",
     "W",
@@ -84,6 +81,18 @@
       "L: Right hand 0/20",
       "L: signers 0/1"
     ],
+    "M": [
+      "M: approved 0/40",
+      "M: Left hand 0/20",
+      "M: Right hand 0/20",
+      "M: signers 0/1"
+    ],
+    "N": [
+      "N: approved 0/40",
+      "N: Left hand 0/20",
+      "N: Right hand 0/20",
+      "N: signers 0/1"
+    ],
     "P": [
       "P: approved 0/40",
       "P: Left hand 0/20",
@@ -101,6 +110,12 @@
       "R: Left hand 0/20",
       "R: Right hand 0/20",
       "R: signers 0/1"
+    ],
+    "T": [
+      "T: approved 0/40",
+      "T: Left hand 0/20",
+      "T: Right hand 0/20",
+      "T: signers 0/1"
     ],
     "U": [
       "U: approved 0/40",
@@ -133,17 +148,14 @@
       "Y: signers 0/1"
     ]
   },
-  "trained_at": "2026-04-01T13:03:18+00:00",
+  "trained_at": "2026-04-01T12:44:01+00:00",
   "training_sample_counts": {
     "A": 189,
     "B": 212,
     "C": 239,
     "F": 203,
-    "M": 198,
-    "N": 169,
     "O": 236,
-    "S": 186,
-    "T": 257
+    "S": 186
   },
   "quotas_used": {
     "min_approved_samples_per_label": 40,

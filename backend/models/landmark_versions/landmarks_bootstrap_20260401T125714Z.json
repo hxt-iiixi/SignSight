@@ -1,14 +1,12 @@
 {
-  "version_id": "landmarks_bootstrap_20260401T130318Z",
-  "label": "mnt letter",
+  "version_id": "landmarks_bootstrap_20260401T125714Z",
+  "label": "bootstrap 2026-04-01T12:57:14+00:00",
   "training_mode": "bootstrap",
   "active_static_letters": [
     "A",
     "B",
     "C",
     "F",
-    "M",
-    "N",
     "O",
     "S",
     "T"
@@ -18,8 +16,6 @@
     "B",
     "C",
     "F",
-    "M",
-    "N",
     "O",
     "S",
     "T"
@@ -32,6 +28,8 @@
     "I",
     "K",
     "L",
+    "M",
+    "N",
     "P",
     "Q",
     "R",
@@ -84,6 +82,18 @@
       "L: Right hand 0/20",
       "L: signers 0/1"
     ],
+    "M": [
+      "M: approved 0/40",
+      "M: Left hand 0/20",
+      "M: Right hand 0/20",
+      "M: signers 0/1"
+    ],
+    "N": [
+      "N: approved 0/40",
+      "N: Left hand 0/20",
+      "N: Right hand 0/20",
+      "N: signers 0/1"
+    ],
     "P": [
       "P: approved 0/40",
       "P: Left hand 0/20",
@@ -133,14 +143,12 @@
       "Y: signers 0/1"
     ]
   },
-  "trained_at": "2026-04-01T13:03:18+00:00",
+  "trained_at": "2026-04-01T12:57:14+00:00",
   "training_sample_counts": {
     "A": 189,
     "B": 212,
     "C": 239,
     "F": 203,
-    "M": 198,
-    "N": 169,
     "O": 236,
     "S": 186,
     "T": 257

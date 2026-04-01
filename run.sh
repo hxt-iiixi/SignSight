@@ -185,20 +185,22 @@ write_local_envs "$MOBILE_API_BASE_VALUE"
 
 trap cleanup INT TERM EXIT
 
-if ! mongo_status="$(check_mongo)"; then
-  fail "MongoDB is not reachable at ${mongo_status%%|*}. Start MongoDB and try again."
-fi
+# Temporarily disabled while the admin panel is not in use.
+# if ! mongo_status="$(check_mongo)"; then
+#   fail "MongoDB is not reachable at ${mongo_status%%|*}. Start MongoDB and try again."
+# fi
 
 log "Using mobile backend URL $MOBILE_API_BASE_VALUE"
-log "Admin dashboard will use http://127.0.0.1:8000"
+# log "Admin dashboard will use http://127.0.0.1:8000"
 printf '\n'
 printf 'Starting services:\n'
-printf '  Admin UI: http://localhost:3000\n'
+# printf '  Admin UI: http://localhost:3000\n'
 printf '  Backend:  http://127.0.0.1:8000\n'
 printf '  Mobile API: %s\n' "$MOBILE_API_BASE_VALUE"
 printf '\n'
 
 start_service "backend" "$SERVER_DIR" "exec .venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
-start_service "admin" "$ADMIN_DIR" "exec npm run dev"
+# Temporarily disabled while the admin panel is not in use.
+# start_service "admin" "$ADMIN_DIR" "exec npm run dev"
 log "Launching Expo in the foreground so the QR code and interactive controls stay visible"
 run_foreground_service "$APP_DIR" "exec npx expo start -c"

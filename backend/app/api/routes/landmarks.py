@@ -65,4 +65,4 @@ def landmark_label_summary_route(req: LandmarkLabelSummaryReq):
 
 @router.post("/predict_landmarks")
 def predict_landmarks_route(req: PredictLandmarksReq):
-    return predict_landmarks(req.landmarks, req.handedness)
+    return predict_landmarks(req.landmarks, req.handedness, req.labelSpace)

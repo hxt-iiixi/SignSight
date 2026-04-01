@@ -21,6 +21,7 @@ class UploadLandmarksReq(BaseModel):
 class PredictLandmarksReq(BaseModel):
     landmarks: list
     handedness: Optional[str] = None
+    labelSpace: Optional[Literal["letters", "words"]] = None
 
 
 class TrainLandmarksReq(BaseModel):
