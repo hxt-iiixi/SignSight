@@ -109,6 +109,12 @@ export default function DashboardScreen({
             icon="create-outline"
             onPress={onFeedback}
           />
+
+          <ActionCard
+            title="Settings"
+            icon="settings-outline"
+            onPress={onSettings}
+          />
         </View>
 
         {/* Tips */}
@@ -337,10 +343,11 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    flexWrap: "wrap",
     gap: 12,
   },
   actionCard: {
-    flex: 1,
+    width: "48%",
     alignItems: "center",
     paddingVertical: 16,
     borderRadius: 22,

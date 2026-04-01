@@ -6,12 +6,16 @@ import DashboardScreen from "./src/screens/DashboardScreen";
 import CameraScreenVC from "./src/screens/CameraScreenVC";
 import TutorialScreen from "./src/screens/TutorialScreen";
 import FeedbackScreen from "./src/screens/FeedbackScreen";
+import SettingsScreen from "./src/screens/SettingsScreen";
+import LabScreen from "./src/screens/LabScreen";
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const [route, setRoute] = useState("dashboard"); // "dashboard" | "camera"
+  const [route, setRoute] = useState("dashboard");
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [showHandOverlay, setShowHandOverlay] = useState(false);
 
   const [supportedTypes, setSupportedTypes] = useState([]);
   const [preferred, setPreferred] = useState("auto"); // "auto" | "face" | "fingerprint"
@@ -120,16 +124,45 @@ export default function App() {
     );
   }
 
-  if (route === "camera") return <CameraScreenVC onBack={() => setRoute("dashboard")} />;
+  if (route === "camera") {
+    return (
+      <CameraScreenVC
+        onBack={() => setRoute("dashboard")}
+        debugEnabled={debugEnabled}
+        showHandOverlay={showHandOverlay}
+      />
+    );
+  }
   if (route === "feedback") return <FeedbackScreen onBack={() => setRoute("dashboard")} />;
   if (route === "tutorial") return <TutorialScreen onBack={() => setRoute("dashboard")} />;
+  if (route === "settings") {
+    return (
+      <SettingsScreen
+        onBack={() => setRoute("dashboard")}
+        debugEnabled={debugEnabled}
+        setDebugEnabled={setDebugEnabled}
+        showHandOverlay={showHandOverlay}
+        setShowHandOverlay={setShowHandOverlay}
+        onOpenLab={() => setRoute("lab")}
+      />
+    );
+  }
+  if (route === "lab") {
+    return (
+      <LabScreen
+        onBack={() => setRoute("settings")}
+        debugEnabled={debugEnabled}
+        showHandOverlay={showHandOverlay}
+      />
+    );
+  }
 
   return (
     <DashboardScreen
       onBack={() => setRoute("dashboard")} // or whatever you want as "back"
       onTranslate={() => setRoute("camera")}
       onTutorial={() => setRoute("tutorial")}
-      onSettings={() => console.log("Settings")}
+      onSettings={() => setRoute("settings")}
       onFeedback={() => setRoute("feedback")}
     />
   );

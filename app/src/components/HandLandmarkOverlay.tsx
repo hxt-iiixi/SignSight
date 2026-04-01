@@ -3,29 +3,68 @@ import Svg, { Circle, Line } from "react-native-svg";
 
 import type { HandPoint } from "../ml/streamTypes";
 
-const HAND_CONNECTIONS: Array<[number, number]> = [
-  [0, 1],
-  [1, 2],
-  [2, 3],
-  [3, 4],
-  [0, 5],
-  [5, 6],
-  [6, 7],
-  [7, 8],
-  [5, 9],
-  [9, 10],
-  [10, 11],
-  [11, 12],
-  [9, 13],
-  [13, 14],
-  [14, 15],
-  [15, 16],
-  [13, 17],
-  [0, 17],
-  [17, 18],
-  [18, 19],
-  [19, 20],
+type HandRegion = "palm" | "thumb" | "index" | "middle" | "ring" | "pinky";
+
+const HAND_REGION_COLORS: Record<HandRegion, string> = {
+  palm: "#D0E7F7",
+  thumb: "#2F80ED",
+  index: "#22C55E",
+  middle: "#FACC15",
+  ring: "#A855F7",
+  pinky: "#FB7185",
+};
+
+const HAND_CONNECTIONS: Array<{
+  start: number;
+  end: number;
+  region: HandRegion;
+}> = [
+  { start: 0, end: 1, region: "palm" },
+  { start: 1, end: 2, region: "thumb" },
+  { start: 2, end: 3, region: "thumb" },
+  { start: 3, end: 4, region: "thumb" },
+  { start: 0, end: 5, region: "palm" },
+  { start: 5, end: 6, region: "index" },
+  { start: 6, end: 7, region: "index" },
+  { start: 7, end: 8, region: "index" },
+  { start: 5, end: 9, region: "palm" },
+  { start: 9, end: 10, region: "middle" },
+  { start: 10, end: 11, region: "middle" },
+  { start: 11, end: 12, region: "middle" },
+  { start: 9, end: 13, region: "palm" },
+  { start: 13, end: 14, region: "ring" },
+  { start: 14, end: 15, region: "ring" },
+  { start: 15, end: 16, region: "ring" },
+  { start: 13, end: 17, region: "palm" },
+  { start: 0, end: 17, region: "palm" },
+  { start: 17, end: 18, region: "pinky" },
+  { start: 18, end: 19, region: "pinky" },
+  { start: 19, end: 20, region: "pinky" },
 ];
+
+const LANDMARK_REGION_MAP: Record<number, HandRegion> = {
+  0: "palm",
+  1: "palm",
+  2: "thumb",
+  3: "thumb",
+  4: "thumb",
+  5: "palm",
+  6: "index",
+  7: "index",
+  8: "index",
+  9: "palm",
+  10: "middle",
+  11: "middle",
+  12: "middle",
+  13: "palm",
+  14: "ring",
+  15: "ring",
+  16: "ring",
+  17: "palm",
+  18: "pinky",
+  19: "pinky",
+  20: "pinky",
+};
 
 type HandLandmarkOverlayProps = {
   landmarks: HandPoint[] | null;
@@ -265,9 +304,10 @@ export function HandLandmarkOverlay({
       height={previewHeight}
       style={{ position: "absolute", top: 0, left: 0 }}
     >
-      {HAND_CONNECTIONS.map(([startIndex, endIndex]) => {
+      {HAND_CONNECTIONS.map(({ start: startIndex, end: endIndex, region }) => {
         const start = displayPoints[startIndex];
         const end = displayPoints[endIndex];
+        const strokeColor = HAND_REGION_COLORS[region];
         return (
           <React.Fragment key={`${startIndex}-${endIndex}`}>
             <Line
@@ -275,7 +315,7 @@ export function HandLandmarkOverlay({
               y1={start.y}
               x2={end.x}
               y2={end.y}
-              stroke="#16FF63"
+              stroke={strokeColor}
               strokeWidth={3}
               strokeOpacity={0.95}
             />
@@ -292,24 +332,28 @@ export function HandLandmarkOverlay({
         );
       })}
 
-      {displayPoints.map((point, index) => (
+      {displayPoints.map((point, index) => {
+        const region = LANDMARK_REGION_MAP[index] ?? "palm";
+        const fillColor = HAND_REGION_COLORS[region];
+        return (
         <React.Fragment key={index}>
           <Circle
             cx={point.x}
             cy={point.y}
             r={4.5}
-            fill="#FF3B30"
+            fill={fillColor}
             fillOpacity={0.95}
           />
           <Circle
             cx={point.x}
             cy={point.y}
             r={2}
-            fill="#FFD60A"
+            fill="#F8FAFC"
             fillOpacity={0.95}
           />
         </React.Fragment>
-      ))}
+        );
+      })}
     </Svg>
   );
 }

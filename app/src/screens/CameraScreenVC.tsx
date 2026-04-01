@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   Pressable,
+  ScrollView,
   Platform,
   useWindowDimensions,
 } from "react-native";
@@ -29,7 +30,13 @@ import {
 } from "../ml/streamingRecognition";
 import type { DetectMode } from "../ml/streamTypes";
 import { useStreamingHandTracking } from "../ml/useStreamingHandTracking";
-type UiMode = "ADVANCED" | "SIMPLE";
+
+type CameraScreenVCProps = {
+  onBack: () => void;
+  debugEnabled?: boolean;
+  showHandOverlay?: boolean;
+  variant?: "translator" | "lab";
+};
 
 const ACCENT = "#BE185D";
 const BG = "#FFF9F2";
@@ -57,12 +64,19 @@ const WORD_LABELS = [
   "Z",
 ] as const;
 
-export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
-  const { width } = useWindowDimensions();
+export default function CameraScreenVC({
+  onBack,
+  debugEnabled = false,
+  showHandOverlay = false,
+  variant = "translator",
+}: CameraScreenVCProps) {
+  const { width, height } = useWindowDimensions();
   const isSmall = width < 360;
   const isTablet = width >= 768;
-
-  const [uiMode, setUiMode] = useState<UiMode>("ADVANCED");
+  const isLab = variant === "lab";
+  const showDebugHud = isLab || debugEnabled;
+  const showOverlay = showHandOverlay;
+  const labSheetMaxHeight = Math.min(height * 0.5, 430);
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const TOP = isTablet ? 70 : 56;
@@ -117,7 +131,6 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
   const [lastConf, setLastConf] = useState(0);
 
   const smootherRef = useRef(new MajorityVoteSmoother(3));
-  const [isDatasetMode, setIsDatasetMode] = useState(false);
   const [selectedLabel, setSelectedLabel] = useState("A");
   const [status, setStatus] = useState("");
   const [lastHandedness, setLastHandedness] = useState<string | null>(null);
@@ -134,11 +147,9 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
     number | null
   >(null);
   const [detectMode, setDetectMode] = useState<DetectMode>("LETTERS");
-
-  const [showControls, setShowControls] = useState(true);
-  const [showHandOverlay, setShowHandOverlay] = useState(true);
   const [cameraLayout, setCameraLayout] = useState({ width: 0, height: 0 });
   const [isOverlaySmoothing, setIsOverlaySmoothing] = useState(false);
+  const [showLabDiagnostics, setShowLabDiagnostics] = useState(false);
 
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const isMountedRef = useRef(true);
@@ -483,8 +494,7 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
           frameHeight={orientedFrame.height}
           onSmoothingChange={setIsOverlaySmoothing}
           visible={
-            uiMode === "ADVANCED" &&
-            showHandOverlay &&
+            showOverlay &&
             !!latestHandFrame?.hasHand &&
             (latestHandFrame?.landmarks?.length ?? 0) === 21
           }
@@ -497,11 +507,11 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
           styles.centerHudWrap,
           {
             paddingHorizontal: PAD,
-            top: showControls ? "36%" : "48%",
+            top: isLab ? TOP + 88 : "48%",
           },
         ]}
       >
-        <View style={styles.centerHud}>
+        <View style={[styles.centerHud, isLab && styles.centerHudLab]}>
           <Text style={styles.centerKicker}>{centerTitle}</Text>
           <Text style={styles.centerLabel} numberOfLines={1}>
             {displayLabel}
@@ -525,99 +535,79 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
           <Text style={styles.backText}>Back</Text>
         </Pressable>
 
-        <Pressable
-          onPress={() =>
-            setUiMode((prev) => (prev === "ADVANCED" ? "SIMPLE" : "ADVANCED"))
-          }
-          style={({ pressed }) => [
-            styles.backBtn,
-            pressed && { opacity: 0.85 },
-            { marginTop: 8, alignSelf: "flex-start" },
-          ]}
-        >
-          <Text style={styles.backText}>
-            {uiMode === "ADVANCED" ? "Simple UI" : "Advanced UI"}
-          </Text>
-        </Pressable>
+        <Text style={styles.h1}>{isLab ? "SignSight Lab" : "SignSight"}</Text>
 
-        <Text style={styles.h1}>SignSight (MediaPipe)</Text>
-
-        {uiMode === "ADVANCED" ? (
+        {showDebugHud ? (
           <View style={styles.chipsRow}>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>FPS {fpsCounter}</Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>LM {lmFps}/s</Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>PRED {predictionRate}/s</Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                {debugState.hasHand
-                  ? `HAND ${debugState.landmarkCount}`
-                  : "HAND 0"}
-              </Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                AGE {lastSeenAgeMs == null ? "-" : `${lastSeenAgeMs}ms`}
-              </Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                FMT{" "}
-                {format
-                  ? `${format.videoWidth}x${format.videoHeight}@${Math.min(
-                      TARGET_CAMERA_FPS,
-                      format.maxFps
-                    )}`
-                  : "-"}
-              </Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                VIEW {Math.round(cameraLayout.width)}x{Math.round(cameraLayout.height)}
-              </Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                ORIENT {orientedFrame.width}x{orientedFrame.height}
-              </Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>
-                SMOOTH {isOverlaySmoothing ? "ON" : "OFF"}
-              </Text>
-            </View>
-            <View style={styles.chip}>
-              <Text style={styles.chipText}>{detectMode}</Text>
-            </View>
-            {detectMode === "WORDS" && (
+            {isLab ? (
               <>
                 <View style={styles.chip}>
+                  <Text style={styles.chipText}>{detectMode}</Text>
+                </View>
+                <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    LIVE {liveGestureFramesCount}/{GESTURE_FRAMES}
+                    {debugState.hasHand
+                      ? `HAND ${debugState.landmarkCount}`
+                      : "HAND 0"}
                   </Text>
                 </View>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    REC {recordingGestureFramesCount}/{GESTURE_FRAMES}
+                    {status ? status : `FPS ${fpsCounter} • LM ${lmFps}/s`}
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>FPS {fpsCounter}</Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>LM {lmFps}/s</Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>PRED {predictionRate}/s</Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    {debugState.hasHand
+                      ? `HAND ${debugState.landmarkCount}`
+                      : "HAND 0"}
                   </Text>
                 </View>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    GRACE {wordGraceActive ? "ON" : "OFF"}
+                    AGE {lastSeenAgeMs == null ? "-" : `${lastSeenAgeMs}ms`}
                   </Text>
                 </View>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    GPRED{" "}
-                    {lastGesturePredictionAgeMs == null
-                      ? "-"
-                      : `${lastGesturePredictionAgeMs}ms`}
+                    FMT{" "}
+                    {format
+                      ? `${format.videoWidth}x${format.videoHeight}@${Math.min(
+                          TARGET_CAMERA_FPS,
+                          format.maxFps
+                        )}`
+                      : "-"}
                   </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    VIEW {Math.round(cameraLayout.width)}x{Math.round(cameraLayout.height)}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    ORIENT {orientedFrame.width}x{orientedFrame.height}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    SMOOTH {isOverlaySmoothing ? "ON" : "OFF"}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>{detectMode}</Text>
                 </View>
               </>
             )}
@@ -625,338 +615,378 @@ export default function CameraScreenVC({ onBack }: { onBack: () => void }) {
         ) : (
           <View style={styles.chipsRow}>
             <View style={styles.chip}>
-              <Text style={styles.chipText}>{detectMode}</Text>
+              <Text style={styles.chipText}>
+                {detectMode === "LETTERS" ? "Letters" : "Words"}
+              </Text>
             </View>
+            {!!status && (
+              <View style={styles.chip}>
+                <Text style={styles.chipText} numberOfLines={1}>
+                  {status}
+                </Text>
+              </View>
+            )}
           </View>
         )}
       </View>
 
-      <View style={[styles.toggleWrap, { left: PAD, right: PAD }]}>
-        <Pressable
-          onPress={() => setShowControls((v) => !v)}
-          style={({ pressed }) => [
-            styles.toggleBtn,
-            pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-          ]}
-        >
-          <Text style={styles.toggleText}>
-            {showControls ? "Hide Controls" : "Show Controls"}
-          </Text>
-        </Pressable>
-      </View>
+      {isLab ? (
+        <View style={[styles.labSheetWrap, { left: PAD, right: PAD }]}>
+          <View style={[styles.labSheet, { maxHeight: labSheetMaxHeight }]}>
+            <ScrollView
+              contentContainerStyle={styles.labSheetContent}
+              showsVerticalScrollIndicator={false}
+            >
+            <View style={styles.panelHeader}>
+              <Text style={styles.panelTitle}>Developer Lab</Text>
+              <Text style={styles.panelSub}>
+                {detectMode} • {cameraPosition.toUpperCase()}
+              </Text>
+            </View>
 
-      {showControls && (
-        <View style={[styles.panelWrap, { left: PAD, right: PAD }]}>
-          <View style={styles.panel}>
-            {uiMode === "ADVANCED" ? (
-              <>
-                <View style={styles.panelHeader}>
-                  <Text style={styles.panelTitle}>Controls</Text>
-                  <Text style={styles.panelSub}>
-                    {isDatasetMode ? "DATASET" : "PREDICT"} •{" "}
-                    {cameraPosition.toUpperCase()}
-                  </Text>
-                </View>
-
-                <View style={styles.btnRow}>
-                  <Pressable
-                    onPress={() => {
-                      if (isDatasetMode) return;
-                      if (isRecordingGesture) {
-                        setStatus("Stop recording first.");
-                        return;
-                      }
-                      setDetectMode((m) => {
-                        const next = m === "LETTERS" ? "WORDS" : "LETTERS";
-                        if (next === "LETTERS") {
-                          setIsRecordingGesture(false);
-                          clearRecordBuffer();
-                          clearPredictBuffer();
-                        }
-                        return next;
-                      });
-                    }}
-                    style={({ pressed }) => [
-                      styles.btn,
-                      pressed && { opacity: 0.85 },
-                      isDatasetMode && { opacity: 0.45 },
-                    ]}
-                  >
-                    <Text style={styles.btnText}>Mode: {detectMode}</Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() =>
-                      setCameraPosition((p) => (p === "back" ? "front" : "back"))
+            <LabSection
+              title="Session"
+              subtitle="Choose the recognition flow and active camera."
+            >
+              <View style={styles.btnRow}>
+                <Pressable
+                  onPress={() => {
+                    if (isRecordingGesture) {
+                      setStatus("Stop recording first.");
+                      return;
                     }
-                    style={({ pressed }) => [
-                      styles.btn,
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  >
-                    <Text style={styles.btnText}>
-                      Switch: {cameraPosition.toUpperCase()}
-                    </Text>
-                  </Pressable>
-                </View>
-
-                <Pressable
-                  onPress={() => setShowHandOverlay((value) => !value)}
-                  style={({ pressed }) => [
-                    styles.btn,
-                    pressed && { opacity: 0.85 },
-                    showHandOverlay && styles.btnAccent,
-                    { marginTop: 10 },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.btnText,
-                      showHandOverlay && styles.btnTextDark,
-                    ]}
-                  >
-                    {showHandOverlay ? "Hand Overlay ON" : "Hand Overlay OFF"}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  onPress={() =>
-                    setIsDatasetMode((v) => {
-                      const next = !v;
-                      if (next) {
-                        setDetectMode("LETTERS");
+                    setDetectMode((m) => {
+                      const next = m === "LETTERS" ? "WORDS" : "LETTERS";
+                      if (next === "LETTERS") {
                         setIsRecordingGesture(false);
                         clearRecordBuffer();
                         clearPredictBuffer();
                       }
                       return next;
-                    })
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.btn,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Text style={styles.btnText}>
+                    Mode: {detectMode === "LETTERS" ? "Letters" : "Words"}
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={() =>
+                    setCameraPosition((p) => (p === "back" ? "front" : "back"))
                   }
                   style={({ pressed }) => [
                     styles.btn,
                     pressed && { opacity: 0.85 },
-                    isDatasetMode && styles.btnAccent,
-                    { marginTop: 10 },
                   ]}
                 >
-                  <Text
-                    style={[styles.btnText, isDatasetMode && styles.btnTextDark]}
-                  >
-                    {isDatasetMode ? "Dataset ON" : "Dataset OFF"}
+                  <Text style={styles.btnText}>
+                    Camera: {cameraPosition.toUpperCase()}
                   </Text>
                 </Pressable>
+              </View>
 
-                {detectMode === "WORDS" && !isDatasetMode && (
-                  <View style={{ marginTop: 12, gap: 10 }}>
-                    <View style={styles.wordInfoRow}>
-                      <Text style={styles.smallLabel}>Selected:</Text>
-                      <Text style={styles.smallValue}>{selectedWord}</Text>
-                      <View style={{ flex: 1 }} />
-                      <Text style={styles.smallMuted}>
-                        Live {liveGestureFramesCount}/{GESTURE_FRAMES} • Rec{" "}
-                        {recordingGestureFramesCount}/{GESTURE_FRAMES}
+              <View style={styles.labFieldCard}>
+                <View>
+                  <Text style={styles.labFieldLabel}>
+                    {detectMode === "WORDS" ? "Target word" : "Target label"}
+                  </Text>
+                  <Text style={styles.labFieldValue}>
+                    {detectMode === "WORDS" ? selectedWord : selectedLabel}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={detectMode === "WORDS" ? nextWord : nextLabel}
+                  style={styles.pillMini}
+                >
+                  <Text style={styles.pillMiniText}>
+                    {detectMode === "WORDS" ? "Next Word" : "Next Label"}
+                  </Text>
+                </Pressable>
+              </View>
+
+              <View style={styles.labSummaryRow}>
+                <LabSummaryPill
+                  label="Live"
+                  value={`${liveGestureFramesCount}/${GESTURE_FRAMES}`}
+                />
+                <LabSummaryPill
+                  label="Recorded"
+                  value={`${recordingGestureFramesCount}/${GESTURE_FRAMES}`}
+                />
+                <LabSummaryPill
+                  label="State"
+                  value={isRecordingGesture ? "Recording" : "Idle"}
+                  tone={isRecordingGesture ? "accent" : "neutral"}
+                />
+              </View>
+            </LabSection>
+
+            <LabSection
+              title="Capture"
+              subtitle={
+                detectMode === "WORDS"
+                  ? "Record or save gesture samples for the selected word."
+                  : "Save single-frame landmark samples for the selected label."
+              }
+            >
+              {detectMode === "WORDS" ? (
+                <>
+                  <View
+                    style={[
+                      styles.labFieldCard,
+                      isRecordingGesture && styles.labFieldCardAccent,
+                    ]}
+                  >
+                    <View>
+                      <Text style={styles.labFieldLabel}>Recording</Text>
+                      <Text style={styles.labFieldValue}>
+                        {isRecordingGesture
+                          ? "Gesture capture is active"
+                          : "Ready to record"}
+                      </Text>
+                      <Text style={styles.labHelperText}>
+                        {isRecordingGesture
+                          ? "Move through the full gesture, then stop recording before saving."
+                          : "Start recording to collect a fresh gesture sequence."}
                       </Text>
                     </View>
+                  </View>
 
-                    <View style={styles.btnRow}>
-                      <Pressable
-                        onPress={nextWord}
-                        style={({ pressed }) => [
-                          styles.btn,
-                          pressed && { opacity: 0.85 },
-                        ]}
-                      >
-                        <Text style={styles.btnText}>Next Word</Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={toggleGestureRecording}
-                        style={({ pressed }) => [
-                          styles.btn,
-                          pressed && { opacity: 0.85 },
-                          isRecordingGesture && styles.btnAccent,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.btnText,
-                            isRecordingGesture && styles.btnTextDark,
-                          ]}
-                        >
-                          {isRecordingGesture
-                            ? "Stop Recording"
-                            : "Start Recording"}
-                        </Text>
-                      </Pressable>
-                    </View>
-
-                    <View style={styles.btnRow}>
-                      <Pressable
-                        onPress={saveGestureSample}
-                        style={({ pressed }) => [
-                          styles.btnPrimary,
-                          pressed && { opacity: 0.9 },
-                        ]}
-                      >
-                        <Text style={styles.btnPrimaryText}>Save Gesture</Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={trainGestures}
-                        style={({ pressed }) => [
-                          styles.btnPrimary,
-                          pressed && { opacity: 0.9 },
-                        ]}
-                      >
-                        <Text style={styles.btnPrimaryText}>Train Gestures</Text>
-                      </Pressable>
-                    </View>
-
+                  <View style={styles.btnRow}>
                     <Pressable
-                      onPress={() => {
-                        clearRecordBuffer();
-                        clearPredictBuffer();
-                        setStatus("Cleared frames.");
-                      }}
+                      onPress={toggleGestureRecording}
                       style={({ pressed }) => [
                         styles.btn,
                         pressed && { opacity: 0.85 },
+                        isRecordingGesture && styles.btnAccent,
                       ]}
                     >
-                      <Text style={styles.btnText}>Clear Frames</Text>
+                      <Text
+                        style={[
+                          styles.btnText,
+                          isRecordingGesture && styles.btnTextDark,
+                        ]}
+                      >
+                        {isRecordingGesture ? "Stop Recording" : "Start Recording"}
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={saveGestureSample}
+                      style={({ pressed }) => [
+                        styles.btnPrimary,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                    >
+                      <Text style={styles.btnPrimaryText}>Save Gesture Sample</Text>
                     </Pressable>
                   </View>
-                )}
 
-                {detectMode === "LETTERS" && (
-                  <View style={{ marginTop: 12, gap: 10 }}>
-                    <View style={styles.wordInfoRow}>
-                      <Text style={styles.smallLabel}>Label:</Text>
-                      <Text style={styles.smallValue}>{selectedLabel}</Text>
-                      <View style={{ flex: 1 }} />
-                      <Pressable onPress={nextLabel} style={styles.pillMini}>
-                        <Text style={styles.pillMiniText}>Next</Text>
-                      </Pressable>
-                    </View>
-
-                    <View style={styles.btnRow}>
-                      <Pressable
-                        onPress={saveOneLandmarkSample}
-                        style={({ pressed }) => [
-                          styles.btnPrimary,
-                          pressed && { opacity: 0.9 },
-                        ]}
-                      >
-                        <Text style={styles.btnPrimaryText}>Save Sample</Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={trainLandmarks}
-                        style={({ pressed }) => [
-                          styles.btnPrimary,
-                          pressed && { opacity: 0.9 },
-                        ]}
-                      >
-                        <Text style={styles.btnPrimaryText}>Train</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                )}
-
-                {!!status && <Text style={styles.status}>{status}</Text>}
-
-                <Text style={styles.debugLine}>
-                  Raw: {rawLabel} • Hand: {lastHandedness ?? "-"}
-                </Text>
-              </>
-            ) : (
-              <>
-                <View style={styles.panelHeader}>
-                  <Text style={styles.panelTitle}>Quick Controls</Text>
-                  <Text style={styles.panelSub}>User mode</Text>
-                </View>
-
-                <View style={styles.btnRow}>
                   <Pressable
                     onPress={() => {
-                      if (isRecordingGesture) {
-                        setStatus("Stop recording first.");
-                        return;
-                      }
-                      setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
+                      clearRecordBuffer();
+                      clearPredictBuffer();
+                      setStatus("Cleared frames.");
                     }}
                     style={({ pressed }) => [
                       styles.btn,
+                      styles.btnBlock,
                       pressed && { opacity: 0.85 },
                     ]}
                   >
-                    <Text style={styles.btnText}>Mode: {detectMode}</Text>
+                    <Text style={styles.btnText}>Clear Live and Recorded Frames</Text>
                   </Pressable>
-
-                  <Pressable
-                    onPress={() =>
-                      setCameraPosition((p) => (p === "back" ? "front" : "back"))
-                    }
-                    style={({ pressed }) => [
-                      styles.btn,
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  >
-                    <Text style={styles.btnText}>
-                      Switch: {cameraPosition.toUpperCase()}
-                    </Text>
-                  </Pressable>
-                </View>
-
-                {detectMode === "WORDS" && (
-                  <View style={{ marginTop: 12, gap: 10 }}>
-                    <View style={styles.wordInfoRow}>
-                      <Text style={styles.smallLabel}>Selected:</Text>
-                      <Text style={styles.smallValue}>{selectedWord}</Text>
-                      <View style={{ flex: 1 }} />
-                      <Text style={styles.smallMuted}>
-                        {currentWordFramesCount}/{GESTURE_FRAMES}
+                </>
+              ) : (
+                <>
+                  <View style={styles.labFieldCard}>
+                    <View>
+                      <Text style={styles.labFieldLabel}>Sample capture</Text>
+                      <Text style={styles.labFieldValue}>Single landmark sample</Text>
+                      <Text style={styles.labHelperText}>
+                        Save the current hand landmarks to the selected letter label.
                       </Text>
                     </View>
-
-                    <View style={styles.btnRow}>
-                      <Pressable
-                        onPress={nextWord}
-                        style={({ pressed }) => [
-                          styles.btn,
-                          pressed && { opacity: 0.85 },
-                        ]}
-                      >
-                        <Text style={styles.btnText}>Next Word</Text>
-                      </Pressable>
-
-                      <Pressable
-                        onPress={toggleGestureRecording}
-                        style={({ pressed }) => [
-                          styles.btn,
-                          pressed && { opacity: 0.85 },
-                          isRecordingGesture && styles.btnAccent,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.btnText,
-                            isRecordingGesture && styles.btnTextDark,
-                          ]}
-                        >
-                          {isRecordingGesture
-                            ? "Stop Recording"
-                            : "Start Recording"}
-                        </Text>
-                      </Pressable>
-                    </View>
                   </View>
-                )}
-              </>
-            )}
+
+                  <Pressable
+                    onPress={saveOneLandmarkSample}
+                    style={({ pressed }) => [
+                      styles.btnPrimary,
+                      styles.btnBlock,
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <Text style={styles.btnPrimaryText}>Save Landmark Sample</Text>
+                  </Pressable>
+                </>
+              )}
+            </LabSection>
+
+            <LabSection
+              title="Training"
+              subtitle="Model training is separate from capture so it is harder to trigger by accident."
+            >
+              <View style={styles.trainingNotice}>
+                <Ionicons name="alert-circle-outline" size={18} color={ACCENT} />
+                <Text style={styles.trainingNoticeText}>
+                  Train only after you have collected enough clean samples for the current target set.
+                </Text>
+              </View>
+
+              <Pressable
+                onPress={detectMode === "WORDS" ? trainGestures : trainLandmarks}
+                style={({ pressed }) => [
+                  styles.btnPrimary,
+                  styles.btnBlock,
+                  pressed && { opacity: 0.9 },
+                ]}
+              >
+                <Text style={styles.btnPrimaryText}>
+                  {detectMode === "WORDS"
+                    ? "Train Gesture Model"
+                    : "Train Landmark Model"}
+                </Text>
+              </Pressable>
+            </LabSection>
+
+            <LabSection
+              title="Diagnostics"
+              subtitle="Show raw output and secondary metrics only when you need them."
+            >
+              <Pressable
+                onPress={() => setShowLabDiagnostics((value) => !value)}
+                style={({ pressed }) => [
+                  styles.btn,
+                  styles.btnBlock,
+                  pressed && { opacity: 0.85 },
+                ]}
+              >
+                <Text style={styles.btnText}>
+                  {showLabDiagnostics ? "Hide Diagnostics" : "Show Diagnostics"}
+                </Text>
+              </Pressable>
+
+              {showLabDiagnostics ? (
+                <View style={styles.diagnosticsCard}>
+                  <Text style={styles.debugLine}>
+                    Raw: {rawLabel} • Hand: {lastHandedness ?? "-"}
+                  </Text>
+                  <Text style={styles.debugLine}>
+                    FPS: {fpsCounter} • LM: {lmFps}/s • PRED: {predictionRate}/s
+                  </Text>
+                  <Text style={styles.debugLine}>
+                    Grace: {wordGraceActive ? "ON" : "OFF"} • Smoothing:{" "}
+                    {isOverlaySmoothing ? "ON" : "OFF"}
+                  </Text>
+                  <Text style={styles.debugLine}>
+                    Gesture Pred Age:{" "}
+                    {lastGesturePredictionAgeMs == null
+                      ? "-"
+                      : `${lastGesturePredictionAgeMs}ms`}
+                  </Text>
+                  <Text style={styles.debugLine}>
+                    Last Hand Age: {lastSeenAgeMs == null ? "-" : `${lastSeenAgeMs}ms`}
+                  </Text>
+                </View>
+              ) : null}
+            </LabSection>
+
+            {!!status && <Text style={styles.status}>{status}</Text>}
+            </ScrollView>
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.translatorControlsWrap, { left: PAD, right: PAD }]}>
+          <View style={styles.translatorControls}>
+            <Pressable
+              onPress={() => {
+                if (isRecordingGesture) {
+                  setStatus("Stop recording first.");
+                  return;
+                }
+                setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
+              }}
+              style={({ pressed }) => [
+                styles.btn,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={styles.btnText}>
+                {detectMode === "LETTERS" ? "Letters" : "Words"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() =>
+                setCameraPosition((p) => (p === "back" ? "front" : "back"))
+              }
+              style={({ pressed }) => [
+                styles.btn,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Text style={styles.btnText}>
+                {cameraPosition === "back" ? "Front Cam" : "Back Cam"}
+              </Text>
+            </Pressable>
           </View>
         </View>
       )}
+    </View>
+  );
+}
+
+function LabSection({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={styles.labSection}>
+      <View style={styles.labSectionHeader}>
+        <Text style={styles.labSectionTitle}>{title}</Text>
+        <Text style={styles.labSectionSubtitle}>{subtitle}</Text>
+      </View>
+      <View style={styles.labSectionBody}>{children}</View>
+    </View>
+  );
+}
+
+function LabSummaryPill({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: string;
+  tone?: "neutral" | "accent";
+}) {
+  return (
+    <View
+      style={[
+        styles.labSummaryPill,
+        tone === "accent" && styles.labSummaryPillAccent,
+      ]}
+    >
+      <Text style={styles.labSummaryLabel}>{label}</Text>
+      <Text
+        style={[
+          styles.labSummaryValue,
+          tone === "accent" && styles.labSummaryValueAccent,
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -1025,6 +1055,11 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  centerHudLab: {
+    maxWidth: 440,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
   centerKicker: {
     color: ACCENT,
     fontWeight: "900",
@@ -1046,21 +1081,36 @@ const styles = StyleSheet.create({
   centerMeta: { color: MUTED, fontWeight: "800" },
   dot: { width: 4, height: 4, borderRadius: 4, backgroundColor: "#D1D5DB" },
 
-  toggleWrap: { position: "absolute", bottom: 18 },
-  toggleBtn: {
-    borderRadius: 18,
-    paddingVertical: 12,
-    alignItems: "center",
-    backgroundColor: "rgba(252,231,243,0.94)",
-    borderWidth: 1,
-    borderColor: "rgba(249,168,212,0.45)",
+  labSheetWrap: {
+    position: "absolute",
+    bottom: 18,
   },
-  toggleText: { color: ACCENT, fontWeight: "900" },
-
-  panelWrap: { position: "absolute", bottom: 70 },
-  panel: {
+  labSheet: {
     borderRadius: 28,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: BORDER,
+    maxHeight: "48%",
+    ...Platform.select({
+      android: { elevation: 6 },
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.12,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 10 },
+      },
+    }),
+  },
+  labSheetContent: {
     padding: 14,
+    paddingBottom: 18,
+  },
+  translatorControlsWrap: { position: "absolute", bottom: 18 },
+  translatorControls: {
+    flexDirection: "row",
+    gap: 10,
+    borderRadius: 24,
+    padding: 12,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
     borderColor: BORDER,
@@ -1077,6 +1127,100 @@ const styles = StyleSheet.create({
   panelHeader: { marginBottom: 12 },
   panelTitle: { color: TEXT, fontWeight: "900", fontSize: 14 },
   panelSub: { color: MUTED, marginTop: 4, fontWeight: "700" },
+  labSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(229,231,235,0.9)",
+  },
+  labSectionHeader: {
+    marginBottom: 10,
+  },
+  labSectionTitle: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+  labSectionSubtitle: {
+    color: MUTED,
+    marginTop: 4,
+    fontWeight: "700",
+    lineHeight: 18,
+    fontSize: 12,
+  },
+  labSectionBody: {
+    gap: 10,
+  },
+  labFieldCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  labFieldCardAccent: {
+    backgroundColor: SOFT_PINK,
+    borderColor: "rgba(249,168,212,0.45)",
+  },
+  labFieldLabel: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: 12,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  labFieldValue: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 17,
+    marginTop: 4,
+  },
+  labHelperText: {
+    color: MUTED,
+    fontWeight: "700",
+    marginTop: 6,
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+  labSummaryRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  labSummaryPill: {
+    minWidth: 92,
+    flexGrow: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: "rgba(243,244,246,0.92)",
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  labSummaryPillAccent: {
+    backgroundColor: SOFT_PINK,
+    borderColor: "rgba(249,168,212,0.45)",
+  },
+  labSummaryLabel: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: 11,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  labSummaryValue: {
+    color: TEXT,
+    fontWeight: "900",
+    marginTop: 4,
+  },
+  labSummaryValueAccent: {
+    color: ACCENT,
+  },
 
   btnRow: { flexDirection: "row", gap: 10 },
   btn: {
@@ -1089,6 +1233,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+  },
+  btnBlock: {
+    width: "100%",
   },
   btnText: { color: TEXT, fontWeight: "900" },
 
@@ -1109,6 +1256,31 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   btnPrimaryText: { color: ACCENT, fontWeight: "900" },
+  trainingNotice: {
+    flexDirection: "row",
+    gap: 10,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(252,231,243,0.72)",
+    borderWidth: 1,
+    borderColor: "rgba(249,168,212,0.35)",
+    alignItems: "flex-start",
+  },
+  trainingNoticeText: {
+    flex: 1,
+    color: ACCENT,
+    fontWeight: "700",
+    lineHeight: 18,
+    fontSize: 12,
+  },
+  diagnosticsCard: {
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 6,
+  },
 
   status: { marginTop: 12, color: TEXT, fontWeight: "800" },
   debugLine: {
