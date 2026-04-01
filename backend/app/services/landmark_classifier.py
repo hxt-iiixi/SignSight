@@ -954,6 +954,64 @@ def upload_landmarks(
     }
 
 
+def landmark_label_summary(
+    label: str,
+    capture_session_id: Optional[str] = None,
+    signer_id: Optional[str] = None,
+) -> dict:
+    normalized_label = _clean_optional_string(label)
+    if not normalized_label:
+        return {"ok": False, "error": "label is required."}
+    normalized_label = normalized_label.upper()
+    if normalized_label not in LABELS:
+        return {"ok": False, "error": f"Invalid static landmark label: {normalized_label}"}
+
+    normalized_session_id = _clean_optional_string(capture_session_id)
+    normalized_signer_id = _clean_optional_string(signer_id)
+    summary = {
+        "approved": 0,
+        "pending": 0,
+        "rejected": 0,
+        "legacy": 0,
+        "by_hand": {"Left": 0, "Right": 0},
+        "session_total": 0,
+        "session_by_hand": {"Left": 0, "Right": 0},
+        "session_pending": 0,
+        "session_approved": 0,
+        "session_rejected": 0,
+    }
+
+    for record in _iter_label_records(normalized_label) or ():
+        kind = _record_kind(record)
+        summary[kind] += 1
+        handedness = record.get("handedness")
+        if handedness in summary["by_hand"]:
+            summary["by_hand"][handedness] += 1
+
+        matches_session = True
+        if normalized_session_id and record.get("capture_session_id") != normalized_session_id:
+            matches_session = False
+        if normalized_signer_id and record.get("signer_id") != normalized_signer_id:
+            matches_session = False
+
+        if matches_session:
+            summary["session_total"] += 1
+            if handedness in summary["session_by_hand"]:
+                summary["session_by_hand"][handedness] += 1
+            if kind == "pending":
+                summary["session_pending"] += 1
+            elif kind == "approved":
+                summary["session_approved"] += 1
+            elif kind == "rejected":
+                summary["session_rejected"] += 1
+
+    return {
+        "ok": True,
+        "label": normalized_label,
+        **summary,
+    }
+
+
 def health_summary() -> dict:
     dataset = _dataset_summary()
     available_versions = _available_landmark_model_versions()

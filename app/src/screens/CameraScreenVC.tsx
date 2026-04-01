@@ -75,6 +75,19 @@ type LandmarkModelVersion = {
   is_active?: boolean;
   active_static_letters?: string[];
 };
+type LandmarkLabelSummary = {
+  label: string;
+  approved: number;
+  pending: number;
+  rejected: number;
+  legacy: number;
+  by_hand: { Left: number; Right: number };
+  session_total: number;
+  session_by_hand: { Left: number; Right: number };
+  session_pending: number;
+  session_approved: number;
+  session_rejected: number;
+};
 
 function createDefaultCaptureSessionId() {
   const now = new Date();
@@ -176,6 +189,8 @@ export default function CameraScreenVC({
     useState<string | null>(null);
   const [availableLandmarkModelVersions, setAvailableLandmarkModelVersions] =
     useState<LandmarkModelVersion[]>([]);
+  const [selectedLabelSummary, setSelectedLabelSummary] =
+    useState<LandmarkLabelSummary | null>(null);
 
   type WordLabel = (typeof WORD_LABELS)[number];
   const [selectedWord, setSelectedWord] = useState<WordLabel>("HELLO");
@@ -191,6 +206,7 @@ export default function CameraScreenVC({
   const [cameraLayout, setCameraLayout] = useState({ width: 0, height: 0 });
   const [isOverlaySmoothing, setIsOverlaySmoothing] = useState(false);
   const [showLabDiagnostics, setShowLabDiagnostics] = useState(false);
+  const [showModelVersions, setShowModelVersions] = useState(false);
 
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const isMountedRef = useRef(true);
@@ -268,6 +284,68 @@ export default function CameraScreenVC({
     });
   };
 
+  const refreshLabHealth = async () => {
+    const res = await fetch(`${API_BASE}/health`);
+    const json = await res.json();
+    setActiveStaticLetters(
+      Array.isArray(json.active_static_letters)
+        ? json.active_static_letters.map(String)
+        : []
+    );
+    const currentMode =
+      json.current_landmark_training_mode === "bootstrap"
+        ? "bootstrap"
+        : "full_reviewed";
+    const bootstrapReady = Array.isArray(
+      json.ready_static_letters_by_mode?.bootstrap
+    )
+      ? json.ready_static_letters_by_mode.bootstrap.map(String)
+      : [];
+    const fullReviewedReady = Array.isArray(
+      json.ready_static_letters_by_mode?.full_reviewed
+    )
+      ? json.ready_static_letters_by_mode.full_reviewed.map(String)
+      : Array.isArray(json.ready_static_letters)
+        ? json.ready_static_letters.map(String)
+        : [];
+    setCurrentLandmarkTrainingMode(currentMode);
+    setLandmarkTrainingMode(currentMode);
+    setActiveLandmarkModelVersionId(
+      typeof json.active_landmark_model_version_id === "string"
+        ? json.active_landmark_model_version_id
+        : null
+    );
+    setAvailableLandmarkModelVersions(
+      Array.isArray(json.available_landmark_model_versions)
+        ? json.available_landmark_model_versions
+        : []
+    );
+    setReadyStaticLettersByMode({
+      bootstrap: bootstrapReady,
+      full_reviewed: fullReviewedReady,
+    });
+  };
+
+  const refreshSelectedLabelSummary = async (
+    nextLabel = selectedLabel,
+    nextSessionId = captureSessionId,
+    nextSignerId = signerId
+  ) => {
+    const res = await fetch(`${API_BASE}/landmark_label_summary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        label: nextLabel,
+        captureSessionId: nextSessionId.trim() || null,
+        signerId: nextSignerId.trim() || null,
+      }),
+    });
+    const json = await res.json();
+    if (json.ok) {
+      setSelectedLabelSummary(json);
+    }
+  };
+
   const saveOneLandmarkSample = async () => {
     try {
       const normalizedSignerId = signerId.trim();
@@ -308,8 +386,10 @@ export default function CameraScreenVC({
       }
 
       setLastHandedness(result.handedness ?? null);
+      await refreshSelectedLabelSummary();
+      await refreshLabHealth();
       setStatus(
-        `Saved pending ✅ ${selectedLabel} (${result.handedness ?? "?"})`
+        `Saved approved ✅ ${selectedLabel} (${result.handedness ?? "?"})`
       );
     } catch {
       setStatus("Save error");
@@ -335,13 +415,11 @@ export default function CameraScreenVC({
         const active = Array.isArray(json.active_static_letters)
           ? json.active_static_letters
           : [];
-        const ready = Array.isArray(json.ready_static_letters)
-          ? json.ready_static_letters
-          : [];
-        setActiveStaticLetters(active);
         setReadyStaticLettersByMode((current) => ({
           ...current,
-          [landmarkTrainingMode]: ready.map(String),
+          [landmarkTrainingMode]: Array.isArray(json.ready_static_letters)
+            ? json.ready_static_letters.map(String)
+            : [],
         }));
         setCurrentLandmarkTrainingMode(
           json.training_mode === "bootstrap" ? "bootstrap" : "full_reviewed"
@@ -356,6 +434,8 @@ export default function CameraScreenVC({
             ? json.available_versions
             : []
         );
+        setActiveStaticLetters(active);
+        await refreshSelectedLabelSummary();
         setStatus(
           `Training complete ✅${acc} ${json.training_mode === "bootstrap" ? "Bootstrap" : "Full reviewed"} model: ${active.length}/${STATIC_ASL_LABELS.length} active`
         );
@@ -406,6 +486,7 @@ export default function CameraScreenVC({
           ? json.available_versions
           : []
       );
+      await refreshSelectedLabelSummary();
       setStatus(`Switched active model ✅ ${versionId}`);
     } catch {
       setStatus("Version switch error");
@@ -574,48 +655,10 @@ export default function CameraScreenVC({
 
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/health`);
-        const json = await res.json();
-        if (cancelled) {
-          return;
+        await refreshLabHealth();
+        if (!cancelled) {
+          await refreshSelectedLabelSummary();
         }
-        setActiveStaticLetters(
-          Array.isArray(json.active_static_letters)
-            ? json.active_static_letters.map(String)
-            : []
-        );
-        const currentMode =
-          json.current_landmark_training_mode === "bootstrap"
-            ? "bootstrap"
-            : "full_reviewed";
-        const bootstrapReady = Array.isArray(
-          json.ready_static_letters_by_mode?.bootstrap
-        )
-          ? json.ready_static_letters_by_mode.bootstrap.map(String)
-          : [];
-        const fullReviewedReady = Array.isArray(
-          json.ready_static_letters_by_mode?.full_reviewed
-        )
-          ? json.ready_static_letters_by_mode.full_reviewed.map(String)
-          : Array.isArray(json.ready_static_letters)
-            ? json.ready_static_letters.map(String)
-            : [];
-        setCurrentLandmarkTrainingMode(currentMode);
-        setLandmarkTrainingMode(currentMode);
-        setActiveLandmarkModelVersionId(
-          typeof json.active_landmark_model_version_id === "string"
-            ? json.active_landmark_model_version_id
-            : null
-        );
-        setAvailableLandmarkModelVersions(
-          Array.isArray(json.available_landmark_model_versions)
-            ? json.available_landmark_model_versions
-            : []
-        );
-        setReadyStaticLettersByMode({
-          bootstrap: bootstrapReady,
-          full_reviewed: fullReviewedReady,
-        });
       } catch {}
     })();
 
@@ -623,6 +666,13 @@ export default function CameraScreenVC({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isLab || detectMode !== "LETTERS") {
+      return;
+    }
+    void refreshSelectedLabelSummary();
+  }, [isLab, detectMode, selectedLabel, captureSessionId, signerId]);
 
   const orientedFrame = useMemo(() => {
     if (!format) {
@@ -666,6 +716,9 @@ export default function CameraScreenVC({
   const selectedLabelIsActive = activeStaticLetters.includes(selectedLabel);
   const selectedLabelIsReady =
     readyStaticLettersByMode[landmarkTrainingMode].includes(selectedLabel);
+  const activeLandmarkModelVersion = availableLandmarkModelVersions.find(
+    (version) => String(version.version_id) === activeLandmarkModelVersionId
+  );
   const currentWordFramesCount = isRecordingGesture
     ? recordingGestureFramesCount
     : liveGestureFramesCount;
@@ -711,36 +764,6 @@ export default function CameraScreenVC({
         />
       </View>
 
-      {isLab ? (
-        <View
-          pointerEvents="none"
-          style={[
-            styles.centerHudWrap,
-            {
-              paddingHorizontal: PAD,
-              top: TOP + 88,
-            },
-          ]}
-        >
-          <View style={[styles.centerHud, styles.centerHudLab]}>
-            <Text style={styles.centerKicker}>{centerTitle}</Text>
-            <Text style={styles.centerLabel} numberOfLines={1}>
-              {displayLabel}
-            </Text>
-
-            <View style={styles.centerMetaRow}>
-              <Text style={styles.centerMeta}>{Math.round(lastConf * 100)}%</Text>
-              <View style={styles.dot} />
-              <Text style={styles.centerMeta}>
-                {detectMode === "WORDS"
-                  ? `${currentWordFramesCount}/${GESTURE_FRAMES}`
-                  : `Hand ${lastHandedness ?? "-"}`}
-              </Text>
-            </View>
-          </View>
-        </View>
-      ) : null}
-
       <View style={[styles.topHud, { top: TOP, left: PAD, right: PAD }]}>
         <Pressable onPress={onBack} style={styles.backBtn}>
           <Ionicons name="chevron-back" size={18} color={TEXT} />
@@ -754,18 +777,24 @@ export default function CameraScreenVC({
             {isLab ? (
               <>
                 <View style={styles.chip}>
-                  <Text style={styles.chipText}>{detectMode}</Text>
-                </View>
-                <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    {debugState.hasHand
-                      ? `HAND ${debugState.landmarkCount}`
-                      : "HAND 0"}
+                    {detectMode} • {cameraPosition.toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.chip}>
                   <Text style={styles.chipText}>
-                    {status ? status : `FPS ${fpsCounter} • LM ${lmFps}/s`}
+                    {activeLandmarkModelVersionId
+                      ? `MODEL ${currentLandmarkTrainingMode === "bootstrap" ? "BOOTSTRAP" : "FULL"}`
+                      : "MODEL NONE"}
+                  </Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    {status
+                      ? status
+                      : debugState.hasHand
+                        ? `HAND ${debugState.landmarkCount}`
+                        : "HAND 0"}
                   </Text>
                 </View>
               </>
@@ -937,66 +966,342 @@ export default function CameraScreenVC({
                 </Pressable>
               </View>
 
-              <View style={styles.labSummaryRow}>
-                <LabSummaryPill
-                  label="Live"
-                  value={`${liveGestureFramesCount}/${GESTURE_FRAMES}`}
-                />
-                <LabSummaryPill
-                  label="Recorded"
-                  value={`${recordingGestureFramesCount}/${GESTURE_FRAMES}`}
-                />
-                <LabSummaryPill
-                  label="State"
-                  value={isRecordingGesture ? "Recording" : "Idle"}
-                  tone={isRecordingGesture ? "accent" : "neutral"}
-                />
-              </View>
+              {detectMode === "WORDS" ? (
+                <View style={styles.labSummaryRow}>
+                  <LabSummaryPill
+                    label="Live"
+                    value={`${liveGestureFramesCount}/${GESTURE_FRAMES}`}
+                  />
+                  <LabSummaryPill
+                    label="Recorded"
+                    value={`${recordingGestureFramesCount}/${GESTURE_FRAMES}`}
+                  />
+                  <LabSummaryPill
+                    label="State"
+                    value={isRecordingGesture ? "Recording" : "Idle"}
+                    tone={isRecordingGesture ? "accent" : "neutral"}
+                  />
+                </View>
+              ) : (
+                <View style={styles.labSummaryRow}>
+                  <LabSummaryPill
+                    label="Target"
+                    value={selectedLabel}
+                  />
+                  <LabSummaryPill
+                    label="Session"
+                    value={captureSessionId}
+                  />
+                  <LabSummaryPill
+                    label="Save"
+                    value="Pending review"
+                    tone="accent"
+                  />
+                </View>
+              )}
+            </LabSection>
 
-              {detectMode === "LETTERS" ? (
-                <View style={styles.metadataStack}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Signer ID</Text>
-                    <TextInput
-                      value={signerId}
-                      onChangeText={setSignerId}
-                      style={styles.input}
-                      placeholder="person_01"
-                      placeholderTextColor="#9CA3AF"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
+            <LabSection
+              title="Live Status"
+              subtitle="Compact operator feedback for the current hand and prediction."
+            >
+              <View style={styles.labStatusCard}>
+                <View style={styles.labStatusHeader}>
+                  <View>
+                    <Text style={styles.labFieldLabel}>Filtered prediction</Text>
+                    <Text style={styles.labStatusPrimary} numberOfLines={1}>
+                      {displayLabel}
+                    </Text>
                   </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Capture Session ID</Text>
-                    <TextInput
-                      value={captureSessionId}
-                      onChangeText={setCaptureSessionId}
-                      style={styles.input}
-                      placeholder="2026-04-01_lab"
-                      placeholderTextColor="#9CA3AF"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Variant Tags</Text>
-                    <TextInput
-                      value={variantTagsText}
-                      onChangeText={setVariantTagsText}
-                      style={styles.input}
-                      placeholder="neutral, slight_rotation"
-                      placeholderTextColor="#9CA3AF"
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                    />
-                    <Text style={styles.inputHelperText}>
-                      New static samples save as pending review and are excluded from training until approved.
+                  <View style={styles.labStatusBadge}>
+                    <Text style={styles.labStatusBadgeText}>
+                      {Math.round(lastConf * 100)}%
                     </Text>
                   </View>
                 </View>
+
+                <View style={styles.labStatusRow}>
+                  <Text style={styles.labStatusMeta}>
+                    Raw {rawLabel} • Hand {lastHandedness ?? "-"}
+                  </Text>
+                  <Text style={styles.labStatusMeta}>
+                    {debugState.hasHand ? "Hand detected" : "No hand"}
+                  </Text>
+                </View>
+
+                {detectMode === "LETTERS" ? (
+                  <Text style={styles.labStatusModelText}>
+                    Serving{" "}
+                    {activeLandmarkModelVersion?.label ??
+                      activeLandmarkModelVersionId ??
+                      "no saved model"}{" "}
+                    •{" "}
+                    {currentLandmarkTrainingMode === "bootstrap"
+                      ? "bootstrap"
+                      : "full reviewed"}
+                  </Text>
+                ) : (
+                  <Text style={styles.labStatusModelText}>
+                    Gesture buffer {currentWordFramesCount}/{GESTURE_FRAMES}
+                  </Text>
+                )}
+              </View>
+            </LabSection>
+
+            {detectMode === "LETTERS" ? (
+              <LabSection
+                title="Dataset Status"
+                subtitle="Current target counts, save policy, and session progress."
+              >
+                <View style={styles.trainingModeCard}>
+                  <Text style={styles.labFieldLabel}>Save policy</Text>
+                  <Text style={styles.labFieldValue}>New samples save as approved</Text>
+                  <Text style={styles.labHelperTextTight}>
+                    Developer Lab captures are approved immediately, so they count toward training as soon as they are saved.
+                  </Text>
+                </View>
+
+                <View style={styles.labSummaryRow}>
+                  <LabSummaryPill
+                    label="Approved"
+                    value={String(selectedLabelSummary?.approved ?? 0)}
+                  />
+                  <LabSummaryPill
+                    label="Pending"
+                    value={String(selectedLabelSummary?.pending ?? 0)}
+                  />
+                  <LabSummaryPill
+                    label="This Session"
+                    value={String(selectedLabelSummary?.session_total ?? 0)}
+                    tone="accent"
+                  />
+                </View>
+
+                <View style={styles.labSummaryRow}>
+                  <LabSummaryPill
+                    label="Left"
+                    value={String(selectedLabelSummary?.by_hand.Left ?? 0)}
+                  />
+                  <LabSummaryPill
+                    label="Right"
+                    value={String(selectedLabelSummary?.by_hand.Right ?? 0)}
+                  />
+                  <LabSummaryPill
+                    label="Session Pending"
+                    value={String(selectedLabelSummary?.session_pending ?? 0)}
+                  />
+                </View>
+
+                <View style={styles.datasetInsightCard}>
+                  <Text style={styles.datasetInsightTitle}>Current target</Text>
+                  <Text style={styles.datasetInsightText}>
+                    {selectedLabelIsActive
+                      ? `${selectedLabel} is already active in the serving static model.`
+                      : selectedLabelIsReady
+                        ? `${selectedLabel} is quota-ready for ${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"} and will join the next trained model.`
+                        : `${selectedLabel} is still in collection. Keep saving samples, then approve them before training.`}
+                  </Text>
+                </View>
+              </LabSection>
+            ) : null}
+
+            <LabSection
+              title="Training"
+              subtitle={
+                detectMode === "WORDS"
+                  ? "Model training is separate from capture so it is harder to trigger by accident."
+                  : "Train a new landmark model first, then switch between saved model versions when needed."
+              }
+            >
+              {detectMode === "LETTERS" ? (
+                <View style={styles.trainingModeCard}>
+                  <Text style={styles.labFieldLabel}>New model</Text>
+                  <View style={styles.btnRow}>
+                    <Pressable
+                      onPress={() => setLandmarkTrainingMode("bootstrap")}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        landmarkTrainingMode === "bootstrap" && styles.btnAccent,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.btnText,
+                          landmarkTrainingMode === "bootstrap" &&
+                            styles.btnTextDark,
+                        ]}
+                      >
+                        Bootstrap
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      onPress={() => setLandmarkTrainingMode("full_reviewed")}
+                      style={({ pressed }) => [
+                        styles.btn,
+                        landmarkTrainingMode === "full_reviewed" &&
+                          styles.btnAccent,
+                        pressed && { opacity: 0.85 },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.btnText,
+                          landmarkTrainingMode === "full_reviewed" &&
+                            styles.btnTextDark,
+                        ]}
+                      >
+                        Full Reviewed
+                      </Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.labFieldValue}>
+                    {landmarkTrainingMode === "bootstrap"
+                      ? "Train Bootstrap Model"
+                      : "Train Full Reviewed Model"}
+                  </Text>
+                  <Text style={styles.labHelperTextTight}>
+                    {landmarkTrainingMode === "bootstrap"
+                      ? "Bootstrap mode is for solo or early internal testing with lower quotas."
+                      : "Full reviewed mode uses the stricter final dataset quotas."}{" "}
+                    Training creates a new model version and does not overwrite the old one.
+                  </Text>
+                  <Text style={styles.inputHelperText}>
+                    Current trained model:{" "}
+                    {currentLandmarkTrainingMode === "bootstrap"
+                      ? "bootstrap"
+                      : "full reviewed"}
+                    .
+                  </Text>
+                  {activeLandmarkModelVersionId ? (
+                    <Text style={styles.inputHelperText}>
+                      Active version: {activeLandmarkModelVersionId}
+                    </Text>
+                  ) : null}
+
+                  <Pressable
+                    onPress={trainLandmarks}
+                    style={({ pressed }) => [
+                      styles.btnPrimary,
+                      styles.btnBlock,
+                      pressed && { opacity: 0.9 },
+                    ]}
+                  >
+                    <Text style={styles.btnPrimaryText}>
+                      {landmarkTrainingMode === "bootstrap"
+                        ? "Train New Bootstrap Model"
+                        : "Train New Full Reviewed Model"}
+                    </Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
+              {detectMode === "LETTERS" && availableLandmarkModelVersions.length > 0 ? (
+                <View style={styles.trainingModeCard}>
+                  <Text style={styles.labFieldLabel}>Active model</Text>
+                  <Text style={styles.labFieldValue}>
+                    {String(
+                      activeLandmarkModelVersion?.label ??
+                        activeLandmarkModelVersionId ??
+                        "No active model"
+                    )}
+                  </Text>
+                  <Text style={styles.labHelperTextTight}>
+                    {activeLandmarkModelVersion
+                      ? `${
+                          activeLandmarkModelVersion.training_mode ===
+                          "bootstrap"
+                            ? "Bootstrap"
+                            : "Full reviewed"
+                        } • ${
+                          Array.isArray(
+                            activeLandmarkModelVersion.active_static_letters
+                          )
+                            ? `${activeLandmarkModelVersion.active_static_letters.length} active letters`
+                            : "unknown classes"
+                        }`
+                      : "Use a trained version for live predictions."}
+                  </Text>
+                  <Pressable
+                    onPress={() => setShowModelVersions((value) => !value)}
+                    style={({ pressed }) => [
+                      styles.btn,
+                      styles.btnBlock,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={styles.btnText}>
+                      {showModelVersions
+                        ? "Hide Saved Models"
+                        : "Show Saved Models"}
+                    </Text>
+                  </Pressable>
+
+                  {showModelVersions ? (
+                    <View style={styles.versionList}>
+                      {availableLandmarkModelVersions.map((version) => {
+                        const versionId = String(version.version_id);
+                        const isActive =
+                          versionId === activeLandmarkModelVersionId;
+                        const mode =
+                          version.training_mode === "bootstrap"
+                            ? "bootstrap"
+                            : "full reviewed";
+                        return (
+                          <Pressable
+                            key={versionId}
+                            onPress={() => activateLandmarkModelVersion(versionId)}
+                            style={({ pressed }) => [
+                              styles.versionCard,
+                              isActive && styles.versionCardActive,
+                              pressed && { opacity: 0.88 },
+                            ]}
+                          >
+                            <Text style={styles.versionTitle}>
+                              {String(version.label ?? versionId)}
+                            </Text>
+                            <Text style={styles.inputHelperText}>
+                              {mode} •{" "}
+                              {Array.isArray(version.active_static_letters)
+                                ? `${version.active_static_letters.length} active letters`
+                                : "unknown classes"}
+                            </Text>
+                            {version.trained_at ? (
+                              <Text style={styles.inputHelperText}>
+                                {version.trained_at}
+                              </Text>
+                            ) : null}
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              <View style={styles.trainingNotice}>
+                <Ionicons name="alert-circle-outline" size={18} color={ACCENT} />
+                <Text style={styles.trainingNoticeText}>
+                  {detectMode === "WORDS"
+                    ? "Train only after you have collected enough clean samples for the current target set."
+                    : landmarkTrainingMode === "bootstrap"
+                      ? "Bootstrap mode is temporary and should not be treated as the final shared model."
+                      : "Full reviewed mode expects the stricter final dataset quotas and signer diversity."}
+                </Text>
+              </View>
+
+              {detectMode === "WORDS" ? (
+                <Pressable
+                  onPress={trainGestures}
+                  style={({ pressed }) => [
+                    styles.btnPrimary,
+                    styles.btnBlock,
+                    pressed && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={styles.btnPrimaryText}>Train Gesture Model</Text>
+                </Pressable>
               ) : null}
             </LabSection>
 
@@ -1102,141 +1407,56 @@ export default function CameraScreenVC({
               )}
             </LabSection>
 
-            <LabSection
-              title="Training"
-              subtitle="Model training is separate from capture so it is harder to trigger by accident."
-            >
-              {detectMode === "LETTERS" ? (
-                <View style={styles.trainingModeCard}>
-                  <Text style={styles.labFieldLabel}>Training mode</Text>
-                  <View style={styles.btnRow}>
-                    <Pressable
-                      onPress={() => setLandmarkTrainingMode("bootstrap")}
-                      style={({ pressed }) => [
-                        styles.btn,
-                        landmarkTrainingMode === "bootstrap" && styles.btnAccent,
-                        pressed && { opacity: 0.85 },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.btnText,
-                          landmarkTrainingMode === "bootstrap" &&
-                            styles.btnTextDark,
-                        ]}
-                      >
-                        Bootstrap
-                      </Text>
-                    </Pressable>
-
-                    <Pressable
-                      onPress={() => setLandmarkTrainingMode("full_reviewed")}
-                      style={({ pressed }) => [
-                        styles.btn,
-                        landmarkTrainingMode === "full_reviewed" &&
-                          styles.btnAccent,
-                        pressed && { opacity: 0.85 },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.btnText,
-                          landmarkTrainingMode === "full_reviewed" &&
-                            styles.btnTextDark,
-                        ]}
-                      >
-                        Full Reviewed
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <Text style={styles.labHelperText}>
-                    {landmarkTrainingMode === "bootstrap"
-                      ? "Bootstrap mode is for solo or early internal testing with lower quotas."
-                      : "Full reviewed mode uses the stricter final dataset quotas."}
-                  </Text>
-                  <Text style={styles.inputHelperText}>
-                    Current trained model:{" "}
-                    {currentLandmarkTrainingMode === "bootstrap"
-                      ? "bootstrap"
-                      : "full reviewed"}
-                    .
-                  </Text>
-                  {activeLandmarkModelVersionId ? (
-                    <Text style={styles.inputHelperText}>
-                      Active version: {activeLandmarkModelVersionId}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-
-              {detectMode === "LETTERS" && availableLandmarkModelVersions.length > 0 ? (
-                <View style={styles.trainingModeCard}>
-                  <Text style={styles.labFieldLabel}>Model versions</Text>
-                  <View style={styles.versionList}>
-                    {availableLandmarkModelVersions.map((version) => {
-                      const versionId = String(version.version_id);
-                      const isActive = versionId === activeLandmarkModelVersionId;
-                      const mode =
-                        version.training_mode === "bootstrap"
-                          ? "bootstrap"
-                          : "full reviewed";
-                      return (
-                        <Pressable
-                          key={versionId}
-                          onPress={() => activateLandmarkModelVersion(versionId)}
-                          style={({ pressed }) => [
-                            styles.versionCard,
-                            isActive && styles.versionCardActive,
-                            pressed && { opacity: 0.88 },
-                          ]}
-                        >
-                          <Text style={styles.versionTitle}>
-                            {String(version.label ?? versionId)}
-                          </Text>
-                          <Text style={styles.inputHelperText}>
-                            {mode} •{" "}
-                            {Array.isArray(version.active_static_letters)
-                              ? `${version.active_static_letters.length} active letters`
-                              : "unknown classes"}
-                          </Text>
-                          {version.trained_at ? (
-                            <Text style={styles.inputHelperText}>
-                              {version.trained_at}
-                            </Text>
-                          ) : null}
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ) : null}
-
-              <View style={styles.trainingNotice}>
-                <Ionicons name="alert-circle-outline" size={18} color={ACCENT} />
-                <Text style={styles.trainingNoticeText}>
-                  {detectMode === "WORDS"
-                    ? "Train only after you have collected enough clean samples for the current target set."
-                    : landmarkTrainingMode === "bootstrap"
-                      ? "Bootstrap mode is temporary and should not be treated as the final shared model."
-                      : "Full reviewed mode expects the stricter final dataset quotas and signer diversity."}
-                </Text>
-              </View>
-
-              <Pressable
-                onPress={detectMode === "WORDS" ? trainGestures : trainLandmarks}
-                style={({ pressed }) => [
-                  styles.btnPrimary,
-                  styles.btnBlock,
-                  pressed && { opacity: 0.9 },
-                ]}
+            {detectMode === "LETTERS" ? (
+              <LabSection
+                title="Capture Setup"
+                subtitle="These fields are only needed when you save new static samples."
               >
-                <Text style={styles.btnPrimaryText}>
-                  {detectMode === "WORDS"
-                    ? "Train Gesture Model"
-                    : "Train Landmark Model"}
-                </Text>
-              </Pressable>
-            </LabSection>
+                <View style={styles.metadataStack}>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Signer ID</Text>
+                    <TextInput
+                      value={signerId}
+                      onChangeText={setSignerId}
+                      style={styles.input}
+                      placeholder="person_01"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Capture Session ID</Text>
+                    <TextInput
+                      value={captureSessionId}
+                      onChangeText={setCaptureSessionId}
+                      style={styles.input}
+                      placeholder="2026-04-01_lab"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Variant Tags</Text>
+                    <TextInput
+                      value={variantTagsText}
+                      onChangeText={setVariantTagsText}
+                      style={styles.input}
+                      placeholder="neutral, slight_rotation"
+                      placeholderTextColor="#9CA3AF"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                    <Text style={styles.inputHelperText}>
+                      New static samples from Developer Lab save as approved and are included in training immediately.
+                    </Text>
+                  </View>
+                </View>
+              </LabSection>
+            ) : null}
 
             <LabSection
               title="Diagnostics"
@@ -1430,12 +1650,6 @@ const styles = StyleSheet.create({
     borderColor: "rgba(229,231,235,0.95)",
   },
   chipText: { color: TEXT, fontWeight: "900", fontSize: 12 },
-
-  centerHudWrap: {
-    position: "absolute",
-    width: "100%",
-    alignItems: "center",
-  },
   centerHud: {
     width: "100%",
     maxWidth: 520,
@@ -1454,11 +1668,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 10 },
       },
     }),
-  },
-  centerHudLab: {
-    maxWidth: 440,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
   },
   centerKicker: {
     color: ACCENT,
@@ -1591,10 +1800,82 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     maxWidth: 280,
   },
+  labHelperTextTight: {
+    color: MUTED,
+    fontWeight: "700",
+    lineHeight: 18,
+  },
   labSummaryRow: {
     flexDirection: "row",
     gap: 8,
     flexWrap: "wrap",
+  },
+  labStatusCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(255,255,255,0.96)",
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 10,
+  },
+  labStatusHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  labStatusPrimary: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 24,
+    marginTop: 4,
+  },
+  labStatusBadge: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    backgroundColor: SOFT_BLUE,
+    borderWidth: 1,
+    borderColor: "rgba(96,165,250,0.24)",
+  },
+  labStatusBadgeText: {
+    color: "#1D4ED8",
+    fontWeight: "900",
+    fontSize: 12,
+  },
+  labStatusRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+  },
+  labStatusMeta: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  labStatusModelText: {
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: 12,
+  },
+  datasetInsightCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "rgba(243,244,246,0.92)",
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 6,
+  },
+  datasetInsightTitle: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 13,
+  },
+  datasetInsightText: {
+    color: MUTED,
+    fontWeight: "700",
+    lineHeight: 18,
   },
   metadataStack: {
     gap: 10,

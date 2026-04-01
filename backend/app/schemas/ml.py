@@ -31,6 +31,12 @@ class ActivateLandmarkModelReq(BaseModel):
     versionId: str
 
 
+class LandmarkLabelSummaryReq(BaseModel):
+    label: str
+    captureSessionId: Optional[str] = None
+    signerId: Optional[str] = None
+
+
 class UploadGestureReq(BaseModel):
     label: str
     frames: list

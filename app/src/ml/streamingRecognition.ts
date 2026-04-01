@@ -138,9 +138,9 @@ export async function saveStreamingLandmarkSample(
       capture_session_id: metadata.captureSessionId,
       device_id: metadata.deviceId ?? null,
       camera_position: metadata.cameraPosition,
-      accepted: false,
-      review_status: "pending",
-      review_notes: "",
+      accepted: true,
+      review_status: "approved",
+      review_notes: "Approved from developer lab capture.",
       variant_tags: metadata.variantTags ?? [],
       captured_at: new Date().toISOString(),
     }),
@@ -154,7 +154,7 @@ export async function saveStreamingLandmarkSample(
   return {
     ok: true,
     handedness: hand.handedness ?? null,
-    reviewStatus: String(json.review_status ?? "pending"),
+    reviewStatus: String(json.review_status ?? "approved"),
   };
 }
 
