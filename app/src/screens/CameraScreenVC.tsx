@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   Platform,
+  StatusBar,
   TextInput,
   useWindowDimensions,
 } from "react-native";
@@ -114,7 +115,11 @@ export default function CameraScreenVC({
   const labSheetMaxHeight = Math.min(height * 0.5, 430);
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
-  const TOP = isTablet ? 70 : 56;
+  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
+  const TOP = statusBarInset + (isTablet ? 46 : 34);
+  const bottomSafeLift = Platform.OS === "android" ? 28 : 18;
+  const translatorBottomInset = Platform.OS === "android" ? 34 : 18;
+  const labBottomInset = Platform.OS === "android" ? 30 : 18;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -274,9 +279,25 @@ export default function CameraScreenVC({
     setSelectedLabel(STATIC_ASL_LABELS[nextIndex]);
   };
 
+  const previousLabel = () => {
+    const i = STATIC_ASL_LABELS.indexOf(selectedLabel);
+    const previousIndex =
+      i >= 0
+        ? (i - 1 + STATIC_ASL_LABELS.length) % STATIC_ASL_LABELS.length
+        : 0;
+    setSelectedLabel(STATIC_ASL_LABELS[previousIndex]);
+  };
+
   const nextWord = () => {
     const i = WORD_LABELS.indexOf(selectedWord);
     setSelectedWord(WORD_LABELS[(i + 1) % WORD_LABELS.length]);
+  };
+
+  const previousWord = () => {
+    const i = WORD_LABELS.indexOf(selectedWord);
+    const previousIndex =
+      i >= 0 ? (i - 1 + WORD_LABELS.length) % WORD_LABELS.length : 0;
+    setSelectedWord(WORD_LABELS[previousIndex]);
   };
 
   const onCameraLayout = (event: LayoutChangeEvent) => {
@@ -950,10 +971,18 @@ export default function CameraScreenVC({
       </View>
 
       {isLab ? (
-        <View style={[styles.labSheetWrap, { left: PAD, right: PAD }]}>
+        <View
+          style={[
+            styles.labSheetWrap,
+            { left: PAD, right: PAD, bottom: bottomSafeLift },
+          ]}
+        >
           <View style={[styles.labSheet, { maxHeight: labSheetMaxHeight }]}>
             <ScrollView
-              contentContainerStyle={styles.labSheetContent}
+              contentContainerStyle={[
+                styles.labSheetContent,
+                { paddingBottom: labBottomInset },
+              ]}
               showsVerticalScrollIndicator={false}
             >
             <View style={styles.panelHeader}>
@@ -1009,6 +1038,133 @@ export default function CameraScreenVC({
                 </Pressable>
               </View>
 
+              {detectMode === "LETTERS" &&
+              availableLandmarkModelVersions.length > 0 ? (
+                <View style={styles.modelPickerCard}>
+                  <Text style={styles.labFieldLabel}>Model</Text>
+                  <Pressable
+                    onPress={() => setShowModelVersions((value) => !value)}
+                    style={({ pressed }) => [
+                      styles.modelPickerTrigger,
+                      pressed && { opacity: 0.88 },
+                    ]}
+                  >
+                    <View style={styles.modelPickerTriggerTextWrap}>
+                      <Text style={styles.modelPickerPrimary} numberOfLines={1}>
+                        {String(
+                          activeLandmarkModelVersion?.label ??
+                            activeLandmarkModelVersionId ??
+                            "No active model"
+                        )}
+                      </Text>
+                      <Text style={styles.modelPickerMeta} numberOfLines={1}>
+                        {activeLandmarkModelVersion
+                          ? `${
+                              activeLandmarkModelVersion.training_mode ===
+                              "bootstrap"
+                                ? "Bootstrap"
+                                : "Full reviewed"
+                            } • ${
+                              Array.isArray(
+                                activeLandmarkModelVersion.active_static_letters
+                              )
+                                ? `${activeLandmarkModelVersion.active_static_letters.length} active letters`
+                                : "unknown classes"
+                            }`
+                          : "Choose the serving static model"}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={showModelVersions ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={TEXT}
+                    />
+                  </Pressable>
+
+                  {showModelVersions ? (
+                    <View style={styles.modelDropdownList}>
+                      {availableLandmarkModelVersions.map((version) => {
+                        const versionId = String(version.version_id);
+                        const isActive =
+                          versionId === activeLandmarkModelVersionId;
+                        const mode =
+                          version.training_mode === "bootstrap"
+                            ? "bootstrap"
+                            : "full reviewed";
+                        return (
+                          <View
+                            key={versionId}
+                            style={[
+                              styles.versionCard,
+                              isActive && styles.versionCardActive,
+                            ]}
+                          >
+                            <Pressable
+                              onPress={() =>
+                                activateLandmarkModelVersion(versionId)
+                              }
+                              style={({ pressed }) => [
+                                styles.modelDropdownSelect,
+                                pressed && { opacity: 0.88 },
+                              ]}
+                            >
+                              <Text style={styles.versionTitle}>
+                                {String(version.label ?? versionId)}
+                              </Text>
+                              <Text style={styles.inputHelperText}>
+                                {mode} •{" "}
+                                {Array.isArray(version.active_static_letters)
+                                  ? `${version.active_static_letters.length} active letters`
+                                  : "unknown classes"}
+                              </Text>
+                              {version.trained_at ? (
+                                <Text style={styles.inputHelperText}>
+                                  {version.trained_at}
+                                </Text>
+                              ) : null}
+                              <Text style={styles.inputHelperText}>
+                                {isActive
+                                  ? "Currently serving"
+                                  : "Tap to switch active model"}
+                              </Text>
+                            </Pressable>
+                            <View style={styles.renameRow}>
+                              <TextInput
+                                value={
+                                  modelRenameDrafts[versionId] ??
+                                  String(version.label ?? versionId)
+                                }
+                                onChangeText={(text) =>
+                                  setModelRenameDrafts((current) => ({
+                                    ...current,
+                                    [versionId]: text,
+                                  }))
+                                }
+                                placeholder="Rename model version"
+                                placeholderTextColor={MUTED}
+                                style={[styles.input, styles.renameInput]}
+                              />
+                              <Pressable
+                                onPress={() =>
+                                  renameLandmarkModelVersion(versionId)
+                                }
+                                style={({ pressed }) => [
+                                  styles.btn,
+                                  styles.renameButton,
+                                  pressed && { opacity: 0.85 },
+                                ]}
+                              >
+                                <Text style={styles.btnText}>Rename</Text>
+                              </Pressable>
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
               <View style={styles.labFieldCard}>
                 <View>
                   <Text style={styles.labFieldLabel}>
@@ -1027,14 +1183,31 @@ export default function CameraScreenVC({
                     </Text>
                   ) : null}
                 </View>
-                <Pressable
-                  onPress={detectMode === "WORDS" ? nextWord : nextLabel}
-                  style={styles.pillMini}
-                >
-                  <Text style={styles.pillMiniText}>
-                    {detectMode === "WORDS" ? "Next Word" : "Next Label"}
-                  </Text>
-                </Pressable>
+                <View style={styles.targetNavRow}>
+                  <Pressable
+                    onPress={detectMode === "WORDS" ? previousWord : previousLabel}
+                    style={({ pressed }) => [
+                      styles.targetNavButton,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={styles.targetNavButtonText}>
+                      {detectMode === "WORDS" ? "Previous Word" : "Previous Label"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={detectMode === "WORDS" ? nextWord : nextLabel}
+                    style={({ pressed }) => [
+                      styles.targetNavButton,
+                      styles.targetNavButtonAccent,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Text style={styles.targetNavButtonTextAccent}>
+                      {detectMode === "WORDS" ? "Next Word" : "Next Label"}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
 
               {detectMode === "WORDS" ? (
@@ -1268,153 +1441,6 @@ export default function CameraScreenVC({
                 </View>
               ) : null}
 
-              {detectMode === "LETTERS" && availableLandmarkModelVersions.length > 0 ? (
-                <View style={styles.trainingModeCard}>
-                  <Text style={styles.labFieldLabel}>Switch active model</Text>
-                  <Text style={styles.labFieldValue}>
-                    {String(
-                      activeLandmarkModelVersion?.label ??
-                        activeLandmarkModelVersionId ??
-                        "No active model"
-                    )}
-                  </Text>
-                  <Text style={styles.labHelperTextTight}>
-                    {activeLandmarkModelVersion
-                      ? `${
-                          activeLandmarkModelVersion.training_mode ===
-                          "bootstrap"
-                            ? "Bootstrap"
-                            : "Full reviewed"
-                        } • ${
-                          Array.isArray(
-                            activeLandmarkModelVersion.active_static_letters
-                          )
-                            ? `${activeLandmarkModelVersion.active_static_letters.length} active letters`
-                            : "unknown classes"
-                        }`
-                      : "Choose which saved model version should serve live predictions."}
-                  </Text>
-                  {activeLandmarkModelVersionId ? (
-                    <View style={styles.renameRow}>
-                      <TextInput
-                        value={
-                          modelRenameDrafts[activeLandmarkModelVersionId] ??
-                          String(
-                            activeLandmarkModelVersion?.label ??
-                              activeLandmarkModelVersionId
-                          )
-                        }
-                        onChangeText={(text) =>
-                          setModelRenameDrafts((current) => ({
-                            ...current,
-                            [activeLandmarkModelVersionId]: text,
-                          }))
-                        }
-                        placeholder="Rename active model"
-                        placeholderTextColor={MUTED}
-                        style={[styles.input, styles.renameInput]}
-                      />
-                      <Pressable
-                        onPress={() =>
-                          renameLandmarkModelVersion(activeLandmarkModelVersionId)
-                        }
-                        style={({ pressed }) => [
-                          styles.btn,
-                          styles.renameButton,
-                          pressed && { opacity: 0.85 },
-                        ]}
-                      >
-                        <Text style={styles.btnText}>Rename</Text>
-                      </Pressable>
-                    </View>
-                  ) : null}
-                  <Pressable
-                    onPress={() => setShowModelVersions((value) => !value)}
-                    style={({ pressed }) => [
-                      styles.btn,
-                      styles.btnBlock,
-                      pressed && { opacity: 0.85 },
-                    ]}
-                  >
-                    <Text style={styles.btnText}>
-                      {showModelVersions
-                        ? "Hide Model Versions"
-                        : "Show Model Versions"}
-                    </Text>
-                  </Pressable>
-
-                  {showModelVersions ? (
-                    <View style={styles.versionList}>
-                      {availableLandmarkModelVersions.map((version) => {
-                        const versionId = String(version.version_id);
-                        const isActive =
-                          versionId === activeLandmarkModelVersionId;
-                        const mode =
-                          version.training_mode === "bootstrap"
-                            ? "bootstrap"
-                            : "full reviewed";
-                        return (
-                          <Pressable
-                            key={versionId}
-                            onPress={() => activateLandmarkModelVersion(versionId)}
-                            style={({ pressed }) => [
-                              styles.versionCard,
-                              isActive && styles.versionCardActive,
-                              pressed && { opacity: 0.88 },
-                            ]}
-                          >
-                            <Text style={styles.versionTitle}>
-                              {String(version.label ?? versionId)}
-                            </Text>
-                            <Text style={styles.inputHelperText}>
-                              {mode} •{" "}
-                              {Array.isArray(version.active_static_letters)
-                                ? `${version.active_static_letters.length} active letters`
-                                : "unknown classes"}
-                            </Text>
-                            {version.trained_at ? (
-                              <Text style={styles.inputHelperText}>
-                                {version.trained_at}
-                              </Text>
-                            ) : null}
-                            <View style={styles.renameRow}>
-                              <TextInput
-                                value={
-                                  modelRenameDrafts[versionId] ??
-                                  String(version.label ?? versionId)
-                                }
-                                onChangeText={(text) =>
-                                  setModelRenameDrafts((current) => ({
-                                    ...current,
-                                    [versionId]: text,
-                                  }))
-                                }
-                                placeholder="Rename model version"
-                                placeholderTextColor={MUTED}
-                                style={[styles.input, styles.renameInput]}
-                              />
-                              <Pressable
-                                onPress={() => renameLandmarkModelVersion(versionId)}
-                                style={({ pressed }) => [
-                                  styles.btn,
-                                  styles.renameButton,
-                                  pressed && { opacity: 0.85 },
-                                ]}
-                              >
-                                <Text style={styles.btnText}>Rename</Text>
-                              </Pressable>
-                            </View>
-                            <Text style={styles.inputHelperText}>
-                              {isActive ? "Currently serving" : "Tap to switch active model"}
-                            </Text>
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-                </View>
-              ) : null}
-
               <View style={styles.trainingNotice}>
                 <Ionicons name="alert-circle-outline" size={18} color={ACCENT} />
                 <Text style={styles.trainingNoticeText}>
@@ -1640,7 +1666,12 @@ export default function CameraScreenVC({
           </View>
         </View>
       ) : (
-        <View style={[styles.translatorControlsWrap, { left: PAD, right: PAD }]}>
+        <View
+          style={[
+            styles.translatorControlsWrap,
+            { left: PAD, right: PAD, bottom: bottomSafeLift },
+          ]}
+        >
           <View style={styles.centerHud}>
             <Text style={styles.centerKicker}>{centerTitle}</Text>
             <Text style={styles.centerLabel} numberOfLines={1}>
@@ -1658,7 +1689,12 @@ export default function CameraScreenVC({
             </View>
           </View>
 
-          <View style={styles.translatorControls}>
+          <View
+            style={[
+              styles.translatorControls,
+              { paddingBottom: translatorBottomInset },
+            ]}
+          >
             <Pressable
               onPress={() => {
                 if (isRecordingGesture) {
@@ -1827,7 +1863,6 @@ const styles = StyleSheet.create({
 
   labSheetWrap: {
     position: "absolute",
-    bottom: 18,
   },
   labSheet: {
     borderRadius: 28,
@@ -1847,11 +1882,9 @@ const styles = StyleSheet.create({
   },
   labSheetContent: {
     padding: 14,
-    paddingBottom: 18,
   },
   translatorControlsWrap: {
     position: "absolute",
-    bottom: 18,
     gap: 12,
   },
   translatorControls: {
@@ -2125,6 +2158,47 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
     gap: 10,
   },
+  modelPickerCard: {
+    padding: 14,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    gap: 10,
+  },
+  modelPickerTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "rgba(249,250,251,0.92)",
+  },
+  modelPickerTriggerTextWrap: {
+    flex: 1,
+    gap: 4,
+  },
+  modelPickerPrimary: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: 14,
+  },
+  modelPickerMeta: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  modelDropdownList: {
+    gap: 8,
+  },
+  modelDropdownSelect: {
+    gap: 4,
+  },
   versionList: {
     gap: 8,
   },
@@ -2184,6 +2258,40 @@ const styles = StyleSheet.create({
   smallValue: { color: TEXT, fontWeight: "900" },
   smallMuted: { color: MUTED, fontWeight: "800" },
 
+  targetNavRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+    marginTop: 8,
+  },
+  targetNavButton: {
+    flexGrow: 1,
+    minWidth: 120,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: BORDER,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  targetNavButtonAccent: {
+    backgroundColor: SOFT_YELLOW,
+    borderColor: "rgba(253,230,138,0.45)",
+  },
+  targetNavButtonText: {
+    color: TEXT,
+    fontWeight: "900",
+    textAlign: "center",
+    fontSize: 12,
+  },
+  targetNavButtonTextAccent: {
+    color: "#92400E",
+    fontWeight: "900",
+    textAlign: "center",
+    fontSize: 12,
+  },
   pillMini: {
     paddingVertical: 8,
     paddingHorizontal: 12,

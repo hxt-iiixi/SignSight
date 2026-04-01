@@ -7,6 +7,7 @@ import {
   SafeAreaView,
   Platform,
   ScrollView,
+  StatusBar,
   useWindowDimensions,
   ImageBackground,
 } from "react-native";
@@ -37,15 +38,24 @@ export default function DashboardScreen({
 
   const P = isTablet ? 28 : isSmall ? 14 : 18;
   const heroTitleSize = isTablet ? 30 : isSmall ? 20 : 24;
+  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
+  const topSpacing = statusBarInset + (isTablet ? 8 : 4);
+  const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
+  const scrollBottomPadding = bottomNavPadding + 110;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 110 }}
+        contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
-        <View style={[styles.header, { paddingHorizontal: P }]}>
+        <View
+          style={[
+            styles.header,
+            { paddingHorizontal: P, paddingTop: topSpacing },
+          ]}
+        >
           <View style={styles.headerLeft}>
             <View style={styles.logoWrap}>
               <Ionicons name="hand-left-outline" size={22} color={PRIMARY} />
@@ -92,31 +102,6 @@ export default function DashboardScreen({
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={[styles.sectionWrap, { paddingHorizontal: P }]}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-
-        <View style={[styles.actionsRow, { paddingHorizontal: P }]}>
-          <ActionCard
-            title="Tutorial"
-            icon="book-outline"
-            onPress={onTutorial}
-          />
-
-          <ActionCard
-            title="Feedback"
-            icon="create-outline"
-            onPress={onFeedback}
-          />
-
-          <ActionCard
-            title="Settings"
-            icon="settings-outline"
-            onPress={onSettings}
-          />
-        </View>
-
         {/* Tips */}
         <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: 18 }]}>
           <Text style={styles.sectionTitle}>Tips for Better Accuracy</Text>
@@ -149,28 +134,30 @@ export default function DashboardScreen({
         </View>
       </ScrollView>
 
-      {/* Bottom Nav UI only */}
-  
-    </SafeAreaView>
-  );
-}
-
-function ActionCard({
-  title,
-  icon,
-  onPress,
-}: {
-  title: string;
-  icon: any;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.actionCard}>
-      <View style={styles.actionIconCircle}>
-        <Ionicons name={icon} size={20} color={PRIMARY} />
+      <View
+        style={[
+          styles.bottomNav,
+          { paddingBottom: bottomNavPadding },
+        ]}
+      >
+        <NavItem icon="home-outline" label="Home" active />
+        <NavItem
+          icon="book-outline"
+          label="Tutorial"
+          onPress={onTutorial}
+        />
+        <NavItem
+          icon="create-outline"
+          label="Feedback"
+          onPress={onFeedback}
+        />
+        <NavItem
+          icon="settings-outline"
+          label="Settings"
+          onPress={onSettings}
+        />
       </View>
-      <Text style={styles.actionText}>{title}</Text>
-    </Pressable>
+    </SafeAreaView>
   );
 }
 
@@ -178,13 +165,15 @@ function NavItem({
   icon,
   label,
   active = false,
+  onPress,
 }: {
   icon: any;
   label: string;
   active?: boolean;
+  onPress?: () => void;
 }) {
   return (
-    <Pressable style={styles.navItem}>
+    <Pressable style={styles.navItem} onPress={onPress}>
       <Ionicons
         name={icon}
         size={22}
@@ -340,36 +329,6 @@ const styles = StyleSheet.create({
     color: TEXT,
   },
 
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    gap: 12,
-  },
-  actionCard: {
-    width: "48%",
-    alignItems: "center",
-    paddingVertical: 16,
-    borderRadius: 22,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  actionIconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(230,110,25,0.10)",
-    marginBottom: 10,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: MUTED,
-  },
-
   tipsList: {
     gap: 12,
   },
@@ -402,16 +361,29 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderTopWidth: 1,
     borderTopColor: BORDER,
-    backgroundColor: "rgba(255,255,255,0.96)",
+    backgroundColor: "#FFFFFF",
     paddingTop: 10,
-    paddingBottom: 22,
     paddingHorizontal: 18,
     flexDirection: "row",
     justifyContent: "space-around",
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    ...Platform.select({
+      android: { elevation: 10 },
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 8 },
+      },
+    }),
   },
   navItem: {
     alignItems: "center",
     gap: 3,
+    flex: 1,
+    paddingTop: 4,
+    paddingBottom: 8,
   },
   navLabel: {
     fontSize: 10,
