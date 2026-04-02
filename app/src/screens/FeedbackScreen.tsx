@@ -318,10 +318,12 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 16,
+    paddingTop: 32,
     paddingBottom: 110,
   },
 
   headBlock: {
+    marginTop: 12,
     marginBottom: 22,
   },
   title: {

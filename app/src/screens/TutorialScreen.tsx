@@ -191,6 +191,7 @@ const styles = StyleSheet.create({
 
   stickyPreviewWrap: {
     padding: 16,
+    paddingTop: 32,
     paddingBottom: 8,
     backgroundColor: BG,
   },

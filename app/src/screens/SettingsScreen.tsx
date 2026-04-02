@@ -118,11 +118,12 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 16,
+    paddingTop: 32,
     paddingBottom: 110,
     gap: 14,
   },
   section: {
-    marginTop: 4,
+    marginTop: 12,
   },
   sectionTitle: {
     fontSize: 20,

@@ -39,7 +39,7 @@ export default function DashboardScreen({
   const P = isTablet ? 28 : isSmall ? 14 : 18;
   const heroTitleSize = isTablet ? 30 : isSmall ? 20 : 24;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const topSpacing = statusBarInset + (isTablet ? 8 : 4);
+  const topSpacing = statusBarInset + (isTablet ? 24 : 16);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
   const scrollBottomPadding = bottomNavPadding + 110;
 

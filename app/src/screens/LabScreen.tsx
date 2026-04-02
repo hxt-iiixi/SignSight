@@ -819,7 +819,7 @@ export default function LabScreen({
       </View>
 
       {/* ─── Top overlays (over camera) ─────────────────────── */}
-      <View style={[styles.topOverlays, { paddingTop: statusBarInset }]}>
+      <View style={[styles.topOverlays, { paddingTop: statusBarInset + 16 }]}>
         {/* Back + title */}
         <View style={styles.cameraOverlay}>
           <Pressable onPress={onBack} style={styles.backBtn}>
