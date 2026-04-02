@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   useWindowDimensions,
   Modal,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -90,17 +91,7 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={22} color={TEXT} />
-        </Pressable>
 
-        <Text style={styles.headerTitle}>ASL Alphabet</Text>
-
-        <Pressable style={styles.iconBtn}>
-          <Ionicons name="information-circle-outline" size={22} color={TEXT} />
-        </Pressable>
-      </View>
 
       {/* Sticky preview area */}
       <View style={styles.stickyPreviewWrap}>
@@ -193,32 +184,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG,
+    paddingTop: Platform.OS === "android" ? 16 : 0,
   },
 
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(231,217,208,0.55)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: BG,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    color: TEXT,
-  },
+
 
   stickyPreviewWrap: {
     padding: 16,

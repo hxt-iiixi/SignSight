@@ -36,13 +36,7 @@ export default function SettingsScreen({
 }: SettingsScreenProps) {
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={22} color={TEXT} />
-        </Pressable>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={styles.iconBtn} />
-      </View>
+
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
@@ -121,29 +115,7 @@ function SettingRow({
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(231,217,208,0.55)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: BG,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    color: TEXT,
-  },
+
   content: {
     padding: 16,
     paddingBottom: 110,

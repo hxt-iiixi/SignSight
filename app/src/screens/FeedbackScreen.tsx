@@ -143,14 +143,7 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={22} color={TEXT} />
-        </Pressable>
 
-        <Text style={styles.headerTitle}>Feedback</Text>
-        <View style={{ width: 40 }} />
-      </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headBlock}>
@@ -321,30 +314,7 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
   },
 
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(231,217,208,0.35)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: BG,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    color: TEXT,
-  },
+
 
   content: {
     padding: 16,
