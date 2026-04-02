@@ -1020,41 +1020,21 @@ export default function CameraScreenVC({
             <Ionicons name="chevron-back" size={22} color={TEXT} />
           </Pressable>
           <View style={styles.minimalHeaderStatus}>
-            {!isLab && !showDebugHud && (
-              <Text style={styles.minimalBrandLabel}>SignSight</Text>
+            {showDebugHud && (
+              <View style={[styles.chipsRow, { marginTop: 0 }]}>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>FPS {fpsCounter}</Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>LM {lmFps}/s</Text>
+                </View>
+                <View style={styles.chip}>
+                  <Text style={styles.chipText}>
+                    {debugState.hasHand ? "Hand OK" : "No Hand"}
+                  </Text>
+                </View>
+              </View>
             )}
-            <View style={[styles.chipsRow, { marginTop: 0 }]}>
-              {showDebugHud ? (
-                <>
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>FPS {fpsCounter}</Text>
-                  </View>
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>LM {lmFps}/s</Text>
-                  </View>
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>
-                      {debugState.hasHand ? "Hand OK" : "No Hand"}
-                    </Text>
-                  </View>
-                </>
-              ) : (
-                <>
-                  <View style={styles.chip}>
-                    <Text style={styles.chipText}>
-                      {detectMode === "LETTERS" ? "Letters" : "Words"}
-                    </Text>
-                  </View>
-                  {!isLab && detectMode === "LETTERS" && (
-                    <View style={styles.chip}>
-                      <Text style={styles.chipText}>
-                        Active {activeStaticLetters.length}/{STATIC_ASL_LABELS.length}
-                      </Text>
-                    </View>
-                  )}
-                </>
-              )}
-            </View>
           </View>
         </View>
       </View>
