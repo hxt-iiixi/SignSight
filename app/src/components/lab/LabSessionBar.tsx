@@ -25,6 +25,7 @@ import {
   PAD_LG,
 } from "./shared/labColors";
 import { TYPOGRAPHY } from "../../config/typography";
+import { SPACING } from "../../config/spacing";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type LabSessionBarProps = {
@@ -152,16 +153,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: PAD_LG,
-    paddingVertical: 10,
+    paddingVertical: SPACING.SPACE_XS,
     borderTopWidth: 1,
     borderTopColor: "rgba(0,0,0,0.03)",
   },
   actionItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 6,
-    paddingRight: 4,
+    gap: SPACING.SPACE_XXS,
+    paddingVertical: SPACING.SPACE_XXS,
+    paddingRight: SPACING.SPACE_XXS,
   },
   actionText: {
     color: ACCENT,
@@ -177,21 +178,21 @@ const styles = StyleSheet.create({
     width: 1,
     height: 14,
     backgroundColor: "rgba(0,0,0,0.08)",
-    marginHorizontal: 10,
+    marginHorizontal: SPACING.SPACE_XS,
   },
   targetItem: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
-    paddingVertical: 6,
+    gap: SPACING.SPACE_XS,
+    paddingVertical: SPACING.SPACE_XXS,
   },
   targetTextWrap: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   targetLabel: {
     color: TEXT,
@@ -201,7 +202,7 @@ const styles = StyleSheet.create({
   readinessIndicator: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: SPACING.SPACE_XXS,
   },
   statusDot: {
     width: 4,

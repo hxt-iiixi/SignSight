@@ -16,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { API_BASE } from "../config/api";
 import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 import { 
   ACCENT as PRIMARY, 
   BORDER, 
@@ -316,13 +317,13 @@ const styles = StyleSheet.create({
 
 
   content: {
-    padding: 16,
-    paddingTop: 52,
+    padding: SPACING.SPACE_MD,
+    paddingTop: SPACING.SPACE_2XL,
     paddingBottom: 110,
   },
 
   headBlock: {
-    marginBottom: 24,
+    marginBottom: SPACING.SPACE_LG,
   },
   pageTitle: {
     fontSize: TYPOGRAPHY.TEXT_3XL,
@@ -331,7 +332,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   pageSub: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
     color: MUTED,
@@ -339,10 +340,10 @@ const styles = StyleSheet.create({
   },
 
   fieldWrap: {
-    marginBottom: 18,
+    marginBottom: SPACING.SPACE_LG,
   },
   label: {
-    marginBottom: 10,
+    marginBottom: SPACING.SPACE_XS,
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
     color: TEXT,
@@ -354,7 +355,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: BG,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.SPACE_MD,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
   dropdown: {
-    marginTop: 8,
+    marginTop: SPACING.SPACE_XS,
     borderRadius: 18,
     overflow: "hidden",
     borderWidth: 1,
@@ -375,8 +376,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_MD,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(231,217,208,0.45)",
   },
@@ -391,8 +392,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(231,217,208,0.5)",
     backgroundColor: "#fff",
-    padding: 22,
-    marginBottom: 18,
+    padding: SPACING.SPACE_LG,
+    marginBottom: SPACING.SPACE_LG,
     alignItems: "center",
   },
   ratingTitle: {
@@ -402,9 +403,9 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
   },
   starsRow: {
-    marginTop: 14,
+    marginTop: SPACING.SPACE_MD,
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
 
   messageInput: {
@@ -413,8 +414,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: BG,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_MD,
     fontSize: TYPOGRAPHY.TEXT_MD,
     color: TEXT,
     textAlignVertical: "top",
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
     backgroundColor: "transparent",
   },
   attachmentText: {
@@ -440,9 +441,9 @@ const styles = StyleSheet.create({
 
   previewRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: SPACING.SPACE_XS,
     flexWrap: "wrap",
-    marginTop: 12,
+    marginTop: SPACING.SPACE_SM,
   },
   thumbWrap: {
     width: 62,
@@ -470,12 +471,12 @@ const styles = StyleSheet.create({
   },
 
   submitBtn: {
-    height: 52,
+    height: 56,
     borderRadius: 999,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: SPACING.SPACE_XS,
     shadowColor: PRIMARY,
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
   submitRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   submitText: {
     color: "#fff",
@@ -494,7 +495,7 @@ const styles = StyleSheet.create({
   },
 
   status: {
-    marginTop: 12,
+    marginTop: SPACING.SPACE_SM,
     textAlign: "center",
     color: TEXT,
     fontWeight: "700",
@@ -507,11 +508,11 @@ const styles = StyleSheet.create({
   },
 
   footerStats: {
-    marginTop: 32,
-    paddingTop: 22,
+    marginTop: SPACING.SPACE_XL,
+    paddingTop: SPACING.SPACE_LG,
     borderTopWidth: 1,
     borderTopColor: "rgba(231,217,208,0.35)",
-    gap: 20,
+    gap: SPACING.SPACE_LG,
   },
   avgWrap: {
     alignItems: "center",
@@ -522,12 +523,12 @@ const styles = StyleSheet.create({
     color: TEXT,
   },
   avgStars: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     flexDirection: "row",
     gap: 2,
   },
   avgLabel: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "800",
     color: MUTED,
@@ -535,12 +536,12 @@ const styles = StyleSheet.create({
   },
 
   barsWrap: {
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   statRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   statLeft: {
     width: 12,

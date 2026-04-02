@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -192,9 +193,9 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
   },
   headBlock: {
-    paddingHorizontal: 16,
-    paddingTop: 52,
-    marginBottom: 24,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingTop: SPACING.SPACE_2XL,
+    marginBottom: SPACING.SPACE_LG,
   },
   pageTitle: {
     fontSize: TYPOGRAPHY.TEXT_3XL,
@@ -206,13 +207,13 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
     color: MUTED,
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     lineHeight: 20,
   },
   stickyPreviewWrap: {
-    paddingTop: 8,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingTop: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingBottom: SPACING.SPACE_MD,
     backgroundColor: BG,
     zIndex: 10,
     ...Platform.select({
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   previewBody: {
-    padding: 20,
+    padding: SPACING.SPACE_LG,
   },
   previewTopRow: {
     flexDirection: "row",
@@ -263,8 +264,8 @@ const styles = StyleSheet.create({
   },
   levelBadge: {
     backgroundColor: "rgba(230,110,25,0.10)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XXS,
     borderRadius: 999,
   },
   levelBadgeText: {
@@ -274,15 +275,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   previewDesc: {
-    marginTop: 14,
+    marginTop: SPACING.SPACE_MD,
     fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 28,
     color: MUTED,
   },
   previewActions: {
-    marginTop: 18,
+    marginTop: SPACING.SPACE_LG,
     flexDirection: "row",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
     alignItems: "center",
   },
   watchBtn: {
@@ -293,7 +294,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   watchBtnText: {
     color: "#fff",
@@ -312,8 +313,8 @@ const styles = StyleSheet.create({
   },
 
   sectionHeader: {
-    marginTop: 22,
-    marginBottom: 10,
+    marginTop: SPACING.SPACE_LG,
+    marginBottom: SPACING.SPACE_SM,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -330,13 +331,13 @@ const styles = StyleSheet.create({
   },
 
   grid: {
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.SPACE_MD,
     paddingBottom: 110,
   },
 
   columnWrap: {
     justifyContent: "space-between",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
   },
 
   letterBtn: {
@@ -350,8 +351,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: SPACING.SPACE_SM,
+    gap: SPACING.SPACE_XS,
   },
   letterBtnActive: {
     borderWidth: 2,
@@ -372,14 +373,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: SPACING.SPACE_LG,
   },
   modalCard: {
     width: "100%",
     maxWidth: 420,
     borderRadius: 24,
     backgroundColor: "#fff",
-    padding: 16,
+    padding: SPACING.SPACE_MD,
     borderWidth: 1,
     borderColor: BORDER,
   },
@@ -388,8 +389,8 @@ const styles = StyleSheet.create({
     height: 360,
   },
   modalCloseBtn: {
-    marginTop: 12,
-    height: 46,
+    marginTop: SPACING.SPACE_SM,
+    height: 48,
     borderRadius: 999,
     backgroundColor: PRIMARY,
     alignItems: "center",

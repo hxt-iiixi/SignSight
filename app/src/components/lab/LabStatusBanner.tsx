@@ -29,6 +29,7 @@ import {
   ELEVATED_SHADOW,
 } from "./shared/labColors";
 import { TYPOGRAPHY } from "../../config/typography";
+import { SPACING } from "../../config/spacing";
 
 type BannerTone =
   | "success"
@@ -170,12 +171,12 @@ export default function LabStatusBanner({
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    bottom: 28,
-    left: 14,
-    right: 14,
+    bottom: SPACING.SPACE_XL,
+    left: SPACING.SPACE_MD,
+    right: SPACING.SPACE_MD,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: SPACING.SPACE_XS,
     padding: PAD_MD,
     borderRadius: RADIUS_LG,
     borderWidth: 1,
@@ -187,6 +188,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   dismissButton: {
-    padding: 4,
+    padding: SPACING.SPACE_XXS,
   },
 });

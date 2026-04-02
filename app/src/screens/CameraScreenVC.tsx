@@ -36,6 +36,7 @@ import { STATIC_ASL_LABELS } from "../ml/labels";
 import type { DetectMode } from "../ml/streamTypes";
 import { useStreamingHandTracking } from "../ml/useStreamingHandTracking";
 import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 
 type CameraScreenVCProps = {
   onBack: () => void;
@@ -45,6 +46,7 @@ type CameraScreenVCProps = {
 };
 
 const ACCENT = "#BE185D";
+const RECORDING = "#EF4444";
 const BG = "#FFF9F2";
 const TEXT = "#1F2937";
 const MUTED = "#6B7280";
@@ -122,10 +124,8 @@ export default function CameraScreenVC({
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const TOP = statusBarInset + (isTablet ? 46 : 34);
   const bottomSafeLift = Platform.OS === "android" ? 28 : 18;
   const translatorBottomInset = Platform.OS === "android" ? 34 : 18;
-  const labBottomInset = Platform.OS === "android" ? 30 : 18;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -1015,120 +1015,48 @@ export default function CameraScreenVC({
             (latestHandFrame?.landmarks?.length ?? 0) === 21
           }
         />
-      </View>
-
-      <View style={[styles.topHud, { top: TOP, left: PAD, right: PAD }]}>
-        <Pressable onPress={onBack} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={18} color={TEXT} />
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
-
-        <Text style={styles.h1}>{isLab ? "SignSight Lab" : "SignSight"}</Text>
-
-        {showDebugHud ? (
-          <View style={styles.chipsRow}>
-            {isLab ? (
-              <>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {detectMode} • {cameraPosition.toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {activeLandmarkModelVersionId
-                      ? `MODEL ${currentLandmarkTrainingMode === "bootstrap" ? "BOOTSTRAP" : "FULL"}`
-                      : "MODEL NONE"}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {status
-                      ? status
-                      : debugState.hasHand
-                        ? `HAND ${debugState.landmarkCount}`
-                        : "HAND 0"}
-                  </Text>
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>FPS {fpsCounter}</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>LM {lmFps}/s</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>PRED {predictionRate}/s</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {debugState.hasHand
-                      ? `HAND ${debugState.landmarkCount}`
-                      : "HAND 0"}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    AGE {lastSeenAgeMs == null ? "-" : `${lastSeenAgeMs}ms`}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    FMT{" "}
-                    {format
-                      ? `${format.videoWidth}x${format.videoHeight}@${Math.min(
-                          TARGET_CAMERA_FPS,
-                          format.maxFps
-                        )}`
-                      : "-"}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    VIEW {Math.round(cameraLayout.width)}x{Math.round(cameraLayout.height)}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    ORIENT {orientedFrame.width}x{orientedFrame.height}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    SMOOTH {isOverlaySmoothing ? "ON" : "OFF"}
-                  </Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>{detectMode}</Text>
-                </View>
-              </>
+        <View style={styles.minimalHeader}>
+          <Pressable onPress={onBack} style={styles.minimalBackBtn}>
+            <Ionicons name="chevron-back" size={22} color={TEXT} />
+          </Pressable>
+          <View style={styles.minimalHeaderStatus}>
+            {!isLab && !showDebugHud && (
+              <Text style={styles.minimalBrandLabel}>SignSight</Text>
             )}
-          </View>
-        ) : (
-            <View style={styles.chipsRow}>
-              <View style={styles.chip}>
-                <Text style={styles.chipText}>
-                  {detectMode === "LETTERS" ? "Letters" : "Words"}
-                </Text>
-              </View>
-              {detectMode === "LETTERS" && (
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    Active {activeStaticLetters.length}/{STATIC_ASL_LABELS.length}
-                  </Text>
-                </View>
+            <View style={[styles.chipsRow, { marginTop: 0 }]}>
+              {showDebugHud ? (
+                <>
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>FPS {fpsCounter}</Text>
+                  </View>
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>LM {lmFps}/s</Text>
+                  </View>
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>
+                      {debugState.hasHand ? "Hand OK" : "No Hand"}
+                    </Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.chip}>
+                    <Text style={styles.chipText}>
+                      {detectMode === "LETTERS" ? "Letters" : "Words"}
+                    </Text>
+                  </View>
+                  {!isLab && detectMode === "LETTERS" && (
+                    <View style={styles.chip}>
+                      <Text style={styles.chipText}>
+                        Active {activeStaticLetters.length}/{STATIC_ASL_LABELS.length}
+                      </Text>
+                    </View>
+                  )}
+                </>
               )}
-              {!!status && (
-                <View style={styles.chip}>
-                  <Text style={styles.chipText} numberOfLines={1}>
-                  {status}
-                </Text>
-              </View>
-            )}
+            </View>
           </View>
-        )}
+        </View>
       </View>
 
       {isLab ? (
@@ -1142,7 +1070,7 @@ export default function CameraScreenVC({
             <ScrollView
               contentContainerStyle={[
                 styles.labSheetContent,
-                { paddingBottom: labBottomInset },
+                { paddingBottom: 18 },
               ]}
               showsVerticalScrollIndicator={false}
             >
@@ -2118,11 +2046,12 @@ export default function CameraScreenVC({
       ) : (
         <View
           style={[
-            styles.translatorControlsWrap,
-            { left: PAD, right: PAD, bottom: bottomSafeLift },
+            styles.unifiedBottomPanel,
+            { bottom: bottomSafeLift },
           ]}
         >
-          <View style={styles.centerHud}>
+          {/* Prediction Slot */}
+          <View style={[styles.panelTop, { paddingBottom: isRecordingGesture ? SPACING.SPACE_LG : SPACING.SPACE_MD }]}>
             <Text style={styles.centerKicker}>{centerTitle}</Text>
             <Text style={styles.centerLabel} numberOfLines={1}>
               {displayLabel}
@@ -2133,18 +2062,23 @@ export default function CameraScreenVC({
               <View style={styles.dot} />
               <Text style={styles.centerMeta}>
                 {detectMode === "WORDS"
-                  ? `${currentWordFramesCount}/${GESTURE_FRAMES}`
+                  ? `${currentWordFramesCount}/${GESTURE_FRAMES} FR`
                   : `Hand ${lastHandedness ?? "-"}`}
               </Text>
+              {isRecordingGesture && (
+                <>
+                  <View style={styles.dot} />
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: RECORDING }} />
+                    <Text style={[styles.centerMeta, { color: RECORDING }]}>REC</Text>
+                  </View>
+                </>
+              )}
             </View>
           </View>
 
-          <View
-            style={[
-              styles.translatorControls,
-              { paddingBottom: translatorBottomInset },
-            ]}
-          >
+          {/* Action Slot */}
+          <View style={[styles.panelBottom, { paddingBottom: translatorBottomInset + SPACING.SPACE_SM }]}>
             <Pressable
               onPress={() => {
                 if (isRecordingGesture) {
@@ -2154,12 +2088,12 @@ export default function CameraScreenVC({
                 setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
               }}
               style={({ pressed }) => [
-                styles.btn,
-                pressed && { opacity: 0.85 },
+                styles.actionBtn,
+                pressed && { opacity: 0.8 },
               ]}
             >
-              <Text style={styles.btnText}>
-                {detectMode === "LETTERS" ? "Letters" : "Words"}
+              <Text style={styles.actionBtnText}>
+                {detectMode === "LETTERS" ? "Switch to Words" : "Switch to Letters"}
               </Text>
             </Pressable>
 
@@ -2168,13 +2102,17 @@ export default function CameraScreenVC({
                 setCameraPosition((p) => (p === "back" ? "front" : "back"))
               }
               style={({ pressed }) => [
-                styles.btn,
-                pressed && { opacity: 0.85 },
+                styles.actionBtn,
+                pressed && { opacity: 0.8 },
               ]}
             >
-              <Text style={styles.btnText}>
-                {cameraPosition === "back" ? "Front Cam" : "Back Cam"}
-              </Text>
+              <Ionicons 
+                name={cameraPosition === "back" ? "camera-reverse" : "camera"} 
+                size={18} 
+                color={TEXT} 
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.actionBtnText}>Flip Camera</Text>
             </Pressable>
           </View>
         </View>
@@ -2248,9 +2186,9 @@ const styles = StyleSheet.create({
   backBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    gap: SPACING.SPACE_XXS,
+    paddingVertical: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_XS,
     borderRadius: 14,
     borderWidth: 1,
     borderColor: BORDER,
@@ -2259,12 +2197,12 @@ const styles = StyleSheet.create({
   backText: { color: TEXT, fontWeight: "900" },
 
   topHud: { position: "absolute" },
-  h1: { color: "#FFFFFF", fontSize: TYPOGRAPHY.TEXT_LG, fontWeight: "900", marginTop: 10 },
+  h1: { color: "#FFFFFF", fontSize: TYPOGRAPHY.TEXT_LG, fontWeight: "900", marginTop: SPACING.SPACE_XS },
 
-  chipsRow: { flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" },
+  chipsRow: { flexDirection: "row", gap: SPACING.SPACE_XS, marginTop: SPACING.SPACE_XS, flexWrap: "wrap" },
   chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_XS,
     borderRadius: 999,
     backgroundColor: "rgba(255,249,242,0.88)",
     borderWidth: 1,
@@ -2275,8 +2213,8 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 520,
     borderRadius: 28,
-    paddingVertical: 18,
-    paddingHorizontal: 18,
+    paddingVertical: SPACING.SPACE_LG,
+    paddingHorizontal: SPACING.SPACE_LG,
     backgroundColor: "rgba(255,255,255,0.90)",
     borderWidth: 1,
     borderColor: BORDER,
@@ -2300,16 +2238,86 @@ const styles = StyleSheet.create({
     color: TEXT,
     fontWeight: "900",
     fontSize: TYPOGRAPHY.TEXT_4XL,
-    marginTop: 8,
+    marginTop: SPACING.SPACE_XS,
   },
   centerMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginTop: 10,
+    gap: SPACING.SPACE_XS,
+    marginTop: SPACING.SPACE_XS,
   },
   centerMeta: { color: MUTED, fontWeight: "800" },
   dot: { width: 4, height: 4, borderRadius: 4, backgroundColor: "#D1D5DB" },
+
+  // --- MODERN MINIMAL HUD ---
+  minimalHeader: {
+    paddingTop: 52,
+    paddingHorizontal: SPACING.SPACE_MD,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    zIndex: 10,
+  },
+  minimalBackBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  minimalHeaderStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.SPACE_XS,
+  },
+  minimalBrandLabel: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_MD,
+    textShadowColor: "rgba(0,0,0,0.3)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  unifiedBottomPanel: {
+    position: "absolute",
+    left: SPACING.SPACE_MD,
+    right: SPACING.SPACE_MD,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    borderRadius: 32,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.8)",
+  },
+  panelTop: {
+    padding: SPACING.SPACE_LG,
+    paddingBottom: SPACING.SPACE_MD,
+  },
+  panelBottom: {
+    padding: SPACING.SPACE_SM,
+    backgroundColor: "rgba(249,250,251,0.5)",
+    borderTopWidth: 1,
+    borderTopColor: "rgba(229,231,235,0.5)",
+    flexDirection: "row",
+    gap: SPACING.SPACE_XS,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: SPACING.SPACE_MD,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  actionBtnText: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+  },
 
   labSheetWrap: {
     position: "absolute",
@@ -2331,17 +2339,17 @@ const styles = StyleSheet.create({
     }),
   },
   labSheetContent: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
   },
   translatorControlsWrap: {
     position: "absolute",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
   },
   translatorControls: {
     flexDirection: "row",
-    gap: 10,
+    gap: SPACING.SPACE_XS,
     borderRadius: 24,
-    padding: 12,
+    padding: SPACING.SPACE_SM,
     backgroundColor: "rgba(255,255,255,0.92)",
     borderWidth: 1,
     borderColor: BORDER,
@@ -2355,17 +2363,17 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  panelHeader: { marginBottom: 12 },
+  panelHeader: { marginBottom: SPACING.SPACE_SM },
   panelTitle: { color: TEXT, fontWeight: "900", fontSize: TYPOGRAPHY.TEXT_SM },
-  panelSub: { color: MUTED, marginTop: 4, fontWeight: "700" },
+  panelSub: { color: MUTED, marginTop: SPACING.SPACE_XXS, fontWeight: "700" },
   labSection: {
-    marginTop: 12,
-    paddingTop: 12,
+    marginTop: SPACING.SPACE_SM,
+    paddingTop: SPACING.SPACE_SM,
     borderTopWidth: 1,
     borderTopColor: "rgba(229,231,235,0.9)",
   },
   labSectionHeader: {
-    marginBottom: 10,
+    marginBottom: SPACING.SPACE_XS,
   },
   labSectionTitle: {
     color: TEXT,
@@ -2375,16 +2383,16 @@ const styles = StyleSheet.create({
   },
   labSectionSubtitle: {
     color: MUTED,
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     fontWeight: "700",
     lineHeight: 18,
     fontSize: TYPOGRAPHY.TEXT_XS,
   },
   labSectionBody: {
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   labFieldCard: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -2392,7 +2400,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
   },
   labFieldCardAccent: {
     backgroundColor: SOFT_PINK,
@@ -2409,12 +2417,12 @@ const styles = StyleSheet.create({
     color: TEXT,
     fontWeight: "900",
     fontSize: TYPOGRAPHY.TEXT_LG,
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
   },
   labHelperText: {
     color: MUTED,
     fontWeight: "700",
-    marginTop: 6,
+    marginTop: SPACING.SPACE_XXS,
     lineHeight: 18,
     maxWidth: 280,
   },
@@ -2423,34 +2431,39 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 18,
   },
+  dashboardLinks: {
+    marginTop: SPACING.SPACE_XXS,
+    flexDirection: "row",
+    gap: SPACING.SPACE_SM,
+  },
   labSummaryRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
     flexWrap: "wrap",
   },
   labStatusCard: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "rgba(255,255,255,0.96)",
     borderWidth: 1,
     borderColor: BORDER,
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   labStatusHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
   },
   labStatusPrimary: {
     color: TEXT,
     fontWeight: "900",
     fontSize: TYPOGRAPHY.TEXT_2XL,
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
   },
   labStatusBadge: {
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_XS,
     borderRadius: 999,
     backgroundColor: SOFT_BLUE,
     borderWidth: 1,
@@ -2464,7 +2477,7 @@ const styles = StyleSheet.create({
   labStatusRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
     flexWrap: "wrap",
   },
   labStatusMeta: {
@@ -2478,12 +2491,12 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_XS,
   },
   datasetInsightCard: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "rgba(243,244,246,0.92)",
     borderWidth: 1,
     borderColor: BORDER,
-    gap: 6,
+    gap: SPACING.SPACE_XXS,
   },
   datasetInsightTitle: {
     color: TEXT,
@@ -2496,10 +2509,10 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   metadataStack: {
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   inputGroup: {
-    gap: 6,
+    gap: SPACING.SPACE_XXS,
   },
   inputLabel: {
     color: MUTED,
@@ -2515,8 +2528,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     color: TEXT,
     fontWeight: "800",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XS,
   },
   inputHelperText: {
     color: MUTED,
@@ -2526,7 +2539,7 @@ const styles = StyleSheet.create({
   },
   renameRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
     alignItems: "center",
   },
   renameInput: {
@@ -2543,8 +2556,8 @@ const styles = StyleSheet.create({
   labSummaryPill: {
     minWidth: 92,
     flexGrow: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_XS,
     borderRadius: 16,
     backgroundColor: "rgba(243,244,246,0.92)",
     borderWidth: 1,
@@ -2564,17 +2577,17 @@ const styles = StyleSheet.create({
   labSummaryValue: {
     color: TEXT,
     fontWeight: "900",
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
   },
   labSummaryValueAccent: {
     color: ACCENT,
   },
 
-  btnRow: { flexDirection: "row", gap: 10 },
+  btnRow: { flexDirection: "row", gap: SPACING.SPACE_XS },
   btn: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: SPACING.SPACE_SM,
+    paddingHorizontal: SPACING.SPACE_SM,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: BORDER,
@@ -2595,9 +2608,8 @@ const styles = StyleSheet.create({
 
   btnPrimary: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: SPACING.SPACE_SM,
     borderRadius: 16,
-    borderWidth: 1,
     borderColor: "rgba(249,168,212,0.45)",
     backgroundColor: SOFT_PINK,
     alignItems: "center",
@@ -2605,28 +2617,28 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: { color: ACCENT, fontWeight: "900" },
   trainingModeCard: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: BORDER,
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   modelPickerCard: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: BORDER,
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   modelPickerTrigger: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    gap: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_SM,
+    paddingHorizontal: SPACING.SPACE_SM,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: BORDER,
@@ -2634,7 +2646,7 @@ const styles = StyleSheet.create({
   },
   modelPickerTriggerTextWrap: {
     flex: 1,
-    gap: 4,
+    gap: SPACING.SPACE_XXS,
   },
   modelPickerPrimary: {
     color: TEXT,
@@ -2648,26 +2660,26 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   modelDropdownList: {
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   modelDropdownSelect: {
-    gap: 4,
+    gap: SPACING.SPACE_XXS,
   },
   targetPickerCard: {
-    padding: 14,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: BORDER,
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   targetPickerTrigger: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    gap: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_SM,
+    paddingHorizontal: SPACING.SPACE_SM,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: BORDER,
@@ -2675,7 +2687,7 @@ const styles = StyleSheet.create({
   },
   targetPickerTriggerTextWrap: {
     flex: 1,
-    gap: 4,
+    gap: SPACING.SPACE_XXS,
   },
   targetPickerPrimary: {
     color: TEXT,
@@ -2699,10 +2711,10 @@ const styles = StyleSheet.create({
     maxHeight: 220,
   },
   targetChoiceCard: {
-    padding: 12,
+    padding: SPACING.SPACE_SM,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(229,231,235,0.9)",
-    gap: 4,
+    gap: SPACING.SPACE_XXS,
   },
   targetChoiceCardActive: {
     backgroundColor: SOFT_BLUE,
@@ -2713,15 +2725,15 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_SM,
   },
   versionList: {
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   versionCard: {
-    padding: 12,
+    padding: SPACING.SPACE_SM,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: "rgba(249,250,251,0.92)",
-    gap: 4,
+    gap: SPACING.SPACE_XXS,
   },
   versionCardActive: {
     backgroundColor: SOFT_BLUE,
@@ -2734,8 +2746,8 @@ const styles = StyleSheet.create({
   },
   trainingNotice: {
     flexDirection: "row",
-    gap: 10,
-    padding: 12,
+    gap: SPACING.SPACE_XS,
+    padding: SPACING.SPACE_SM,
     borderRadius: 16,
     backgroundColor: "rgba(252,231,243,0.72)",
     borderWidth: 1,
@@ -2750,30 +2762,30 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_XS,
   },
   diagnosticsCard: {
-    padding: 12,
+    padding: SPACING.SPACE_SM,
     borderRadius: 16,
     backgroundColor: "rgba(255,255,255,0.96)",
     borderWidth: 1,
     borderColor: BORDER,
-    gap: 6,
+    gap: SPACING.SPACE_XXS,
   },
 
-  status: { marginTop: 12, color: TEXT, fontWeight: "800" },
+  status: { marginTop: SPACING.SPACE_SM, color: TEXT, fontWeight: "800" },
   debugLine: {
-    marginTop: 10,
+    marginTop: SPACING.SPACE_XS,
     color: MUTED,
     fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "700",
   },
 
-  wordInfoRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  wordInfoRow: { flexDirection: "row", alignItems: "center", gap: SPACING.SPACE_XS },
   smallLabel: { color: MUTED, fontWeight: "800" },
   smallValue: { color: TEXT, fontWeight: "900" },
   smallMuted: { color: MUTED, fontWeight: "800" },
 
   pillMini: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_SM,
     borderRadius: 999,
     backgroundColor: SOFT_YELLOW,
     borderWidth: 1,

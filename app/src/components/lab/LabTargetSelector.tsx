@@ -34,6 +34,7 @@ import {
   PAD_SM,
 } from "./shared/labColors";
 import { TYPOGRAPHY } from "../../config/typography";
+import { SPACING } from "../../config/spacing";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type TargetChoice = {
@@ -207,11 +208,11 @@ const styles = StyleSheet.create({
     paddingBottom: PAD_SM,
     borderBottomWidth: 1,
     borderBottomColor: BORDER,
-    gap: 12,
+    gap: SPACING.SPACE_SM,
   },
   headerTextWrap: {
     flex: 1,
-    gap: 4,
+    gap: SPACING.SPACE_XXS,
   },
   headerTitle: {
     color: TEXT,
@@ -225,7 +226,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   closeButton: {
-    padding: 8,
+    padding: SPACING.SPACE_XS,
     borderRadius: RADIUS_MD,
     borderWidth: 1,
     borderColor: BORDER,
@@ -233,13 +234,13 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: PAD_MD,
-    gap: 8,
-    paddingBottom: 40,
+    gap: SPACING.SPACE_XS,
+    paddingBottom: SPACING.SPACE_XL,
   },
   choiceCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
     padding: PAD_MD,
     borderRadius: RADIUS_LG,
     borderWidth: 1,

@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 
 const PRIMARY = "#E66E19";
 const BG = "#F8F7F6";
@@ -50,7 +51,7 @@ export default function DashboardScreen({
         showsVerticalScrollIndicator={false}
       >
         {/* Header and Page Title */}
-        <View style={[styles.pageHead, { paddingHorizontal: P, paddingTop: 52 }]}>
+        <View style={[styles.pageHead, { paddingHorizontal: P }]}>
           <Text style={styles.pageTitle}>
            SignSight
           </Text>
@@ -58,7 +59,7 @@ export default function DashboardScreen({
         </View>
 
         {/* Hero Card */}
-        <View style={{ paddingHorizontal: P, marginTop: 8 }}>
+        <View style={{ paddingHorizontal: P, marginTop: SPACING.SPACE_SM }}>
           <View style={styles.heroCard}>
             <ImageBackground
               source={{
@@ -89,7 +90,7 @@ export default function DashboardScreen({
         </View>
 
         {/* Tips */}
-        <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: 18 }]}>
+        <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: SPACING.SPACE_LG }]}>
           <Text style={styles.sectionTitle}>Tips for Better Accuracy</Text>
         </View>
 
@@ -141,6 +142,11 @@ const styles = StyleSheet.create({
     borderBottomColor: BORDER,
     backgroundColor: BG,
   },
+  dashboardLinks: {
+    marginTop: SPACING.SPACE_XXS,
+    flexDirection: "row",
+    gap: SPACING.SPACE_SM,
+  },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -169,8 +175,8 @@ const styles = StyleSheet.create({
   },
 
   pageHead: {
-    paddingTop: 52,
-    paddingBottom: 8,
+    paddingTop: SPACING.SPACE_2XL,
+    paddingBottom: SPACING.SPACE_XS,
   },
   pageTitle: {
     fontSize: TYPOGRAPHY.TEXT_3XL,
@@ -179,7 +185,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   pageSub: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     color: MUTED,
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
@@ -216,12 +222,12 @@ const styles = StyleSheet.create({
   },
   liveBadge: {
     alignSelf: "flex-start",
-    marginLeft: 14,
-    marginBottom: 14,
+    marginLeft: SPACING.SPACE_MD,
+    marginBottom: SPACING.SPACE_MD,
     backgroundColor: PRIMARY,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XXS,
   },
   liveBadgeText: {
     color: "#fff",
@@ -231,7 +237,7 @@ const styles = StyleSheet.create({
   },
 
   heroBody: {
-    padding: 18,
+    padding: SPACING.SPACE_LG,
   },
   heroBodyTitle: {
     fontSize: TYPOGRAPHY.TEXT_2XL,
@@ -240,21 +246,21 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   heroBodySub: {
-    marginTop: 6,
+    marginTop: SPACING.SPACE_XS,
     color: MUTED,
     fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 22,
   },
 
   startBtn: {
-    marginTop: 16,
-    height: 48,
+    marginTop: SPACING.SPACE_LG,
+    height: 52,
     borderRadius: 999,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   startBtnText: {
     color: "#fff",
@@ -263,8 +269,8 @@ const styles = StyleSheet.create({
   },
 
   sectionWrap: {
-    paddingTop: 18,
-    paddingBottom: 8,
+    paddingTop: SPACING.SPACE_LG,
+    paddingBottom: SPACING.SPACE_XS,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.TEXT_2XL,
@@ -274,12 +280,12 @@ const styles = StyleSheet.create({
   },
 
   tipsList: {
-    gap: 12,
+    gap: SPACING.SPACE_MD,
   },
   tipCard: {
     flexDirection: "row",
-    gap: 14,
-    padding: 16,
+    gap: SPACING.SPACE_MD,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "rgba(243,236,231,0.70)",
   },
@@ -292,7 +298,7 @@ const styles = StyleSheet.create({
     color: TEXT,
   },
   tipDesc: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 18,
     color: MUTED,

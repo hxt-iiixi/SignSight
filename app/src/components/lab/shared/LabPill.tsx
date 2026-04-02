@@ -23,6 +23,7 @@ import {
   ELEVATED_SHADOW,
 } from "./labColors";
 import { TYPOGRAPHY } from "../../../config/typography";
+import { SPACING } from "../../../config/spacing";
 
 type PillTone =
   | "neutral"
@@ -102,10 +103,10 @@ export default function LabPill({
 const styles = StyleSheet.create({
   pill: {
     flexGrow: 1,
-    paddingVertical: 8,
+    paddingVertical: SPACING.SPACE_XS,
   },
   pillCompact: {
-    paddingVertical: 4,
+    paddingVertical: SPACING.SPACE_XXS,
   },
   label: {
     color: TEXT_SECONDARY,
@@ -117,8 +118,8 @@ const styles = StyleSheet.create({
   valueRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    marginTop: 4,
+    gap: SPACING.SPACE_XXS,
+    marginTop: SPACING.SPACE_XXS,
   },
   dot: {
     width: 6,

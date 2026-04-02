@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 import { 
   ACCENT as PRIMARY, 
   BORDER, 
@@ -51,14 +52,14 @@ export default function SettingsScreen({
         <View style={styles.card}>
           <SettingRow
             title="Debug Mode"
-            description="Show telemetry and diagnostics on the camera screen."
+            description="Enable diagnostics on camera screen."
             value={debugEnabled}
             onValueChange={setDebugEnabled}
           />
           <View style={styles.divider} />
           <SettingRow
             title="Hand Overlay"
-            description="Draw live landmark overlays when debug tools are enabled."
+            description="Draw live landmark overlays on hand."
             value={showHandOverlay}
             onValueChange={setShowHandOverlay}
           />
@@ -73,7 +74,7 @@ export default function SettingsScreen({
             <Ionicons name="construct-outline" size={20} color={PRIMARY} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.labTitle}>Open Lab</Text>
+            <Text style={styles.labTitle}>Developer Lab</Text>
             <Text style={styles.labSub}>
               Test recognition, collect samples, record gestures, and train models.
             </Text>
@@ -116,12 +117,12 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BG },
 
   content: {
-    padding: 16,
-    paddingTop: 52,
+    padding: SPACING.SPACE_MD,
+    paddingTop: SPACING.SPACE_2XL,
     paddingBottom: 110,
   },
   headBlock: {
-    marginBottom: 24,
+    marginBottom: SPACING.SPACE_LG,
   },
   pageTitle: {
     fontSize: TYPOGRAPHY.TEXT_3XL,
@@ -130,14 +131,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.8,
   },
   pageSub: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
     color: MUTED,
     lineHeight: 20,
   },
   section: {
-    marginBottom: 20,
+    marginBottom: SPACING.SPACE_LG,
   },
   sectionTitle: {
     fontSize: TYPOGRAPHY.TEXT_XL,
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
     color: TEXT,
   },
   sectionSub: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     color: MUTED,
     fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 20,
@@ -160,8 +161,8 @@ const styles = StyleSheet.create({
   settingRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 16,
+    gap: SPACING.SPACE_SM,
+    padding: SPACING.SPACE_MD,
   },
   settingCopy: {
     flex: 1,
@@ -172,7 +173,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_MD,
   },
   settingDesc: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     color: MUTED,
     fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 19,
@@ -180,17 +181,17 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: BORDER,
-    marginHorizontal: 16,
+    marginHorizontal: SPACING.SPACE_MD,
   },
   labCard: {
     borderRadius: 22,
     backgroundColor: CARD,
     borderWidth: 1,
     borderColor: BORDER,
-    padding: 16,
+    padding: SPACING.SPACE_MD,
     flexDirection: "row",
     alignItems: "center",
-    gap: 14,
+    gap: SPACING.SPACE_MD,
   },
   labIcon: {
     width: 44,
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_MD,
   },
   labSub: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     color: MUTED,
     fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 19,

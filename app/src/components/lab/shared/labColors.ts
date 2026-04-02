@@ -7,8 +7,10 @@
  *   rounded corners, premium internal product feel.
  */
 
+import { SPACING } from "../../../config/spacing";
+
 // ── Brand / accent ──────────────────────────────────────────────
-export const ACCENT = "#E67E22";
+export const ACCENT = "#E66E19";
 export const ACCENT_LIGHT = "#FFF3E0";
 export const ACCENT_BORDER = "rgba(230,126,34,0.30)";
 
@@ -55,10 +57,11 @@ export const RADIUS_LG = 20;
 export const RADIUS_XL = 24;
 export const RADIUS_PILL = 999;
 
-export const PAD_XS = 6;
-export const PAD_SM = 10;
-export const PAD_MD = 14;
-export const PAD_LG = 18;
+// Spacing & Layout (Synchronized with 8pt grid)
+export const PAD_XS = SPACING.SPACE_XXS; // 4
+export const PAD_SM = SPACING.SPACE_XS;  // 8
+export const PAD_MD = SPACING.SPACE_MD;  // 16
+export const PAD_LG = SPACING.SPACE_LG;  // 24
 
 // ── Shadow (Android elevation + iOS shadow) ─────────────────────
 export const CARD_SHADOW = {
