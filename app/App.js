@@ -3,6 +3,7 @@ import { View, Text, ActivityIndicator, StyleSheet, ImageBackground, Pressable, 
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
+import * as NavigationBar from "expo-navigation-bar";
 import VideoSplashScreen from "./src/screens/VideoSplashScreen";
 import DashboardScreen from "./src/screens/DashboardScreen";
 import CameraScreenVC from "./src/screens/CameraScreenVC";
@@ -36,6 +37,13 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
+      if (Platform.OS === "android") {
+        try {
+          await NavigationBar.setBackgroundColorAsync("#FFFFFF");
+          await NavigationBar.setButtonStyleAsync("dark");
+        } catch (e) {}
+      }
+
       const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
       setSupportedTypes(types || []);
     })();
