@@ -25,6 +25,7 @@ import {
   PAD_MD,
   PAD_LG,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type LabLiveHeaderProps = {
@@ -160,7 +161,7 @@ const styles = StyleSheet.create({
   modeText: {
     color: ACCENT,
     fontWeight: "900",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     letterSpacing: 1.2,
   },
   handStatusIndicator: {
@@ -175,7 +176,7 @@ const styles = StyleSheet.create({
   },
   handStatusText: {
     fontWeight: "800",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     letterSpacing: 0.2,
   },
   mainRow: {
@@ -191,13 +192,13 @@ const styles = StyleSheet.create({
   predictionLabel: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 22,
+    fontSize: TYPOGRAPHY.TEXT_2XL,
     letterSpacing: -0.2,
   },
   rawMeta: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   confidenceIndicator: {
     alignItems: "flex-end",
@@ -205,13 +206,13 @@ const styles = StyleSheet.create({
   },
   confidenceText: {
     fontWeight: "900",
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.TEXT_LG,
     lineHeight: 22,
   },
   confidenceMetaText: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 8,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     letterSpacing: 0.5,
   },
   bottomRow: {
@@ -221,6 +222,6 @@ const styles = StyleSheet.create({
   modelText: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
 });

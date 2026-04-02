@@ -14,9 +14,9 @@ import {
   SUCCESS,
   INFO,
   RADIUS_MD,
-  PAD_SM,
   PAD_MD,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 
 type LabConfigTabProps = {
   // Metadata
@@ -210,14 +210,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   description: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 17,
   },
   // Fields
@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -240,12 +240,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   fieldHelper: {
     color: TEXT_SECONDARY,
     fontWeight: "600",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 15,
   },
   // Notice
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: SUCCESS,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 16,
   },
   // Diagnostics
@@ -278,11 +278,11 @@ const styles = StyleSheet.create({
   diagLabel: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   diagValue: {
     fontWeight: "900",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontFamily: "monospace",
   },
 });

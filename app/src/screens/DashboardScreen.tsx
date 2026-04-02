@@ -12,6 +12,7 @@ import {
   ImageBackground,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { TYPOGRAPHY } from "../config/typography";
 
 const PRIMARY = "#E66E19";
 const BG = "#F8F7F6";
@@ -37,7 +38,6 @@ export default function DashboardScreen({
   const isTablet = width >= 768;
 
   const P = isTablet ? 28 : isSmall ? 14 : 18;
-  const heroTitleSize = isTablet ? 30 : isSmall ? 20 : 24;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
   const topSpacing = statusBarInset + (isTablet ? 24 : 16);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
@@ -65,7 +65,7 @@ export default function DashboardScreen({
 
         {/* Page Title */}
         <View style={[styles.pageHead, { paddingHorizontal: P }]}>
-          <Text style={[styles.pageTitle, { fontSize: heroTitleSize }]}>
+          <Text style={styles.pageTitle}>
            SignSight
           </Text>
           <Text style={styles.pageSub}>Real-time sign language interpretation</Text>
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(230,110,25,0.10)",
   },
   brandText: {
-    fontSize: 24,
+    fontSize: TYPOGRAPHY.TEXT_XL,
     fontWeight: "800",
     color: TEXT,
   },
@@ -187,15 +187,16 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   pageTitle: {
+    fontSize: TYPOGRAPHY.TEXT_3XL,
     color: TEXT,
-    fontWeight: "800",
-    lineHeight: 32,
+    fontWeight: "900",
+    letterSpacing: -0.8,
   },
   pageSub: {
-    marginTop: 2,
+    marginTop: 4,
     color: MUTED,
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "700",
   },
 
   heroCard: {
@@ -238,7 +239,7 @@ const styles = StyleSheet.create({
   },
   liveBadgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "800",
     letterSpacing: 0.6,
   },
@@ -247,14 +248,15 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   heroBodyTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_2XL,
+    fontWeight: "900",
     color: TEXT,
+    letterSpacing: -0.5,
   },
   heroBodySub: {
     marginTop: 6,
     color: MUTED,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 22,
   },
 
@@ -270,7 +272,7 @@ const styles = StyleSheet.create({
   },
   startBtnText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
   },
 
@@ -279,9 +281,10 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_2XL,
+    fontWeight: "900",
     color: TEXT,
+    letterSpacing: -0.5,
   },
 
   tipsList: {
@@ -298,13 +301,13 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   tipTitle: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
     color: TEXT,
   },
   tipDesc: {
     marginTop: 4,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 18,
     color: MUTED,
   },

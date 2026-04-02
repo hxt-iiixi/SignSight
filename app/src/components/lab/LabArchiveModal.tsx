@@ -25,6 +25,7 @@ import {
   PAD_MD,
   PAD_SM,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 
 type LabArchiveModalProps = {
   visible: boolean;
@@ -147,13 +148,13 @@ const styles = StyleSheet.create({
   title: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.TEXT_LG,
     textAlign: "center",
   },
   description: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 19,
     textAlign: "center",
   },
@@ -168,17 +169,17 @@ const styles = StyleSheet.create({
   infoTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   infoMeta: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   infoId: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     marginTop: 2,
     fontFamily: "monospace",
   },
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   cancelText: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   archiveButton: {
     flex: 1,
@@ -217,6 +218,6 @@ const styles = StyleSheet.create({
   archiveText: {
     color: DANGER,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
 });

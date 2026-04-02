@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { TYPOGRAPHY } from "../config/typography";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
@@ -92,6 +93,11 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
   return (
     <SafeAreaView style={styles.container}>
 
+      {/* Page Title */}
+      <View style={styles.headBlock}>
+        <Text style={styles.pageTitle}>ASL Alphabet</Text>
+        <Text style={styles.pageSub}>Learn and practice American Sign Language</Text>
+      </View>
 
       {/* Sticky preview area */}
       <View style={styles.stickyPreviewWrap}>
@@ -184,16 +190,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG,
-    paddingTop: Platform.OS === "android" ? 16 : 0,
   },
-
-
-
-  stickyPreviewWrap: {
-    padding: 16,
+  headBlock: {
+    paddingHorizontal: 16,
     paddingTop: 32,
-    paddingBottom: 8,
+    marginBottom: 24,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: TEXT,
+    letterSpacing: -0.8,
+  },
+  pageSub: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: MUTED,
+    marginTop: 4,
+    lineHeight: 20,
+  },
+  stickyPreviewWrap: {
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     backgroundColor: BG,
+    zIndex: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
 
   previewCard: {
@@ -225,7 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   previewTitle: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.TEXT_LG,
     fontWeight: "800",
     color: PRIMARY,
   },
@@ -237,13 +269,13 @@ const styles = StyleSheet.create({
   },
   levelBadgeText: {
     color: PRIMARY,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "800",
     letterSpacing: 0.8,
   },
   previewDesc: {
     marginTop: 14,
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 28,
     color: MUTED,
   },
@@ -265,7 +297,7 @@ const styles = StyleSheet.create({
   },
   watchBtnText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "800",
   },
   favoriteBtn: {
@@ -287,12 +319,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
     color: TEXT,
   },
   sectionCount: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "700",
     color: MUTED,
   },
@@ -327,7 +359,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(230,110,25,0.05)",
   },
   letterText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
     color: TEXT,
   },
@@ -366,7 +398,7 @@ const styles = StyleSheet.create({
   modalCloseText: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
 
 

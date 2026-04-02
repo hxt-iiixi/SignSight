@@ -18,6 +18,7 @@ import {
   PAD_MD,
   PAD_SM,
 } from "./labColors";
+import { TYPOGRAPHY } from "../../../config/typography";
 
 if (
   Platform.OS === "android" &&
@@ -115,12 +116,12 @@ const styles = StyleSheet.create({
   title: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   subtitle: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 16,
   },
   countBadge: {
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
   countText: {
     color: TEXT_SECONDARY,
     fontWeight: "900",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   body: {
     paddingHorizontal: PAD_MD,

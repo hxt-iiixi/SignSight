@@ -9,6 +9,7 @@ import {
   Switch,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { TYPOGRAPHY } from "../config/typography";
 
 const PRIMARY = "#E66E19";
 const BG = "#F8F7F6";
@@ -39,6 +40,10 @@ export default function SettingsScreen({
 
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.headBlock}>
+          <Text style={styles.pageTitle}>Settings</Text>
+          <Text style={styles.pageSub}>Configure your experience and developer tools</Text>
+        </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Translator Preferences</Text>
           <Text style={styles.sectionSub}>
@@ -120,19 +125,35 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 32,
     paddingBottom: 110,
-    gap: 14,
+  },
+  headBlock: {
+    marginBottom: 24,
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "900",
+    color: TEXT,
+    letterSpacing: -0.8,
+  },
+  pageSub: {
+    marginTop: 4,
+    fontSize: 14,
+    fontWeight: "700",
+    color: MUTED,
+    lineHeight: 20,
   },
   section: {
-    marginTop: 12,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: TYPOGRAPHY.TEXT_XL,
     fontWeight: "800",
     color: TEXT,
   },
   sectionSub: {
     marginTop: 4,
     color: MUTED,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 20,
   },
   card: {
@@ -154,11 +175,12 @@ const styles = StyleSheet.create({
   settingTitle: {
     color: TEXT,
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
   settingDesc: {
     marginTop: 4,
     color: MUTED,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 19,
   },
   divider: {
@@ -187,11 +209,12 @@ const styles = StyleSheet.create({
   labTitle: {
     color: TEXT,
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
   labSub: {
     marginTop: 4,
     color: MUTED,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 19,
   },
 });

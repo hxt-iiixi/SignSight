@@ -45,6 +45,7 @@ import LabModelsTab from "../components/lab/LabModelsTab";
 import LabConfigTab from "../components/lab/LabConfigTab";
 import LabStatusBanner from "../components/lab/LabStatusBanner";
 import LabArchiveModal from "../components/lab/LabArchiveModal";
+import { TYPOGRAPHY } from "../config/typography";
 import {
   TEXT,
   TEXT_SECONDARY,
@@ -1183,16 +1184,17 @@ const styles = StyleSheet.create({
   },
   backText: {
     color: TEXT,
-    fontWeight: "900",
-    fontSize: 13,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    letterSpacing: 0.3,
   },
   cameraTitle: {
-    color: "#FFFFFF",
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "900",
-    fontSize: 16,
-    textShadowColor: "rgba(0,0,0,0.4)",
+    color: "#fff",
+    textShadowColor: "rgba(0,0,0,0.5)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    textShadowRadius: 6,
   },
   topHudContainer: {
     marginHorizontal: 16,
@@ -1269,7 +1271,7 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   navLabel: {
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "600",
     color: "#976D4E",
   },
@@ -1307,7 +1309,7 @@ const styles = StyleSheet.create({
   quickSaveTargetText: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     flexShrink: 1,
   },
   quickSaveSecondary: {
@@ -1328,7 +1330,7 @@ const styles = StyleSheet.create({
   quickSaveSecondaryText: {
     color: ACCENT,
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   quickSaveBtn: {
     flexDirection: "row",
@@ -1342,6 +1344,6 @@ const styles = StyleSheet.create({
   quickSaveBtnText: {
     color: "#FFFFFF",
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
 });

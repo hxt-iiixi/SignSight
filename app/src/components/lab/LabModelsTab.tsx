@@ -34,6 +34,7 @@ import {
   PAD_SM,
   PAD_MD,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 
 type LandmarkModelVersion = {
   version_id: string;
@@ -304,7 +305,7 @@ const styles = StyleSheet.create({
   groupTitle: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
     marginTop: 4,
@@ -319,12 +320,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
   emptyDescription: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 18,
     textAlign: "center",
     maxWidth: 260,
@@ -344,7 +345,7 @@ const styles = StyleSheet.create({
   versionLabel: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     flexShrink: 1,
   },
   liveBadge: {
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
   liveText: {
     color: SUCCESS,
     fontWeight: "900",
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     letterSpacing: 0.8,
   },
   versionMetaRow: {
@@ -379,7 +380,7 @@ const styles = StyleSheet.create({
   versionMeta: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   metaDot: {
     width: 3,
@@ -403,7 +404,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     paddingHorizontal: 10,
     paddingVertical: 8,
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   renameButton: {
     paddingVertical: 8,
@@ -416,7 +417,7 @@ const styles = StyleSheet.create({
   renameButtonText: {
     color: TEXT,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   // Actions
   actionRow: {
@@ -438,7 +439,7 @@ const styles = StyleSheet.create({
   activateText: {
     color: ACCENT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   servingIndicator: {
     flex: 1,
@@ -451,7 +452,7 @@ const styles = StyleSheet.create({
   servingText: {
     color: SUCCESS,
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   archiveButton: {
     flexDirection: "row",
@@ -468,7 +469,7 @@ const styles = StyleSheet.create({
   archiveText: {
     color: DANGER,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   // Archived
   archivedCard: {
@@ -482,11 +483,11 @@ const styles = StyleSheet.create({
   archivedLabel: {
     color: TEXT,
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   archivedMeta: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
 });

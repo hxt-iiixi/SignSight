@@ -24,6 +24,7 @@ import {
   PAD_MD,
   PAD_LG,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type LabSessionBarProps = {
@@ -165,12 +166,12 @@ const styles = StyleSheet.create({
   actionText: {
     color: ACCENT,
     fontWeight: "900",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   actionTextSecondary: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   separator: {
     width: 1,
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
   targetLabel: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   readinessIndicator: {
     flexDirection: "row",
@@ -209,7 +210,7 @@ const styles = StyleSheet.create({
   },
   readinessText: {
     fontWeight: "800",
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },

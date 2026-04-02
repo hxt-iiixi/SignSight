@@ -23,6 +23,7 @@ import {
   PAD_SM,
   PAD_MD,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type LetterSummary = {
@@ -446,12 +447,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
   emptyDescription: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 18,
     textAlign: "center",
     maxWidth: 260,
@@ -470,14 +471,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   targetTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 20,
+    fontSize: TYPOGRAPHY.TEXT_XL,
   },
   // Readiness
   readinessIndicator: {
@@ -493,14 +494,14 @@ const styles = StyleSheet.create({
   },
   readinessTextLabel: {
     fontWeight: "900",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   readinessDescription: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 17,
   },
   // Pills
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: ACCENT,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 17,
   },
   // Note
@@ -533,7 +534,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: SUCCESS,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 16,
   },
   // Actions
@@ -551,7 +552,7 @@ const styles = StyleSheet.create({
   primaryActionText: {
     color: ACCENT,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   actionRow: {
     flexDirection: "row",
@@ -583,7 +584,7 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   secondaryAction: {
     flexDirection: "row",
@@ -599,7 +600,7 @@ const styles = StyleSheet.create({
   secondaryActionText: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   // Recording
   recordingIndicator: {
@@ -622,7 +623,7 @@ const styles = StyleSheet.create({
   recordingText: {
     color: RECORDING,
     fontWeight: "900",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     letterSpacing: 0.8,
   },
 });

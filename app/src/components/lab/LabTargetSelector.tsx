@@ -33,6 +33,7 @@ import {
   PAD_MD,
   PAD_SM,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type TargetChoice = {
@@ -215,12 +216,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.TEXT_LG,
   },
   headerSubtitle: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 18,
   },
   closeButton: {
@@ -261,12 +262,12 @@ const styles = StyleSheet.create({
   choiceLabel: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
   choiceDescription: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 16,
   },
   badge: {
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontWeight: "800",
-    fontSize: 9,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },

@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { API_BASE } from "../config/api";
+import { TYPOGRAPHY } from "../config/typography";
 
 const PRIMARY = "#E66E19";
 const BG = "#F8F7F6";
@@ -147,8 +148,8 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headBlock}>
-          <Text style={styles.title}>Share your thoughts</Text>
-          <Text style={styles.subtitle}>
+          <Text style={styles.pageTitle}>Share your thoughts</Text>
+          <Text style={styles.pageSub}>
             Your feedback helps us grow and improve our service.
           </Text>
         </View>
@@ -323,19 +324,20 @@ const styles = StyleSheet.create({
   },
 
   headBlock: {
-    marginTop: 12,
-    marginBottom: 22,
+    marginBottom: 24,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: "900",
     color: TEXT,
+    letterSpacing: -0.8,
   },
-  subtitle: {
-    marginTop: 6,
+  pageSub: {
+    marginTop: 4,
     fontSize: 14,
-    lineHeight: 22,
+    fontWeight: "700",
     color: MUTED,
+    lineHeight: 20,
   },
 
   fieldWrap: {
@@ -343,7 +345,7 @@ const styles = StyleSheet.create({
   },
   label: {
     marginBottom: 10,
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
     color: TEXT,
   },
@@ -360,7 +362,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   selectText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     color: TEXT,
   },
   placeholderText: {
@@ -381,7 +383,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(231,217,208,0.45)",
   },
   dropdownText: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "500",
     color: TEXT,
   },
 
@@ -395,7 +398,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   ratingTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "800",
     color: MUTED,
     letterSpacing: 1.2,
@@ -414,7 +417,7 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
     paddingHorizontal: 16,
     paddingVertical: 16,
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     color: TEXT,
     textAlignVertical: "top",
   },
@@ -433,7 +436,7 @@ const styles = StyleSheet.create({
   },
   attachmentText: {
     color: MUTED,
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "600",
   },
 
@@ -488,7 +491,7 @@ const styles = StyleSheet.create({
   },
   submitText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
   },
 
@@ -521,7 +524,7 @@ const styles = StyleSheet.create({
   },
   avgLabel: {
     marginTop: 4,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "800",
     color: MUTED,
     letterSpacing: 1.4,
@@ -537,7 +540,7 @@ const styles = StyleSheet.create({
   },
   statLeft: {
     width: 12,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "800",
     color: TEXT,
   },
@@ -556,7 +559,7 @@ const styles = StyleSheet.create({
   statRight: {
     width: 34,
     textAlign: "right",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "600",
     color: MUTED,
   },

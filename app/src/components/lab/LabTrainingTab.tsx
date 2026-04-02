@@ -24,6 +24,7 @@ import {
   PAD_SM,
   PAD_MD,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 import type { DetectMode } from "../../ml/streamTypes";
 
 type LandmarkTrainingMode = "bootstrap" | "full_reviewed";
@@ -237,14 +238,14 @@ const styles = StyleSheet.create({
   sectionLabel: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   description: {
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 17,
   },
   pillRow: {
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
   summaryText: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   // Mode selector
   modeRow: {
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
   modeOptionText: {
     color: TEXT,
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   modeOptionTextActive: {
     color: ACCENT,
@@ -301,7 +302,7 @@ const styles = StyleSheet.create({
   trainButtonText: {
     color: BG_CARD,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   // Meta
   metaRow: {
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: TEXT_SECONDARY,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 16,
   },
   // Notice
@@ -331,7 +332,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: WARNING,
     fontWeight: "700",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 17,
   },
 });

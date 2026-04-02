@@ -28,6 +28,7 @@ import {
   PAD_MD,
   ELEVATED_SHADOW,
 } from "./shared/labColors";
+import { TYPOGRAPHY } from "../../config/typography";
 
 type BannerTone =
   | "success"
@@ -182,7 +183,7 @@ const styles = StyleSheet.create({
   message: {
     flex: 1,
     fontWeight: "800",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 18,
   },
   dismissButton: {
