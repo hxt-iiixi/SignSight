@@ -205,7 +205,7 @@ export default function LabScreen({
 
   // ─── UI state ───────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<ActiveTab>("capture");
-  const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
   const panelVisible = isPanelOpen && activeTab !== null;
   const [statusMessage, setStatusMessage] = useState("");
   const [statusTone, setStatusTone] = useState<BannerTone>("info");
@@ -735,9 +735,9 @@ export default function LabScreen({
   ];
 
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
-  const panelMaxHeight = Math.round(height * 0.52);
+  const panelMaxHeight = Math.round(height * 0.35);
   const totalClosedY = panelMaxHeight;
-  const panY = useRef(new Animated.Value(0)).current;
+  const panY = useRef(new Animated.Value(panelMaxHeight)).current;
   const contentOpacity = panY.interpolate({
     inputRange: [0, panelMaxHeight],
     outputRange: [1, 0],
@@ -764,28 +764,7 @@ export default function LabScreen({
   // No interpolation needed — panY IS the translateY directly
 
   const handleNavPress = (key: LabTab) => {
-    if (!isPanelOpen) {
-      // Open from closed
-      panY.setValue(totalClosedY);
-      setActiveTab(key);
-      setIsPanelOpen(true);
-      Animated.spring(panY, {
-        toValue: 0,
-        useNativeDriver: true,
-      }).start();
-    } else if (activeTab === key) {
-      // Close active tab (tapped the already active, open tab)
-      Animated.timing(panY, {
-        toValue: totalClosedY,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => {
-        setIsPanelOpen(false);
-      });
-    } else {
-      // Switch tab (already open)
-      setActiveTab(key);
-    }
+    setActiveTab(key);
   };
 
   // ─── Loading / permission states ────────────────────────────
