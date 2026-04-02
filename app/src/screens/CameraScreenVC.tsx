@@ -35,6 +35,7 @@ import {
 import { STATIC_ASL_LABELS } from "../ml/labels";
 import type { DetectMode } from "../ml/streamTypes";
 import { useStreamingHandTracking } from "../ml/useStreamingHandTracking";
+import { TYPOGRAPHY } from "../config/typography";
 
 type CameraScreenVCProps = {
   onBack: () => void;
@@ -2258,7 +2259,7 @@ const styles = StyleSheet.create({
   backText: { color: TEXT, fontWeight: "900" },
 
   topHud: { position: "absolute" },
-  h1: { color: "#FFFFFF", fontSize: 18, fontWeight: "900", marginTop: 10 },
+  h1: { color: "#FFFFFF", fontSize: TYPOGRAPHY.TEXT_LG, fontWeight: "900", marginTop: 10 },
 
   chipsRow: { flexDirection: "row", gap: 8, marginTop: 10, flexWrap: "wrap" },
   chip: {
@@ -2269,7 +2270,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(229,231,235,0.95)",
   },
-  chipText: { color: TEXT, fontWeight: "900", fontSize: 12 },
+  chipText: { color: TEXT, fontWeight: "900", fontSize: TYPOGRAPHY.TEXT_XS },
   centerHud: {
     width: "100%",
     maxWidth: 520,
@@ -2293,12 +2294,12 @@ const styles = StyleSheet.create({
     color: ACCENT,
     fontWeight: "900",
     letterSpacing: 1.4,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   centerLabel: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 36,
+    fontSize: TYPOGRAPHY.TEXT_4XL,
     marginTop: 8,
   },
   centerMetaRow: {
@@ -2355,7 +2356,7 @@ const styles = StyleSheet.create({
     }),
   },
   panelHeader: { marginBottom: 12 },
-  panelTitle: { color: TEXT, fontWeight: "900", fontSize: 14 },
+  panelTitle: { color: TEXT, fontWeight: "900", fontSize: TYPOGRAPHY.TEXT_SM },
   panelSub: { color: MUTED, marginTop: 4, fontWeight: "700" },
   labSection: {
     marginTop: 12,
@@ -2369,7 +2370,7 @@ const styles = StyleSheet.create({
   labSectionTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     letterSpacing: 0.3,
   },
   labSectionSubtitle: {
@@ -2377,7 +2378,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: "700",
     lineHeight: 18,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   labSectionBody: {
     gap: 10,
@@ -2400,14 +2401,14 @@ const styles = StyleSheet.create({
   labFieldLabel: {
     color: MUTED,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   labFieldValue: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 17,
+    fontSize: TYPOGRAPHY.TEXT_LG,
     marginTop: 4,
   },
   labHelperText: {
@@ -2444,7 +2445,7 @@ const styles = StyleSheet.create({
   labStatusPrimary: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 24,
+    fontSize: TYPOGRAPHY.TEXT_2XL,
     marginTop: 4,
   },
   labStatusBadge: {
@@ -2458,7 +2459,7 @@ const styles = StyleSheet.create({
   labStatusBadgeText: {
     color: "#1D4ED8",
     fontWeight: "900",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   labStatusRow: {
     flexDirection: "row",
@@ -2469,12 +2470,12 @@ const styles = StyleSheet.create({
   labStatusMeta: {
     color: MUTED,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   labStatusModelText: {
     color: TEXT,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   datasetInsightCard: {
     padding: 14,
@@ -2487,7 +2488,7 @@ const styles = StyleSheet.create({
   datasetInsightTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   datasetInsightText: {
     color: MUTED,
@@ -2503,7 +2504,7 @@ const styles = StyleSheet.create({
   inputLabel: {
     color: MUTED,
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -2520,7 +2521,7 @@ const styles = StyleSheet.create({
   inputHelperText: {
     color: MUTED,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     lineHeight: 16,
   },
   renameRow: {
@@ -2556,7 +2557,7 @@ const styles = StyleSheet.create({
   labSummaryLabel: {
     color: MUTED,
     fontWeight: "800",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -2638,12 +2639,12 @@ const styles = StyleSheet.create({
   modelPickerPrimary: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   modelPickerMeta: {
     color: MUTED,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     lineHeight: 16,
   },
   modelDropdownList: {
@@ -2679,12 +2680,12 @@ const styles = StyleSheet.create({
   targetPickerPrimary: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   targetPickerMeta: {
     color: MUTED,
     fontWeight: "700",
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     lineHeight: 16,
   },
   targetDropdownList: {
@@ -2709,7 +2710,7 @@ const styles = StyleSheet.create({
   targetChoiceTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   versionList: {
     gap: 8,
@@ -2729,7 +2730,7 @@ const styles = StyleSheet.create({
   versionTitle: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: TYPOGRAPHY.TEXT_SM,
   },
   trainingNotice: {
     flexDirection: "row",
@@ -2746,7 +2747,7 @@ const styles = StyleSheet.create({
     color: ACCENT,
     fontWeight: "700",
     lineHeight: 18,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
   },
   diagnosticsCard: {
     padding: 12,
@@ -2761,7 +2762,7 @@ const styles = StyleSheet.create({
   debugLine: {
     marginTop: 10,
     color: MUTED,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "700",
   },
 

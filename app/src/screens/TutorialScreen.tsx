@@ -96,7 +96,7 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
       {/* Page Title */}
       <View style={styles.headBlock}>
         <Text style={styles.pageTitle}>ASL Alphabet</Text>
-        <Text style={styles.pageSub}>Learn and practice American Sign Language</Text>
+        {/* <Text style={styles.pageSub}>Learn and practice American Sign Language</Text> */}
       </View>
 
       {/* Sticky preview area */}
@@ -193,17 +193,17 @@ const styles = StyleSheet.create({
   },
   headBlock: {
     paddingHorizontal: 16,
-    paddingTop: 32,
+    paddingTop: 52,
     marginBottom: 24,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: TYPOGRAPHY.TEXT_3XL,
     fontWeight: "900",
     color: TEXT,
     letterSpacing: -0.8,
   },
   pageSub: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
     color: MUTED,
     marginTop: 4,

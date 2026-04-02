@@ -16,13 +16,14 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { API_BASE } from "../config/api";
 import { TYPOGRAPHY } from "../config/typography";
-
-const PRIMARY = "#E66E19";
-const BG = "#F8F7F6";
-const CARD = "#FFFFFF";
-const BORDER = "#E7D9D0";
-const MUTED = "#976D4E";
-const TEXT = "#1B130E";
+import { 
+  ACCENT as PRIMARY, 
+  BORDER, 
+  TEXT_SECONDARY as MUTED, 
+  TEXT, 
+  BG, 
+  BG_CARD as CARD 
+} from "../components/lab/shared/labColors";
 
 const CATEGORIES = ["general", "bug", "feature", "ui"] as const;
 type Category = (typeof CATEGORIES)[number];
@@ -149,9 +150,6 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headBlock}>
           <Text style={styles.pageTitle}>Share your thoughts</Text>
-          <Text style={styles.pageSub}>
-            Your feedback helps us grow and improve our service.
-          </Text>
         </View>
 
         {/* Category */}
@@ -267,7 +265,7 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
         {/* Footer stats */}
         <View style={styles.footerStats}>
           <View style={styles.avgWrap}>
-            <Text style={styles.avgValue}>4.8</Text>
+            <Text style={styles.previewText}>4.8</Text>
             <View style={styles.avgStars}>
               <Ionicons name="star" size={14} color={PRIMARY} />
               <Ionicons name="star" size={14} color={PRIMARY} />
@@ -319,7 +317,7 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 16,
-    paddingTop: 32,
+    paddingTop: 52,
     paddingBottom: 110,
   },
 
@@ -327,14 +325,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: TYPOGRAPHY.TEXT_3XL,
     fontWeight: "900",
     color: TEXT,
     letterSpacing: -0.8,
   },
   pageSub: {
     marginTop: 4,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
     color: MUTED,
     lineHeight: 20,
@@ -500,6 +498,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: TEXT,
     fontWeight: "700",
+  },
+
+  previewText: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_4XL,
   },
 
   footerStats: {

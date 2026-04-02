@@ -49,22 +49,8 @@ export default function DashboardScreen({
         contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View
-          style={[
-            styles.header,
-            { paddingHorizontal: P, paddingTop: topSpacing },
-          ]}
-        >
-          <View style={styles.headerLeft}>
-            <View style={styles.logoWrap}>
-              <Ionicons name="hand-left-outline" size={22} color={PRIMARY} />
-            </View>
-          </View>
-        </View>
-
-        {/* Page Title */}
-        <View style={[styles.pageHead, { paddingHorizontal: P }]}>
+        {/* Header and Page Title */}
+        <View style={[styles.pageHead, { paddingHorizontal: P, paddingTop: 52 }]}>
           <Text style={styles.pageTitle}>
            SignSight
           </Text>
@@ -183,7 +169,7 @@ const styles = StyleSheet.create({
   },
 
   pageHead: {
-    paddingTop: 18,
+    paddingTop: 52,
     paddingBottom: 8,
   },
   pageTitle: {

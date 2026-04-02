@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Platform } from "react-native";
 import {
   TEXT,
   TEXT_SECONDARY,
@@ -20,7 +20,9 @@ import {
   INFO_LIGHT,
   INFO_BORDER,
   RADIUS_MD,
+  ELEVATED_SHADOW,
 } from "./labColors";
+import { TYPOGRAPHY } from "../../../config/typography";
 
 type PillTone =
   | "neutral"
@@ -108,7 +110,7 @@ const styles = StyleSheet.create({
   label: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
@@ -125,6 +127,6 @@ const styles = StyleSheet.create({
   },
   value: {
     fontWeight: "900",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
 });

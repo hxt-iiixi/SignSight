@@ -10,13 +10,14 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { TYPOGRAPHY } from "../config/typography";
-
-const PRIMARY = "#E66E19";
-const BG = "#F8F7F6";
-const CARD = "#FFFFFF";
-const BORDER = "#E7D9D0";
-const MUTED = "#976D4E";
-const TEXT = "#1B130E";
+import { 
+  ACCENT as PRIMARY, 
+  BORDER, 
+  TEXT_SECONDARY as MUTED, 
+  TEXT, 
+  BG, 
+  BG_CARD as CARD 
+} from "../components/lab/shared/labColors";
 
 type SettingsScreenProps = {
   onBack: () => void;
@@ -42,13 +43,9 @@ export default function SettingsScreen({
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headBlock}>
           <Text style={styles.pageTitle}>Settings</Text>
-          <Text style={styles.pageSub}>Configure your experience and developer tools</Text>
         </View>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Translator Preferences</Text>
-          <Text style={styles.sectionSub}>
-            Keep the main camera simple for users and enable debug tools only when needed.
-          </Text>
         </View>
 
         <View style={styles.card}>
@@ -69,9 +66,6 @@ export default function SettingsScreen({
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Developer Tools</Text>
-          <Text style={styles.sectionSub}>
-            Sample collection, gesture recording, and training live in Lab.
-          </Text>
         </View>
 
         <Pressable style={styles.labCard} onPress={onOpenLab}>
@@ -123,21 +117,21 @@ const styles = StyleSheet.create({
 
   content: {
     padding: 16,
-    paddingTop: 32,
+    paddingTop: 52,
     paddingBottom: 110,
   },
   headBlock: {
     marginBottom: 24,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: TYPOGRAPHY.TEXT_3XL,
     fontWeight: "900",
     color: TEXT,
     letterSpacing: -0.8,
   },
   pageSub: {
     marginTop: 4,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
     color: MUTED,
     lineHeight: 20,

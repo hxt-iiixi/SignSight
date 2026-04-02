@@ -140,7 +140,7 @@ export default function LabStatusBanner({
           backgroundColor: colors.bg,
           borderColor: colors.border,
         },
-        Platform.select(ELEVATED_SHADOW),
+        Platform.select(ELEVATED_SHADOW as any) as any,
       ]}
       pointerEvents={visible ? "auto" : "none"}
     >
