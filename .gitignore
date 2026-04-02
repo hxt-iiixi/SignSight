@@ -28,6 +28,7 @@ app/.env.local
 web-frontend/.env.local
 backend/.env.local
 
+GEMINI.md
 # Logs and OS files
 *.log
 .DS_Store
