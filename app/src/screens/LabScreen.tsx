@@ -735,7 +735,7 @@ export default function LabScreen({
     { key: "config", label: "Config", icon: "settings-outline" },
   ];
 
-  const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
+  const bottomNavPadding = Platform.OS === "android" ? 62 : 28;
   const panelMaxHeight = Math.round(height * 0.35);
   const totalClosedY = panelMaxHeight;
   const panY = useRef(new Animated.Value(panelMaxHeight)).current;
@@ -839,10 +839,6 @@ export default function LabScreen({
             cameraPosition={cameraPosition}
             displayLabel={lastLabel}
             confidence={lastConf}
-            rawLabel={rawLabel}
-            handedness={lastHandedness}
-            hasHand={debugState.hasHand}
-            landmarkCount={debugState.landmarkCount}
             activeModelLabel={activeLandmarkModelVersion?.label ?? null}
             trainingMode={currentLandmarkTrainingMode}
             activeLetterCount={activeStaticLetters.length}
@@ -850,9 +846,7 @@ export default function LabScreen({
             gestureFramesCount={currentWordFramesCount}
             gestureFramesTotal={GESTURE_FRAMES}
             isRecording={isRecordingGesture}
-            wordGraceActive={wordGraceActive}
             isStaticWord={selectedWordIsStaticLandmark}
-            activeStaticWordCount={activeStaticWordLabels.length}
           />
 
           {/* Session bar */}
@@ -1215,7 +1209,7 @@ const styles = StyleSheet.create({
   // Bottom stack (holds quick save bar + bottom sheet)
   bottomStack: {
     position: "absolute",
-    bottom: 0,
+    bottom: Platform.OS === "android" ? 10 : 0,
     left: 0,
     right: 0,
     zIndex: 20,
@@ -1258,7 +1252,7 @@ const styles = StyleSheet.create({
   bottomNavBar: {
     flexDirection: "row",
     paddingTop: 4,
-    paddingBottom: 10,
+    paddingBottom: Platform.OS === "android" ? 18 : 10,
     paddingHorizontal: 18,
     justifyContent: "space-around",
     // No borders or shadow here since it's part of the unified bottomSheet

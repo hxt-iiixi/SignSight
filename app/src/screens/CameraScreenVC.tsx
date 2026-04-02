@@ -124,8 +124,8 @@ export default function CameraScreenVC({
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const bottomSafeLift = Platform.OS === "android" ? 16 : 8;
-  const translatorBottomInset = Platform.OS === "android" ? 16 : 8;
+  const bottomSafeLift = Platform.OS === "android" ? 26 : 8;
+  const translatorBottomInset = Platform.OS === "android" ? 24 : 8;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -2039,12 +2039,6 @@ export default function CameraScreenVC({
                   {detectMode === "WORDS" ? "WORDS" : "LETTERS"} · {cameraPosition.toUpperCase()}
                 </Text>
               </View>
-              <View style={styles.handStatusIndicator}>
-                <View style={[styles.dot, { backgroundColor: lastHandedness ? "#10B981" : "#9CA3AF" }]} />
-                <Text style={[styles.handStatusText, { color: lastHandedness ? "#10B981" : MUTED }]}>
-                  {lastHandedness ? "Hand detected" : "No hand"}
-                </Text>
-              </View>
             </View>
 
             {/* Main row: prediction + confidence */}
@@ -2052,12 +2046,6 @@ export default function CameraScreenVC({
               <View style={styles.predictionWrap}>
                 <Text style={styles.predictionLabel} numberOfLines={1}>
                   {displayLabel}
-                </Text>
-                <Text style={styles.rawMeta} numberOfLines={1}>
-                  Raw: {rawLabel || "—"} · Hand: {lastHandedness || "—"}
-                  {detectMode === "WORDS"
-                    ? ` · Frames: ${currentWordFramesCount}/${GESTURE_FRAMES}`
-                    : ""}
                 </Text>
               </View>
 
@@ -2070,15 +2058,6 @@ export default function CameraScreenVC({
                 </Text>
                 <Text style={styles.confidenceMetaText}>CONF</Text>
               </View>
-            </View>
-
-            {/* Bottom Row - For recording or status */}
-            <View style={styles.bottomRow}>
-               <Text style={styles.modelText} numberOfLines={1}>
-                 {isRecordingGesture 
-                   ? `Recording · ${currentWordFramesCount}/${GESTURE_FRAMES} frames` 
-                   : "Translator Active"}
-               </Text>
             </View>
           </View>
 

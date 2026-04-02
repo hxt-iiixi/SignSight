@@ -40,6 +40,12 @@ export default function LabCard({
   noPadding = false,
 }: LabCardProps) {
   const colors = VARIANT_MAP[variant];
+  const platformShadow: ViewStyle =
+    Platform.OS === "android"
+      ? { elevation: CARD_SHADOW.android.elevation }
+      : Platform.OS === "ios"
+        ? { ...CARD_SHADOW.ios }
+        : {};
 
   return (
     <View
@@ -50,7 +56,7 @@ export default function LabCard({
           borderColor: colors.border,
         },
         noPadding && styles.noPadding,
-        Platform.select(CARD_SHADOW),
+        platformShadow,
         style,
       ]}
     >
