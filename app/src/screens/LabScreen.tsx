@@ -830,46 +830,49 @@ export default function LabScreen({
           <View style={{ width: 70 }} />
         </View>
 
-        {/* Live recognition header */}
-        <LabLiveHeader
-          detectMode={detectMode}
-          cameraPosition={cameraPosition}
-          displayLabel={lastLabel}
-          confidence={lastConf}
-          rawLabel={rawLabel}
-          handedness={lastHandedness}
-          hasHand={debugState.hasHand}
-          landmarkCount={debugState.landmarkCount}
-          activeModelLabel={activeLandmarkModelVersion?.label ?? null}
-          trainingMode={currentLandmarkTrainingMode}
-          activeLetterCount={activeStaticLetters.length}
-          totalLetterCount={STATIC_ASL_LABELS.length}
-          gestureFramesCount={currentWordFramesCount}
-          gestureFramesTotal={GESTURE_FRAMES}
-          isRecording={isRecordingGesture}
-          wordGraceActive={wordGraceActive}
-          isStaticWord={selectedWordIsStaticLandmark}
-          activeStaticWordCount={activeStaticWordLabels.length}
-        />
+        {/* Floating HUD Wrapper */}
+        <View style={styles.topHudContainer}>
+          {/* Live recognition header */}
+          <LabLiveHeader
+            detectMode={detectMode}
+            cameraPosition={cameraPosition}
+            displayLabel={lastLabel}
+            confidence={lastConf}
+            rawLabel={rawLabel}
+            handedness={lastHandedness}
+            hasHand={debugState.hasHand}
+            landmarkCount={debugState.landmarkCount}
+            activeModelLabel={activeLandmarkModelVersion?.label ?? null}
+            trainingMode={currentLandmarkTrainingMode}
+            activeLetterCount={activeStaticLetters.length}
+            totalLetterCount={STATIC_ASL_LABELS.length}
+            gestureFramesCount={currentWordFramesCount}
+            gestureFramesTotal={GESTURE_FRAMES}
+            isRecording={isRecordingGesture}
+            wordGraceActive={wordGraceActive}
+            isStaticWord={selectedWordIsStaticLandmark}
+            activeStaticWordCount={activeStaticWordLabels.length}
+          />
 
-        {/* Session bar */}
-        <LabSessionBar
-          detectMode={detectMode}
-          cameraPosition={cameraPosition}
-          selectedTarget={selectedTargetValue}
-          targetIsActive={
-            detectMode === "WORDS"
-              ? selectedWord ? activeStaticWordLabels.includes(selectedWord) : false
-              : selectedLabelIsActive
-          }
-          targetIsReady={selectedLabelIsReady}
-          isStaticWord={detectMode === "WORDS" && selectedWordIsStaticLandmark}
-          isGesture={detectMode === "WORDS" && !selectedWordIsStaticLandmark && !!selectedWord}
-          isRecordingGesture={isRecordingGesture}
-          onToggleMode={handleToggleMode}
-          onToggleCamera={() => setCameraPosition((p) => (p === "back" ? "front" : "back"))}
-          onOpenTargetSelector={() => setShowTargetSelector(true)}
-        />
+          {/* Session bar */}
+          <LabSessionBar
+            detectMode={detectMode}
+            cameraPosition={cameraPosition}
+            selectedTarget={selectedTargetValue}
+            targetIsActive={
+              detectMode === "WORDS"
+                ? selectedWord ? activeStaticWordLabels.includes(selectedWord) : false
+                : selectedLabelIsActive
+            }
+            targetIsReady={selectedLabelIsReady}
+            isStaticWord={detectMode === "WORDS" && selectedWordIsStaticLandmark}
+            isGesture={detectMode === "WORDS" && !selectedWordIsStaticLandmark && !!selectedWord}
+            isRecordingGesture={isRecordingGesture}
+            onToggleMode={handleToggleMode}
+            onToggleCamera={() => setCameraPosition((p) => (p === "back" ? "front" : "back"))}
+            onOpenTargetSelector={() => setShowTargetSelector(true)}
+          />
+        </View>
       </View>
 
       {/* ─── Bottom: panel + nav bar (over camera) ──────────── */}
@@ -1190,6 +1193,22 @@ const styles = StyleSheet.create({
     textShadowColor: "rgba(0,0,0,0.4)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  topHudContainer: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    overflow: "hidden",
+    ...Platform.select({
+      android: { elevation: 6 },
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+      },
+    }),
   },
   // Bottom stack (holds quick save bar + bottom sheet)
   bottomStack: {

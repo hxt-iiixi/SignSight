@@ -23,6 +23,7 @@ import {
   RADIUS_PILL,
   PAD_SM,
   PAD_MD,
+  PAD_LG,
 } from "./shared/labColors";
 import type { DetectMode } from "../../ml/streamTypes";
 
@@ -120,7 +121,7 @@ export default function LabLiveHeader({
         <View
           style={[
             styles.confidenceBadge,
-            { backgroundColor: confTone.bg, borderColor: confTone.border },
+            { backgroundColor: confTone.bg },
           ]}
         >
           <Text style={[styles.confidenceText, { color: confTone.color }]}>
@@ -147,12 +148,10 @@ export default function LabLiveHeader({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(229,231,235,0.6)",
-    paddingHorizontal: PAD_MD,
-    paddingVertical: PAD_SM,
-    gap: 6,
+    paddingHorizontal: PAD_LG,
+    paddingTop: 14,
+    paddingBottom: 10,
+    gap: 8,
   },
   topRow: {
     flexDirection: "row",
@@ -160,12 +159,10 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   modeChip: {
-    paddingVertical: 3,
+    paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: RADIUS_PILL,
     backgroundColor: ACCENT_LIGHT,
-    borderWidth: 1,
-    borderColor: ACCENT_BORDER,
   },
   modeText: {
     color: ACCENT,
@@ -200,8 +197,8 @@ const styles = StyleSheet.create({
   predictionLabel: {
     color: TEXT,
     fontWeight: "900",
-    fontSize: 26,
-    letterSpacing: -0.3,
+    fontSize: 22,
+    letterSpacing: -0.2,
   },
   rawMeta: {
     color: TEXT_SECONDARY,
@@ -210,9 +207,8 @@ const styles = StyleSheet.create({
   },
   confidenceBadge: {
     paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderRadius: RADIUS_PILL,
-    borderWidth: 1,
   },
   confidenceText: {
     fontWeight: "900",

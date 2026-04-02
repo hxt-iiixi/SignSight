@@ -22,6 +22,7 @@ import {
   RADIUS_PILL,
   PAD_SM,
   PAD_MD,
+  PAD_LG,
 } from "./shared/labColors";
 import type { DetectMode } from "../../ml/streamTypes";
 
@@ -126,7 +127,7 @@ export default function LabSessionBar({
       >
         <View style={styles.targetTextWrap}>
           <Text style={styles.targetLabel} numberOfLines={1}>
-            {selectedTarget ?? "Select target"}
+            {selectedTarget ?? "Select"}
           </Text>
           <View
             style={[
@@ -152,11 +153,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: PAD_MD,
-    paddingVertical: PAD_SM,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+    paddingHorizontal: PAD_LG,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.04)",
   },
   modeButton: {
     flexDirection: "row",
@@ -184,9 +184,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 10,
     borderRadius: RADIUS_MD,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: BG_CARD,
+    backgroundColor: "rgba(0,0,0,0.03)",
+    borderWidth: 0,
   },
   cameraButtonText: {
     color: TEXT,
@@ -202,9 +201,8 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 10,
     borderRadius: RADIUS_MD,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: BG_CARD,
+    backgroundColor: "rgba(0,0,0,0.03)",
+    borderWidth: 0,
   },
   targetTextWrap: {
     flex: 1,
