@@ -1,6 +1,6 @@
 {
-  "version_id": "landmarks_bootstrap_20260401T160709Z",
-  "label": "Bootstrap URVW",
+  "version_id": "landmarks_bootstrap_20260401T155857Z",
+  "label": "bootstrap 2026-04-01T15:58:57+00:00",
   "training_mode": "bootstrap",
   "active_static_letters": [
     "A",
@@ -12,7 +12,6 @@
     "M",
     "N",
     "O",
-    "R",
     "S",
     "T",
     "U",
@@ -33,7 +32,6 @@
     "M",
     "N",
     "O",
-    "R",
     "S",
     "T",
     "U",
@@ -52,6 +50,7 @@
     "L",
     "P",
     "Q",
+    "R",
     "X"
   ],
   "deficits_by_label": {
@@ -97,6 +96,12 @@
       "Q: Right hand 0/20",
       "Q: signers 0/1"
     ],
+    "R": [
+      "R: approved 0/40",
+      "R: Left hand 0/20",
+      "R: Right hand 0/20",
+      "R: signers 0/1"
+    ],
     "X": [
       "X: approved 0/40",
       "X: Left hand 0/20",
@@ -104,7 +109,7 @@
       "X: signers 0/1"
     ]
   },
-  "trained_at": "2026-04-01T16:07:09+00:00",
+  "trained_at": "2026-04-01T15:58:57+00:00",
   "training_sample_counts": {
     "A": 189,
     "B": 212,
@@ -115,7 +120,6 @@
     "M": 198,
     "N": 332,
     "O": 236,
-    "R": 194,
     "S": 186,
     "T": 257,
     "U": 90,

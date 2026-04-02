@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.schemas.ml import (
     ActivateLandmarkModelReq,
+    ArchiveLandmarkModelReq,
     LandmarkLabelSummaryReq,
     PredictLandmarksReq,
     RenameLandmarkModelReq,
@@ -10,6 +11,7 @@ from app.schemas.ml import (
 )
 from app.services.landmark_classifier import (
     activate_landmark_model_version,
+    archive_landmark_model_version,
     landmark_label_summary,
     predict_landmarks,
     rename_landmark_model_version,
@@ -71,6 +73,11 @@ def activate_landmark_model(req: ActivateLandmarkModelReq):
 @router.post("/rename_landmark_model")
 def rename_landmark_model(req: RenameLandmarkModelReq):
     return rename_landmark_model_version(req.versionId, req.label)
+
+
+@router.post("/archive_landmark_model")
+def archive_landmark_model(req: ArchiveLandmarkModelReq):
+    return archive_landmark_model_version(req.versionId)
 
 
 @router.post("/landmark_label_summary")

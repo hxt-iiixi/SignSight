@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   type LayoutChangeEvent,
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -77,6 +78,8 @@ type LandmarkModelVersion = {
   trained_at?: string;
   is_active?: boolean;
   active_static_letters?: string[];
+  archived_at?: string;
+  active_static_word_labels?: string[];
 };
 type LandmarkLabelSummary = {
   label: string;
@@ -221,10 +224,13 @@ export default function CameraScreenVC({
   const [isOverlaySmoothing, setIsOverlaySmoothing] = useState(false);
   const [showLabDiagnostics, setShowLabDiagnostics] = useState(false);
   const [showModelVersions, setShowModelVersions] = useState(false);
+  const [showArchivedModelVersions, setShowArchivedModelVersions] = useState(false);
   const [showTargetChoices, setShowTargetChoices] = useState(false);
   const [modelRenameDrafts, setModelRenameDrafts] = useState<ModelRenameDrafts>(
     {}
   );
+  const [archivedLandmarkModelVersions, setArchivedLandmarkModelVersions] =
+    useState<LandmarkModelVersion[]>([]);
   const selectedWordIsStaticLandmark = selectedWord === "I_LOVE_YOU";
   const selectedStaticWordCounts = selectedWord
     ? staticWordLandmarkCounts[selectedWord] ?? null
@@ -330,9 +336,23 @@ export default function CameraScreenVC({
         : null
     );
     setAvailableLandmarkModelVersions(versions);
+    setArchivedLandmarkModelVersions(
+      Array.isArray(json.archived_landmark_model_versions)
+        ? json.archived_landmark_model_versions
+        : []
+    );
     setModelRenameDrafts((current) => {
       const next = { ...current };
       versions.forEach((version: LandmarkModelVersion) => {
+        const versionId = String(version.version_id);
+        if (!next[versionId]) {
+          next[versionId] = String(version.label ?? versionId);
+        }
+      });
+      (Array.isArray(json.archived_landmark_model_versions)
+        ? json.archived_landmark_model_versions
+        : []
+      ).forEach((version: LandmarkModelVersion) => {
         const versionId = String(version.version_id);
         if (!next[versionId]) {
           next[versionId] = String(version.label ?? versionId);
@@ -646,6 +666,59 @@ export default function CameraScreenVC({
     } catch {
       setStatus("Rename error");
     }
+  };
+
+  const archiveLandmarkModelVersion = async (versionId: string) => {
+    try {
+      setStatus(`Archiving model ${versionId}...`);
+      const res = await fetch(`${API_BASE}/archive_landmark_model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId }),
+      });
+      const json = await res.json();
+      if (!json.ok) {
+        setStatus(`Archive failed: ${json.error ?? "unknown"}`);
+        return;
+      }
+      const versions = Array.isArray(json.available_versions)
+        ? json.available_versions
+        : [];
+      const archived = Array.isArray(json.archived_versions)
+        ? json.archived_versions
+        : [];
+      setAvailableLandmarkModelVersions(versions);
+      setArchivedLandmarkModelVersions(archived);
+      setModelRenameDrafts((current) => {
+        const next = { ...current };
+        [...versions, ...archived].forEach((version: LandmarkModelVersion) => {
+          const id = String(version.version_id);
+          next[id] = String(version.label ?? id);
+        });
+        return next;
+      });
+      await refreshLabHealth();
+      setStatus(`Model archived ✅ ${versionId}`);
+    } catch {
+      setStatus("Archive error");
+    }
+  };
+
+  const confirmArchiveLandmarkModelVersion = (versionId: string) => {
+    Alert.alert(
+      "Archive model?",
+      "This will remove the model from active versions and move it to archived models. You can still view it later.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Archive",
+          style: "destructive",
+          onPress: () => {
+            void archiveLandmarkModelVersion(versionId);
+          },
+        },
+      ]
+    );
   };
 
   const toggleGestureRecording = () => {
@@ -1243,7 +1316,85 @@ export default function CameraScreenVC({
                               >
                                 <Text style={styles.btnText}>Rename</Text>
                               </Pressable>
+                              {!isActive ? (
+                                <Pressable
+                                  onPress={() =>
+                                    confirmArchiveLandmarkModelVersion(versionId)
+                                  }
+                                  style={({ pressed }) => [
+                                    styles.btn,
+                                    styles.renameButton,
+                                    styles.archiveButton,
+                                    pressed && { opacity: 0.85 },
+                                  ]}
+                                >
+                                  <Text style={styles.btnText}>Archive</Text>
+                                </Pressable>
+                              ) : null}
                             </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {detectMode === "LETTERS" &&
+              archivedLandmarkModelVersions.length > 0 ? (
+                <View style={styles.modelPickerCard}>
+                  <Text style={styles.labFieldLabel}>Archived Models</Text>
+                  <Pressable
+                    onPress={() => setShowArchivedModelVersions((value) => !value)}
+                    style={({ pressed }) => [
+                      styles.modelPickerTrigger,
+                      pressed && { opacity: 0.88 },
+                    ]}
+                  >
+                    <View style={styles.modelPickerTriggerTextWrap}>
+                      <Text style={styles.modelPickerPrimary} numberOfLines={1}>
+                        {archivedLandmarkModelVersions.length} archived models
+                      </Text>
+                      <Text style={styles.modelPickerMeta} numberOfLines={1}>
+                        View model versions that were archived instead of deleted
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={showArchivedModelVersions ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={TEXT}
+                    />
+                  </Pressable>
+
+                  {showArchivedModelVersions ? (
+                    <View style={styles.modelDropdownList}>
+                      {archivedLandmarkModelVersions.map((version) => {
+                        const versionId = String(version.version_id);
+                        const mode =
+                          version.training_mode === "bootstrap"
+                            ? "bootstrap"
+                            : "full reviewed";
+                        return (
+                          <View key={versionId} style={styles.versionCard}>
+                            <Text style={styles.versionTitle}>
+                              {String(version.label ?? versionId)}
+                            </Text>
+                            <Text style={styles.inputHelperText}>
+                              {mode} •{" "}
+                              {Array.isArray(version.active_static_letters)
+                                ? `${version.active_static_letters.length} active letters`
+                                : "unknown classes"}
+                            </Text>
+                            {version.trained_at ? (
+                              <Text style={styles.inputHelperText}>
+                                Trained: {version.trained_at}
+                              </Text>
+                            ) : null}
+                            {version.archived_at ? (
+                              <Text style={styles.inputHelperText}>
+                                Archived: {version.archived_at}
+                              </Text>
+                            ) : null}
                           </View>
                         );
                       })}
@@ -2383,6 +2534,10 @@ const styles = StyleSheet.create({
   renameButton: {
     flex: 0,
     minWidth: 92,
+  },
+  archiveButton: {
+    borderColor: "#FCA5A5",
+    backgroundColor: "#FEF2F2",
   },
   labSummaryPill: {
     minWidth: 92,

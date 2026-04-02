@@ -1,5 +1,5 @@
 {
-  "active_version_id": "landmarks_bootstrap_20260401T154145Z",
+  "active_version_id": "landmarks_bootstrap_20260401T160709Z",
   "versions": [
     {
       "version_id": "legacy_20260401T101811Z",
@@ -261,6 +261,87 @@
         "I_LOVE_YOU"
       ],
       "trained_at": "2026-04-01T15:41:45+00:00",
+      "source": "trained"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T155655Z",
+      "label": "bootstrap 2026-04-01T15:56:55+00:00",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "E",
+        "F",
+        "I",
+        "M",
+        "N",
+        "O",
+        "S",
+        "T",
+        "U",
+        "V",
+        "Y"
+      ],
+      "active_static_word_labels": [
+        "I_LOVE_YOU"
+      ],
+      "trained_at": "2026-04-01T15:56:55+00:00",
+      "source": "trained"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T155857Z",
+      "label": "bootstrap 2026-04-01T15:58:57+00:00",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "E",
+        "F",
+        "I",
+        "M",
+        "N",
+        "O",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "Y"
+      ],
+      "active_static_word_labels": [
+        "I_LOVE_YOU"
+      ],
+      "trained_at": "2026-04-01T15:58:57+00:00",
+      "source": "trained"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T160709Z",
+      "label": "Bootstrap URVW",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "E",
+        "F",
+        "I",
+        "M",
+        "N",
+        "O",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "Y"
+      ],
+      "active_static_word_labels": [
+        "I_LOVE_YOU"
+      ],
+      "trained_at": "2026-04-01T16:07:09+00:00",
       "source": "trained"
     }
   ]

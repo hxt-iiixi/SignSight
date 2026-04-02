@@ -11,6 +11,7 @@ from sklearn.svm import SVC
 
 from app.core.constants import LABELS, MOTION_ONLY_LETTER_LABELS, STATIC_WORD_LABELS
 from app.core.paths import (
+    LANDMARKS_ARCHIVED_MODEL_VERSIONS_DIR,
     LANDMARKS_DIR,
     LANDMARKS_MODEL_METADATA_PATH,
     LANDMARKS_MODEL_PATH,
@@ -350,22 +351,34 @@ def _landmark_model_metadata_path_for_version(version_id: str):
     return LANDMARKS_MODEL_VERSIONS_DIR / f"{version_id}.json"
 
 
+def _archived_landmark_model_path_for_version(version_id: str):
+    return LANDMARKS_ARCHIVED_MODEL_VERSIONS_DIR / f"{version_id}.joblib"
+
+
+def _archived_landmark_model_metadata_path_for_version(version_id: str):
+    return LANDMARKS_ARCHIVED_MODEL_VERSIONS_DIR / f"{version_id}.json"
+
+
 def _load_landmark_model_registry() -> dict[str, object]:
     if not LANDMARKS_MODEL_REGISTRY_PATH.exists():
-        return {"active_version_id": None, "versions": []}
+        return {"active_version_id": None, "versions": [], "archived_versions": []}
     try:
         data = json.loads(LANDMARKS_MODEL_REGISTRY_PATH.read_text(encoding="utf-8"))
     except Exception:
-        return {"active_version_id": None, "versions": []}
+        return {"active_version_id": None, "versions": [], "archived_versions": []}
     versions = data.get("versions")
     if not isinstance(versions, list):
         versions = []
+    archived_versions = data.get("archived_versions")
+    if not isinstance(archived_versions, list):
+        archived_versions = []
     active_version_id = data.get("active_version_id")
     if active_version_id is not None:
         active_version_id = str(active_version_id)
     return {
         "active_version_id": active_version_id,
         "versions": versions,
+        "archived_versions": archived_versions,
     }
 
 
@@ -463,6 +476,23 @@ def _available_landmark_model_versions() -> list[dict[str, object]]:
         versions.append(normalized)
     versions.sort(
         key=lambda item: str(item.get("trained_at") or ""),
+        reverse=True,
+    )
+    return versions
+
+
+def _available_archived_landmark_model_versions() -> list[dict[str, object]]:
+    registry = _load_landmark_model_registry()
+    versions: list[dict[str, object]] = []
+    for entry in registry.get("archived_versions", []):
+        if not isinstance(entry, dict):
+            continue
+        normalized = dict(entry)
+        normalized["version_id"] = str(entry.get("version_id"))
+        normalized["is_active"] = False
+        versions.append(normalized)
+    versions.sort(
+        key=lambda item: str(item.get("archived_at") or item.get("trained_at") or ""),
         reverse=True,
     )
     return versions
@@ -603,6 +633,62 @@ def rename_landmark_model_version(version_id: str, label: str) -> dict:
         "label": next_label,
         "active_version_id": _active_landmark_model_version_id(),
         "available_versions": _available_landmark_model_versions(),
+        "archived_versions": _available_archived_landmark_model_versions(),
+    }
+
+
+def archive_landmark_model_version(version_id: str) -> dict:
+    requested_version = _clean_optional_string(version_id)
+    if not requested_version:
+        return {"ok": False, "error": "version_id is required."}
+
+    active_version_id = _active_landmark_model_version_id()
+    if requested_version == active_version_id:
+        return {
+            "ok": False,
+            "error": "Cannot archive the currently active model. Switch to another model first.",
+        }
+
+    registry = _ensure_legacy_landmark_model_versioned()
+    versions = registry.get("versions", [])
+    matching = next(
+        (entry for entry in versions if str(entry.get("version_id")) == requested_version),
+        None,
+    )
+    if not matching:
+        return {"ok": False, "error": f"Unknown landmark model version: {requested_version}"}
+
+    version_model_path = _landmark_model_path_for_version(requested_version)
+    version_meta_path = _landmark_model_metadata_path_for_version(requested_version)
+    archived_model_path = _archived_landmark_model_path_for_version(requested_version)
+    archived_meta_path = _archived_landmark_model_metadata_path_for_version(requested_version)
+
+    if version_model_path.exists():
+        shutil.move(str(version_model_path), str(archived_model_path))
+    if version_meta_path.exists():
+        shutil.move(str(version_meta_path), str(archived_meta_path))
+
+    archived_entry = dict(matching)
+    archived_entry["archived_at"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+    registry["versions"] = [
+        entry for entry in versions if str(entry.get("version_id")) != requested_version
+    ]
+    archived_versions = [
+        entry
+        for entry in registry.get("archived_versions", [])
+        if str(entry.get("version_id")) != requested_version
+    ]
+    archived_versions.append(archived_entry)
+    registry["archived_versions"] = archived_versions
+    _persist_landmark_model_registry(registry)
+
+    return {
+        "ok": True,
+        "version_id": requested_version,
+        "active_version_id": active_version_id,
+        "available_versions": _available_landmark_model_versions(),
+        "archived_versions": _available_archived_landmark_model_versions(),
     }
 
 
@@ -686,7 +772,14 @@ def _suggest_rule_label(
 
     if _family_active(raw_label, top_labels, {"A", "S"}) and {"A", "S"} <= set(top_labels):
         if fist_like:
-            return "A" if float(extension_scores[0]) > 0.52 else "S"
+            thumb_outside_fist = (
+                float(extension_scores[0]) >= 0.66
+                and float(thumb_crossing[0]) >= 0.56
+                and float(thumb_crossing[2]) >= 0.60
+                and float(thumb_to_tip_distance[0]) >= 0.33
+                and thumb_closest_base == 0
+            )
+            return "A" if thumb_outside_fist else "S"
 
     if _family_active(raw_label, top_labels, {"E", "S", "T"}):
         fingertips_tucked = float(np.mean(folded_finger_tips_to_palm)) < 0.42
@@ -1380,6 +1473,7 @@ def landmark_label_summary(
 def health_summary() -> dict:
     dataset = _dataset_summary()
     available_versions = _available_landmark_model_versions()
+    archived_versions = _available_archived_landmark_model_versions()
     active_version_id = _active_landmark_model_version_id()
     current_mode = _current_landmark_training_mode()
     readiness_by_mode: dict[str, list[str]] = {}
@@ -1426,6 +1520,7 @@ def health_summary() -> dict:
         "current_landmark_training_mode": current_mode,
         "active_landmark_model_version_id": active_version_id,
         "available_landmark_model_versions": available_versions,
+        "archived_landmark_model_versions": archived_versions,
         "ready_static_letters": ready_static_letters,
         "unready_static_letters": unready_static_letters,
         "ready_static_letters_by_mode": readiness_by_mode,
