@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { View, Text, ActivityIndicator, StyleSheet, ImageBackground, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, StyleSheet, ImageBackground, Pressable, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
 import VideoSplashScreen from "./src/screens/VideoSplashScreen";
@@ -176,47 +177,6 @@ export default function App() {
       </>
     );
   }
-  if (route === "feedback")
-    return (
-      <>
-        <ExpoStatusBar
-          style={statusBarStyle}
-          backgroundColor={statusBarBackgroundColor}
-          translucent={statusBarTranslucent}
-        />
-        <FeedbackScreen onBack={() => setRoute("dashboard")} />
-      </>
-    );
-  if (route === "tutorial")
-    return (
-      <>
-        <ExpoStatusBar
-          style={statusBarStyle}
-          backgroundColor={statusBarBackgroundColor}
-          translucent={statusBarTranslucent}
-        />
-        <TutorialScreen onBack={() => setRoute("dashboard")} />
-      </>
-    );
-  if (route === "settings") {
-    return (
-      <>
-        <ExpoStatusBar
-          style={statusBarStyle}
-          backgroundColor={statusBarBackgroundColor}
-          translucent={statusBarTranslucent}
-        />
-        <SettingsScreen
-          onBack={() => setRoute("dashboard")}
-          debugEnabled={debugEnabled}
-          setDebugEnabled={setDebugEnabled}
-          showHandOverlay={showHandOverlay}
-          setShowHandOverlay={setShowHandOverlay}
-          onOpenLab={() => setRoute("lab")}
-        />
-      </>
-    );
-  }
   if (route === "lab") {
     return (
       <>
@@ -234,6 +194,9 @@ export default function App() {
     );
   }
 
+  // Persistent Tab Routes
+  const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
+
   return (
     <>
       <ExpoStatusBar
@@ -241,13 +204,35 @@ export default function App() {
         backgroundColor={statusBarBackgroundColor}
         translucent={statusBarTranslucent}
       />
-      <DashboardScreen
-        onBack={() => setRoute("dashboard")} // or whatever you want as "back"
-        onTranslate={() => setRoute("camera")}
-        onTutorial={() => setRoute("tutorial")}
-        onSettings={() => setRoute("settings")}
-        onFeedback={() => setRoute("feedback")}
-      />
+      <View style={{ flex: 1 }}>
+        {route === "dashboard" && (
+          <DashboardScreen
+            onTranslate={() => setRoute("camera")}
+            onTutorial={() => setRoute("tutorial")}
+            onSettings={() => setRoute("settings")}
+            onFeedback={() => setRoute("feedback")}
+          />
+        )}
+        {route === "tutorial" && <TutorialScreen onBack={() => setRoute("dashboard")} />}
+        {route === "feedback" && <FeedbackScreen onBack={() => setRoute("dashboard")} />}
+        {route === "settings" && (
+          <SettingsScreen
+            onBack={() => setRoute("dashboard")}
+            debugEnabled={debugEnabled}
+            setDebugEnabled={setDebugEnabled}
+            showHandOverlay={showHandOverlay}
+            setShowHandOverlay={setShowHandOverlay}
+            onOpenLab={() => setRoute("lab")}
+          />
+        )}
+        
+        <View style={[styles.bottomNav, { paddingBottom: bottomNavPadding }]}>
+          <NavItem icon="home-outline" label="Home" active={route === "dashboard"} onPress={() => setRoute("dashboard")} />
+          <NavItem icon="book-outline" label="Tutorial" active={route === "tutorial"} onPress={() => setRoute("tutorial")} />
+          <NavItem icon="create-outline" label="Feedback" active={route === "feedback"} onPress={() => setRoute("feedback")} />
+          <NavItem icon="settings-outline" label="Settings" active={route === "settings"} onPress={() => setRoute("settings")} />
+        </View>
+      </View>
     </>
   );
 }
@@ -256,6 +241,27 @@ function Chip({ label, active, onPress }) {
   return (
     <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
       <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const PRIMARY = "#E66E19";
+const MUTED = "#976D4E";
+
+function NavItem({
+  icon,
+  label,
+  active = false,
+  onPress,
+}) {
+  return (
+    <Pressable style={styles.navItem} onPress={onPress}>
+      <Ionicons
+        name={icon}
+        size={22}
+        color={active ? PRIMARY : MUTED}
+      />
+      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
     </Pressable>
   );
 }
@@ -290,4 +296,43 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.25)",
   },
   btnText: { color: "#fff", fontWeight: "800" },
+
+  bottomNav: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 10,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    borderTopWidth: 1,
+    borderTopColor: "#F3ECE7",
+    ...Platform.select({
+      android: { elevation: 10 },
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 8 },
+      },
+    }),
+  },
+  navItem: {
+    alignItems: "center",
+    gap: 3,
+    flex: 1,
+    paddingTop: 4,
+    paddingBottom: 8,
+  },
+  navLabel: {
+    fontSize: 10,
+    fontWeight: "600",
+    color: MUTED,
+  },
+  navLabelActive: {
+    color: PRIMARY,
+    fontWeight: "800",
+  },
 });

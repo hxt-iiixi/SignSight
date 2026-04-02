@@ -182,32 +182,12 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
         </View>
       </Modal>
 
-      <View style={styles.bottomNav}>
-        <NavItem icon="school-outline" label="Learn" active />
-        <NavItem icon="fitness-outline" label="Practice" />
-        <NavItem icon="trophy-outline" label="Challenges" />
-        <NavItem icon="person-outline" label="Profile" />
-      </View>
+
     </SafeAreaView>
   );
 }
 
-function NavItem({
-  icon,
-  label,
-  active = false,
-}: {
-  icon: any;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Pressable style={styles.navItem}>
-      <Ionicons name={icon} size={22} color={active ? PRIMARY : MUTED} />
-      <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
+
 
 const styles = StyleSheet.create({
   container: {
@@ -419,31 +399,5 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(231,217,208,0.55)",
-    backgroundColor: "rgba(255,255,255,0.96)",
-    paddingTop: 10,
-    paddingBottom: 24,
-    paddingHorizontal: 10,
-    justifyContent: "space-around",
-  },
-  navItem: {
-    alignItems: "center",
-    gap: 4,
-  },
-  navText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: MUTED,
-  },
-  navTextActive: {
-    color: PRIMARY,
-    fontWeight: "800",
-  },
+
 });

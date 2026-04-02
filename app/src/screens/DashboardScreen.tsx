@@ -134,53 +134,8 @@ export default function DashboardScreen({
         </View>
       </ScrollView>
 
-      <View
-        style={[
-          styles.bottomNav,
-          { paddingBottom: bottomNavPadding },
-        ]}
-      >
-        <NavItem icon="home-outline" label="Home" active />
-        <NavItem
-          icon="book-outline"
-          label="Tutorial"
-          onPress={onTutorial}
-        />
-        <NavItem
-          icon="create-outline"
-          label="Feedback"
-          onPress={onFeedback}
-        />
-        <NavItem
-          icon="settings-outline"
-          label="Settings"
-          onPress={onSettings}
-        />
-      </View>
-    </SafeAreaView>
-  );
-}
 
-function NavItem({
-  icon,
-  label,
-  active = false,
-  onPress,
-}: {
-  icon: any;
-  label: string;
-  active?: boolean;
-  onPress?: () => void;
-}) {
-  return (
-    <Pressable style={styles.navItem} onPress={onPress}>
-      <Ionicons
-        name={icon}
-        size={22}
-        color={active ? PRIMARY : MUTED}
-      />
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
-    </Pressable>
+    </SafeAreaView>
   );
 }
 
@@ -354,44 +309,5 @@ const styles = StyleSheet.create({
     color: MUTED,
   },
 
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: BORDER,
-    backgroundColor: "#FFFFFF",
-    paddingTop: 10,
-    paddingHorizontal: 18,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    ...Platform.select({
-      android: { elevation: 10 },
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.08,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 8 },
-      },
-    }),
-  },
-  navItem: {
-    alignItems: "center",
-    gap: 3,
-    flex: 1,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: MUTED,
-  },
-  navLabelActive: {
-    color: PRIMARY,
-    fontWeight: "800",
-  },
+
 });
