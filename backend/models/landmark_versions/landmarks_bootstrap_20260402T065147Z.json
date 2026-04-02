@@ -1,6 +1,6 @@
 {
-  "version_id": "landmarks_bootstrap_20260402T071140Z",
-  "label": "Signsight BT1.5",
+  "version_id": "landmarks_bootstrap_20260402T065147Z",
+  "label": "Signsight BT1.0",
   "training_mode": "bootstrap",
   "active_static_letters": [
     "A",
@@ -99,12 +99,12 @@
       "X: signers 0/1"
     ]
   },
-  "trained_at": "2026-04-02T07:11:40+00:00",
+  "trained_at": "2026-04-02T06:51:47+00:00",
   "training_sample_counts": {
     "A": 189,
     "B": 212,
     "C": 239,
-    "D": 63,
+    "D": 47,
     "E": 147,
     "F": 203,
     "I": 176,
