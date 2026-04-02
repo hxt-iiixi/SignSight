@@ -75,18 +75,18 @@ export default function LabTrainingTab({
 
         <View style={styles.pillRow}>
           <LabPill
-            label="Mode"
-            value={currentServingMode === "bootstrap" ? "Bootstrap" : "Full reviewed"}
+            label="Serving Mode"
+            value={currentServingMode === "bootstrap" ? "Bootstrap" : "Full Reviewed"}
             compact
           />
           <LabPill
-            label="Active"
+            label="Active Set"
             value={`${activeLetterCount}/${totalLetterCount}`}
             tone={activeLetterCount > 0 ? "success" : "warning"}
             compact
           />
           <LabPill
-            label="Ready"
+            label="Pending"
             value={String(readyCount)}
             tone={readyCount > 0 ? "info" : "neutral"}
             compact
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: PAD_MD,
     gap: 12,
-    paddingBottom: 80,
+    paddingBottom: 24,
   },
   sectionLabel: {
     color: TEXT_SECONDARY,
@@ -268,11 +268,11 @@ const styles = StyleSheet.create({
   },
   modeOption: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: RADIUS_MD,
     borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: BG_CARD,
+    borderColor: "rgba(0,0,0,0.05)",
+    backgroundColor: "rgba(0,0,0,0.02)",
     alignItems: "center",
   },
   modeOptionActive: {

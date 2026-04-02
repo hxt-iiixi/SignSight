@@ -144,39 +144,23 @@ export default function LabCaptureTab({
               <Text style={styles.sectionLabel}>LETTER CAPTURE</Text>
               <Text style={styles.targetTitle}>{selectedLabel}</Text>
             </View>
-            <View
-              style={[
-                styles.readinessChip,
-                {
-                  backgroundColor:
-                    readinessTone === "success"
-                      ? SUCCESS_LIGHT
-                      : readinessTone === "info"
-                        ? "#EFF6FF"
-                        : "#FFFBEB",
-                  borderColor:
-                    readinessTone === "success"
-                      ? SUCCESS_BORDER
-                      : readinessTone === "info"
-                        ? "rgba(37,99,235,0.20)"
-                        : "rgba(217,119,6,0.25)",
-                },
-              ]}
-            >
-              <Ionicons
-                name={readinessIcon as any}
-                size={12}
-                color={
-                  readinessTone === "success"
-                    ? SUCCESS
-                    : readinessTone === "info"
-                      ? INFO
-                      : WARNING
-                }
+            <View style={styles.readinessIndicator}>
+              <View
+                style={[
+                  styles.statusDotSmall,
+                  {
+                    backgroundColor:
+                      readinessTone === "success"
+                        ? SUCCESS
+                        : readinessTone === "info"
+                          ? INFO
+                          : WARNING,
+                  },
+                ]}
               />
               <Text
                 style={[
-                  styles.readinessChipText,
+                  styles.readinessTextLabel,
                   {
                     color:
                       readinessTone === "success"
@@ -287,24 +271,20 @@ export default function LabCaptureTab({
               <Text style={styles.sectionLabel}>STATIC WORD CAPTURE</Text>
               <Text style={styles.targetTitle}>{selectedWord}</Text>
             </View>
-            <View
-              style={[
-                styles.readinessChip,
-                {
-                  backgroundColor: isActive ? SUCCESS_LIGHT : "#EFF6FF",
-                  borderColor: isActive
-                    ? SUCCESS_BORDER
-                    : "rgba(37,99,235,0.20)",
-                },
-              ]}
-            >
+            <View style={styles.readinessIndicator}>
+              <View
+                style={[
+                  styles.statusDotSmall,
+                  { backgroundColor: isActive ? SUCCESS : INFO },
+                ]}
+              />
               <Text
                 style={[
-                  styles.readinessChipText,
+                  styles.readinessTextLabel,
                   { color: isActive ? SUCCESS : INFO },
                 ]}
               >
-                {isActive ? "Active" : "Static word"}
+                {isActive ? "Active" : "Static Word"}
               </Text>
             </View>
           </View>
@@ -454,7 +434,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: PAD_MD,
     gap: 12,
-    paddingBottom: 80,
+    paddingBottom: 24,
   },
   // Empty state
   emptyState: {
@@ -500,20 +480,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   // Readiness
-  readinessChip: {
+  readinessIndicator: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
     paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: RADIUS_PILL,
-    borderWidth: 1,
   },
-  readinessChipText: {
-    fontWeight: "800",
+  statusDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 6,
+  },
+  readinessTextLabel: {
+    fontWeight: "900",
     fontSize: 10,
     textTransform: "uppercase",
-    letterSpacing: 0.3,
+    letterSpacing: 0.8,
   },
   readinessDescription: {
     color: TEXT_SECONDARY,
@@ -562,7 +544,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     borderRadius: RADIUS_MD,
-    backgroundColor: ACCENT_LIGHT,
+    backgroundColor: BG_CARD,
     borderWidth: 1,
     borderColor: ACCENT_BORDER,
   },

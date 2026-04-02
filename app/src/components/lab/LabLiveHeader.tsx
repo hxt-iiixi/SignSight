@@ -90,12 +90,12 @@ export default function LabLiveHeader({
     <View style={styles.container}>
       {/* Top row: mode + hand status */}
       <View style={styles.topRow}>
-        <View style={styles.modeChip}>
+        <View style={styles.modeIndicator}>
           <Text style={styles.modeText}>
             {isWords ? "WORDS" : "LETTERS"} · {cameraPosition.toUpperCase()}
           </Text>
         </View>
-        <View style={styles.handStatusChip}>
+        <View style={styles.handStatusIndicator}>
           <View style={[styles.dot, { backgroundColor: handStatus.dotColor }]} />
           <Text style={[styles.handStatusText, { color: handStatus.color }]}>
             {handStatus.label}
@@ -118,15 +118,11 @@ export default function LabLiveHeader({
           </Text>
         </View>
 
-        <View
-          style={[
-            styles.confidenceBadge,
-            { backgroundColor: confTone.bg },
-          ]}
-        >
+        <View style={styles.confidenceIndicator}>
           <Text style={[styles.confidenceText, { color: confTone.color }]}>
             {confPercent}%
           </Text>
+          <Text style={styles.confidenceMetaText}>CONF</Text>
         </View>
       </View>
 
@@ -158,31 +154,29 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  modeChip: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: RADIUS_PILL,
-    backgroundColor: ACCENT_LIGHT,
+  modeIndicator: {
+    paddingVertical: 2,
   },
   modeText: {
     color: ACCENT,
     fontWeight: "900",
     fontSize: 10,
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
-  handStatusChip: {
+  handStatusIndicator: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
   },
   dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 7,
+    width: 6,
+    height: 6,
+    borderRadius: 6,
   },
   handStatusText: {
     fontWeight: "800",
     fontSize: 11,
+    letterSpacing: 0.2,
   },
   mainRow: {
     flexDirection: "row",
@@ -205,14 +199,20 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 11,
   },
-  confidenceBadge: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: RADIUS_PILL,
+  confidenceIndicator: {
+    alignItems: "flex-end",
+    gap: 0,
   },
   confidenceText: {
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  confidenceMetaText: {
+    color: TEXT_SECONDARY,
+    fontWeight: "800",
+    fontSize: 8,
+    letterSpacing: 0.5,
   },
   bottomRow: {
     flexDirection: "row",

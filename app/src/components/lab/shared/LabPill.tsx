@@ -82,48 +82,49 @@ export default function LabPill({
   const colors = TONE_MAP[tone];
 
   return (
-    <View
-      style={[
-        styles.pill,
-        { backgroundColor: colors.bg, borderColor: colors.border },
-        compact && styles.pillCompact,
-      ]}
-    >
+    <View style={[styles.pill, compact && styles.pillCompact]}>
       <Text style={styles.label}>{label}</Text>
-      <Text
-        style={[styles.value, { color: colors.valueColor }]}
-        numberOfLines={1}
-      >
-        {value}
-      </Text>
+      <View style={styles.valueRow}>
+        <View style={[styles.dot, { backgroundColor: colors.valueColor }]} />
+        <Text
+          style={[styles.value, { color: TEXT }]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   pill: {
-    minWidth: 88,
     flexGrow: 1,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS_MD,
-    borderWidth: 1,
+    paddingVertical: 8,
   },
   pillCompact: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    minWidth: 72,
+    paddingVertical: 4,
   },
   label: {
     color: TEXT_SECONDARY,
     fontWeight: "800",
     fontSize: 10,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
+  },
+  valueRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 6,
   },
   value: {
     fontWeight: "900",
-    fontSize: 14,
-    marginTop: 2,
+    fontSize: 15,
   },
 });

@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: PAD_MD,
     gap: 12,
-    paddingBottom: 80,
+    paddingBottom: 24,
   },
   groupTitle: {
     color: TEXT_SECONDARY,

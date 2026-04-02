@@ -374,7 +374,7 @@ export default function LabScreen({
       if (!nSignerId) { showStatus("Signer ID is required.", "warning"); return; }
       if (!nSessionId) { showStatus("Session ID is required.", "warning"); return; }
       if (!selectedLabel) { showStatus("Select a label first.", "warning"); return; }
-      showStatus(`Saving ${selectedLabel}...`, "info", 0);
+      showStatus(`Saving ${selectedLabel}`, "info", 0);
       const result = await saveStreamingLandmarkSample(latestHandFrame, API_BASE, selectedLabel, {
         signerId: nSignerId, captureSessionId: nSessionId, cameraPosition,
         deviceId: `${Platform.OS}_${cameraPosition}`, variantTags,
@@ -383,7 +383,7 @@ export default function LabScreen({
       setLastHandedness(result.handedness ?? null);
       await refreshSelectedLabelSummary();
       await refreshLabHealth();
-      showStatus(`Saved ✅ ${selectedLabel} (${result.handedness ?? "?"})`, "success");
+      showStatus(`Saved ${selectedLabel} (${result.handedness ?? "?"})`, "success");
     } catch { showStatus("Save error", "error"); }
   };
 
@@ -397,14 +397,14 @@ export default function LabScreen({
       if (!nSessionId) { showStatus("Session ID is required.", "warning"); return; }
       if (!selectedWord) { showStatus("Select a word first.", "warning"); return; }
       if (!selectedWordIsStaticLandmark) { showStatus("This word uses the gesture capture flow.", "warning"); return; }
-      showStatus(`Saving static word ${selectedWord}...`, "info", 0);
+      showStatus(`Saving static word ${selectedWord}`, "info", 0);
       const result = await saveStreamingStaticWordLandmarkSample(latestHandFrame, API_BASE, selectedWord, {
         signerId: nSignerId, captureSessionId: nSessionId, cameraPosition,
         deviceId: `${Platform.OS}_${cameraPosition}`, variantTags,
       });
       if (!result.ok) { showStatus(`Save failed: ${result.error ?? "unknown"}`, "error"); return; }
       setLastHandedness(result.handedness ?? null);
-      showStatus(`Saved ✅ static word ${selectedWord} (${result.handedness ?? "?"})`, "success");
+      showStatus(`Saved static word ${selectedWord} (${result.handedness ?? "?"})`, "success");
     } catch { showStatus("Save error", "error"); }
   };
 
@@ -412,7 +412,7 @@ export default function LabScreen({
   const trainLandmarks = async () => {
     try {
       showStatus(
-        `Retraining (${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"})...`,
+        `Retraining (${landmarkTrainingMode === "bootstrap" ? "bootstrap" : "full reviewed"})`,
         "training", 0
       );
       const res = await fetch(`${API_BASE}/train_landmarks`, {
@@ -441,36 +441,36 @@ export default function LabScreen({
         setActiveStaticLetters(active);
         await refreshSelectedLabelSummary();
         showStatus(
-          `New model created ✅${acc} ${active.length}/${STATIC_ASL_LABELS.length} active`,
+          `New model created ${acc} ${active.length}/${STATIC_ASL_LABELS.length} active`,
           "success"
         );
         return;
       }
       const firstDeficit = Array.isArray(json.deficits) && json.deficits.length > 0 ? ` ${json.deficits[0]}` : "";
-      showStatus(`Training blocked ❌ ${json.error ?? "unknown"}${firstDeficit}`, "error", 8000);
+      showStatus(`Training blocked ${json.error ?? "unknown"}${firstDeficit}`, "error", 8000);
     } catch { showStatus("Training error", "error"); }
   };
 
   // ─── API: Train gestures ────────────────────────────────────
   const trainGestures = async () => {
     try {
-      showStatus("Training gestures...", "training", 0);
+      showStatus("Training gestures", "training", 0);
       const res = await fetch(`${API_BASE}/train_gestures`, { method: "POST" });
       const text = await res.text();
       let json: any = null;
       try { json = JSON.parse(text); } catch {}
       if (!res.ok) { showStatus(`HTTP ${res.status}: ${text.slice(0, 120)}`, "error"); return; }
       if (!json) { showStatus(`Non-JSON response: ${text.slice(0, 120)}`, "error"); return; }
-      if (json.ok === false) { showStatus(`Training failed ❌ ${json.error ?? ""}`.trim(), "error"); return; }
+      if (json.ok === false) { showStatus(`Training failed ${json.error ?? ""}`.trim(), "error"); return; }
       const acc = typeof json.accuracy === "number" ? ` (acc ${Math.round(json.accuracy * 100)}%)` : "";
-      showStatus(`Gesture training complete ✅${acc}`, "success");
+      showStatus(`Gesture training complete ${acc}`, "success");
     } catch (e: any) { showStatus(`Gesture training error: ${e?.message ?? String(e)}`, "error"); }
   };
 
   // ─── API: Activate model ────────────────────────────────────
   const activateLandmarkModelVersion = async (versionId: string) => {
     try {
-      showStatus("Switching model...", "info", 0);
+      showStatus("Switching model", "info", 0);
       const res = await fetch(`${API_BASE}/activate_landmark_model`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -492,7 +492,7 @@ export default function LabScreen({
         return next;
       });
       await refreshSelectedLabelSummary();
-      showStatus(`Switched to ${versionId} ✅`, "success");
+      showStatus(`Switched to ${versionId}`, "success");
     } catch { showStatus("Switch error", "error"); }
   };
 
@@ -501,7 +501,7 @@ export default function LabScreen({
     try {
       const nextLabel = (modelRenameDrafts[versionId] ?? "").trim();
       if (!nextLabel) { showStatus("Model name cannot be empty.", "warning"); return; }
-      showStatus(`Renaming ${versionId}...`, "info", 0);
+      showStatus(`Renaming ${versionId}`, "info", 0);
       const res = await fetch(`${API_BASE}/rename_landmark_model`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -517,14 +517,14 @@ export default function LabScreen({
         return next;
       });
       await refreshLabHealth();
-      showStatus(`Renamed ✅ ${nextLabel}`, "success");
+      showStatus(`Renamed ${nextLabel}`, "success");
     } catch { showStatus("Rename error", "error"); }
   };
 
   // ─── API: Archive model ─────────────────────────────────────
   const archiveLandmarkModelVersion = async (versionId: string) => {
     try {
-      showStatus(`Archiving ${versionId}...`, "info", 0);
+      showStatus(`Archiving ${versionId}`, "info", 0);
       const res = await fetch(`${API_BASE}/archive_landmark_model`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -544,7 +544,7 @@ export default function LabScreen({
         return next;
       });
       await refreshLabHealth();
-      showStatus(`Archived ✅ ${versionId}`, "success");
+      showStatus(`Archived ${versionId}`, "success");
     } catch { showStatus("Archive error", "error"); }
   };
 
@@ -562,7 +562,7 @@ export default function LabScreen({
     setIsRecordingGesture((prev) => {
       const next = !prev;
       if (next) {
-        showStatus("Recording gesture… hold steady", "recording", 0);
+        showStatus("Recording gesture", "recording", 0);
         buffersRef.current.recordingFrames = [];
         setRecordingGestureFramesCount(0);
       } else {
@@ -587,7 +587,7 @@ export default function LabScreen({
         return;
       }
       if (!selectedWord) { showStatus("Select a word first.", "warning"); return; }
-      showStatus(`Saving gesture ${selectedWord}...`, "info", 0);
+      showStatus(`Saving gesture ${selectedWord}`, "info", 0);
       const res = await fetch(`${API_BASE}/upload_gesture`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -603,7 +603,7 @@ export default function LabScreen({
         return;
       }
       showStatus(
-        `Saved ✅ ${selectedWord} (${buffersRef.current.recordingFrames.length} frames)`,
+        `Saved ${selectedWord} (${buffersRef.current.recordingFrames.length} frames)`,
         "success"
       );
     } catch { showStatus("Save gesture error", "error"); }

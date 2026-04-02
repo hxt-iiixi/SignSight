@@ -88,8 +88,8 @@ export default function LabSessionBar({
         onPress={onToggleMode}
         disabled={isRecordingGesture}
         style={({ pressed }) => [
-          styles.modeButton,
-          pressed && { opacity: 0.85 },
+          styles.actionItem,
+          pressed && { opacity: 0.7 },
           isRecordingGesture && styles.disabled,
         ]}
       >
@@ -98,46 +98,44 @@ export default function LabSessionBar({
           size={14}
           color={ACCENT}
         />
-        <Text style={styles.modeButtonText}>
+        <Text style={styles.actionText}>
           {detectMode === "LETTERS" ? "Letters" : "Words"}
         </Text>
       </Pressable>
+
+      <View style={styles.separator} />
 
       {/* Camera toggle */}
       <Pressable
         onPress={onToggleCamera}
         style={({ pressed }) => [
-          styles.cameraButton,
-          pressed && { opacity: 0.85 },
+          styles.actionItem,
+          pressed && { opacity: 0.7 },
         ]}
       >
-        <Ionicons name="camera-reverse-outline" size={14} color={TEXT} />
-        <Text style={styles.cameraButtonText}>
+        <Ionicons name="camera-reverse-outline" size={14} color={TEXT_SECONDARY} />
+        <Text style={styles.actionTextSecondary}>
           {cameraPosition === "front" ? "Front" : "Back"}
         </Text>
       </Pressable>
+
+      <View style={styles.separator} />
 
       {/* Target display + readiness */}
       <Pressable
         onPress={onOpenTargetSelector}
         style={({ pressed }) => [
-          styles.targetButton,
-          pressed && { opacity: 0.85 },
+          styles.targetItem,
+          pressed && { opacity: 0.7 },
         ]}
       >
         <View style={styles.targetTextWrap}>
           <Text style={styles.targetLabel} numberOfLines={1}>
-            {selectedTarget ?? "Select"}
+            {selectedTarget ?? "Select Target"}
           </Text>
-          <View
-            style={[
-              styles.readinessBadge,
-              { backgroundColor: readiness.bg, borderColor: readiness.border },
-            ]}
-          >
-            <Text
-              style={[styles.readinessText, { color: readiness.color }]}
-            >
+          <View style={styles.readinessIndicator}>
+            <View style={[styles.statusDot, { backgroundColor: readiness.color }]} />
+            <Text style={[styles.readinessText, { color: readiness.color }]}>
               {readiness.label}
             </Text>
           </View>
@@ -152,79 +150,70 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
     paddingHorizontal: PAD_LG,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: "rgba(0,0,0,0.04)",
+    borderTopColor: "rgba(0,0,0,0.03)",
   },
-  modeButton: {
+  actionItem: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS_MD,
-    backgroundColor: ACCENT_LIGHT,
-    borderWidth: 1,
-    borderColor: ACCENT_BORDER,
+    gap: 6,
+    paddingVertical: 6,
+    paddingRight: 4,
   },
-  modeButtonText: {
+  actionText: {
     color: ACCENT,
     fontWeight: "900",
     fontSize: 12,
   },
-  disabled: {
-    opacity: 0.5,
-  },
-  cameraButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS_MD,
-    backgroundColor: "rgba(0,0,0,0.03)",
-    borderWidth: 0,
-  },
-  cameraButtonText: {
-    color: TEXT,
+  actionTextSecondary: {
+    color: TEXT_SECONDARY,
     fontWeight: "800",
     fontSize: 12,
   },
-  targetButton: {
+  separator: {
+    width: 1,
+    height: 14,
+    backgroundColor: "rgba(0,0,0,0.08)",
+    marginHorizontal: 10,
+  },
+  targetItem: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: RADIUS_MD,
-    backgroundColor: "rgba(0,0,0,0.03)",
-    borderWidth: 0,
+    paddingVertical: 6,
   },
   targetTextWrap: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
   targetLabel: {
     color: TEXT,
     fontWeight: "900",
     fontSize: 13,
   },
-  readinessBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: RADIUS_PILL,
-    borderWidth: 1,
+  readinessIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  statusDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 4,
   },
   readinessText: {
     fontWeight: "800",
     fontSize: 9,
     textTransform: "uppercase",
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
+  },
+  disabled: {
+    opacity: 0.4,
   },
 });
