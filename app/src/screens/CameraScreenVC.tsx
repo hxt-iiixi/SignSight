@@ -124,8 +124,8 @@ export default function CameraScreenVC({
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const bottomSafeLift = Platform.OS === "android" ? 28 : 18;
-  const translatorBottomInset = Platform.OS === "android" ? 34 : 18;
+  const bottomSafeLift = Platform.OS === "android" ? 16 : 8;
+  const translatorBottomInset = Platform.OS === "android" ? 16 : 8;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -2031,34 +2031,59 @@ export default function CameraScreenVC({
           ]}
         >
           {/* Prediction Slot */}
-          <View style={[styles.panelTop, { paddingBottom: isRecordingGesture ? SPACING.SPACE_LG : SPACING.SPACE_MD }]}>
-            <Text style={styles.centerKicker}>{centerTitle}</Text>
-            <Text style={styles.centerLabel} numberOfLines={1}>
-              {displayLabel}
-            </Text>
+          <View style={styles.panelTop}>
+            {/* Top row: mode + hand status */}
+            <View style={styles.topRow}>
+              <View style={styles.modeIndicator}>
+                <Text style={styles.modeText}>
+                  {detectMode === "WORDS" ? "WORDS" : "LETTERS"} · {cameraPosition.toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.handStatusIndicator}>
+                <View style={[styles.dot, { backgroundColor: lastHandedness ? "#10B981" : "#9CA3AF" }]} />
+                <Text style={[styles.handStatusText, { color: lastHandedness ? "#10B981" : MUTED }]}>
+                  {lastHandedness ? "Hand detected" : "No hand"}
+                </Text>
+              </View>
+            </View>
 
-            <View style={styles.centerMetaRow}>
-              <Text style={styles.centerMeta}>{Math.round(lastConf * 100)}%</Text>
-              <View style={styles.dot} />
-              <Text style={styles.centerMeta}>
-                {detectMode === "WORDS"
-                  ? `${currentWordFramesCount}/${GESTURE_FRAMES} FR`
-                  : `Hand ${lastHandedness ?? "-"}`}
-              </Text>
-              {isRecordingGesture && (
-                <>
-                  <View style={styles.dot} />
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: RECORDING }} />
-                    <Text style={[styles.centerMeta, { color: RECORDING }]}>REC</Text>
-                  </View>
-                </>
-              )}
+            {/* Main row: prediction + confidence */}
+            <View style={styles.mainRow}>
+              <View style={styles.predictionWrap}>
+                <Text style={styles.predictionLabel} numberOfLines={1}>
+                  {displayLabel}
+                </Text>
+                <Text style={styles.rawMeta} numberOfLines={1}>
+                  Raw: {rawLabel || "—"} · Hand: {lastHandedness || "—"}
+                  {detectMode === "WORDS"
+                    ? ` · Frames: ${currentWordFramesCount}/${GESTURE_FRAMES}`
+                    : ""}
+                </Text>
+              </View>
+
+              <View style={styles.confidenceIndicator}>
+                <Text style={[
+                  styles.confidenceText, 
+                  { color: Math.round(lastConf * 100) >= 50 ? (Math.round(lastConf * 100) >= 75 ? "#10B981" : "#F59E0B") : MUTED }
+                ]}>
+                  {Math.round(lastConf * 100)}%
+                </Text>
+                <Text style={styles.confidenceMetaText}>CONF</Text>
+              </View>
+            </View>
+
+            {/* Bottom Row - For recording or status */}
+            <View style={styles.bottomRow}>
+               <Text style={styles.modelText} numberOfLines={1}>
+                 {isRecordingGesture 
+                   ? `Recording · ${currentWordFramesCount}/${GESTURE_FRAMES} frames` 
+                   : "Translator Active"}
+               </Text>
             </View>
           </View>
 
           {/* Action Slot */}
-          <View style={[styles.panelBottom, { paddingBottom: translatorBottomInset + SPACING.SPACE_SM }]}>
+          <View style={[styles.panelBottom, { paddingBottom: SPACING.SPACE_SM }]}>
             <Pressable
               onPress={() => {
                 if (isRecordingGesture) {
@@ -2208,26 +2233,78 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  centerKicker: {
-    color: ACCENT,
-    fontWeight: "900",
-    letterSpacing: 1.4,
-    fontSize: TYPOGRAPHY.TEXT_XS,
-  },
-  centerLabel: {
-    color: TEXT,
-    fontWeight: "900",
-    fontSize: TYPOGRAPHY.TEXT_4XL,
-    marginTop: SPACING.SPACE_XS,
-  },
-  centerMetaRow: {
+  dot: { width: 6, height: 6, borderRadius: 6, backgroundColor: "#9CA3AF" },
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.SPACE_XS,
-    marginTop: SPACING.SPACE_XS,
+    justifyContent: "space-between",
   },
-  centerMeta: { color: MUTED, fontWeight: "800" },
-  dot: { width: 4, height: 4, borderRadius: 4, backgroundColor: "#D1D5DB" },
+  modeIndicator: {
+    paddingVertical: 2,
+  },
+  modeText: {
+    color: ACCENT,
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    letterSpacing: 1.2,
+  },
+  handStatusIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  handStatusText: {
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    letterSpacing: 0.2,
+  },
+  mainRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginTop: 8,
+  },
+  predictionWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  predictionLabel: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_3XL,
+    letterSpacing: -0.2,
+  },
+  rawMeta: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+  },
+  confidenceIndicator: {
+    alignItems: "flex-end",
+    gap: 0,
+  },
+  confidenceText: {
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_LG,
+    lineHeight: 22,
+  },
+  confidenceMetaText: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    letterSpacing: 0.5,
+  },
+  bottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  modelText: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+  },
 
   // --- MODERN MINIMAL HUD ---
   minimalHeader: {
@@ -2263,20 +2340,20 @@ const styles = StyleSheet.create({
   },
   unifiedBottomPanel: {
     position: "absolute",
-    left: SPACING.SPACE_MD,
-    right: SPACING.SPACE_MD,
+    left: SPACING.SPACE_SM,
+    right: SPACING.SPACE_SM,
     backgroundColor: "rgba(255,255,255,0.95)",
-    borderRadius: 32,
+    borderRadius: 20,
     overflow: "hidden",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.8)",
   },
   panelTop: {
-    padding: SPACING.SPACE_LG,
-    paddingBottom: SPACING.SPACE_MD,
+    padding: SPACING.SPACE_SM,
+    paddingHorizontal: SPACING.SPACE_MD,
   },
   panelBottom: {
-    padding: SPACING.SPACE_SM,
+    padding: SPACING.SPACE_XS,
     backgroundColor: "rgba(249,250,251,0.5)",
     borderTopWidth: 1,
     borderTopColor: "rgba(229,231,235,0.5)",
@@ -2285,8 +2362,8 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     flex: 1,
-    paddingVertical: SPACING.SPACE_MD,
-    borderRadius: 20,
+    paddingVertical: SPACING.SPACE_XS,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
