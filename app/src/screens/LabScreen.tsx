@@ -736,71 +736,37 @@ export default function LabScreen({
 
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
   const panelMaxHeight = Math.round(height * 0.52);
-
+  const totalClosedY = panelMaxHeight;
   const panY = useRef(new Animated.Value(0)).current;
-  const isPanelOpenRef = useRef(isPanelOpen);
-  isPanelOpenRef.current = isPanelOpen;
-  const dragStartY = useRef(0);
+  const contentOpacity = panY.interpolate({
+    inputRange: [0, panelMaxHeight],
+    outputRange: [1, 0],
+  });
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Start dragging if vertical movement is > 5
-        return Math.abs(gestureState.dy) > 5;
-      },
-      onPanResponderGrant: () => {
-        // Record starting baseline: 0 if open, panelMaxHeight if closed
-        dragStartY.current = isPanelOpenRef.current ? 0 : panelMaxHeight;
-        if (!isPanelOpenRef.current) {
-          panY.setValue(panelMaxHeight);
-          setIsPanelOpen(true); // Mount content so we can drag it UP
-        }
-      },
-      onPanResponderMove: (_, gestureState) => {
-        let newY = dragStartY.current + gestureState.dy;
-        // Clamp to [0, max]
-        if (newY < 0) newY = 0;
-        if (newY > panelMaxHeight) newY = panelMaxHeight;
-        panY.setValue(newY);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const currentY = dragStartY.current + gestureState.dy;
-        
-        // velocity > 0 is down, < 0 is up
-        const isSwipeDown = gestureState.vy > 0.5;
-        const isSwipeUp = gestureState.vy < -0.5;
-        
-        let shouldClose = false;
-        if (isSwipeDown) shouldClose = true;
-        else if (isSwipeUp) shouldClose = false;
-        else shouldClose = currentY > panelMaxHeight / 2;
-
-        if (shouldClose) {
-          Animated.timing(panY, {
-            toValue: panelMaxHeight,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(() => {
-            setIsPanelOpen(false);
-            panY.setValue(0);
-          });
-        } else {
-          setIsPanelOpen(true);
-          Animated.spring(panY, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    })
-  ).current;
+  const togglePanel = () => {
+    if (isPanelOpen) {
+      Animated.timing(panY, {
+        toValue: totalClosedY,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsPanelOpen(false);
+      });
+    } else {
+      setIsPanelOpen(true);
+      Animated.spring(panY, {
+        toValue: 0,
+        useNativeDriver: true,
+      }).start();
+    }
+  };
 
   // No interpolation needed — panY IS the translateY directly
 
   const handleNavPress = (key: LabTab) => {
     if (!isPanelOpen) {
       // Open from closed
-      panY.setValue(panelMaxHeight);
+      panY.setValue(totalClosedY);
       setActiveTab(key);
       setIsPanelOpen(true);
       Animated.spring(panY, {
@@ -810,12 +776,11 @@ export default function LabScreen({
     } else if (activeTab === key) {
       // Close active tab (tapped the already active, open tab)
       Animated.timing(panY, {
-        toValue: panelMaxHeight,
+        toValue: totalClosedY,
         duration: 250,
         useNativeDriver: true,
       }).start(() => {
         setIsPanelOpen(false);
-        panY.setValue(0);
       });
     } else {
       // Switch tab (already open)
@@ -1016,10 +981,17 @@ export default function LabScreen({
 
         {/* ─── Unified Bottom Sheet ─── */}
         <Animated.View style={[styles.bottomSheet, { paddingBottom: bottomNavPadding, transform: [{ translateY: panY }] }]}>
-          {/* Drag handle (no close button, drag to close) */}
-          <View style={styles.panelHeader} {...panResponder.panHandlers}>
-            <View style={styles.panelDragHandle} />
-          </View>
+          {/* Toggle Header */}
+          <Pressable 
+            style={({ pressed }) => [styles.panelHeader, pressed && { opacity: 0.7 }]} 
+            onPress={togglePanel}
+          >
+            <Ionicons 
+              name={isPanelOpen ? "chevron-down" : "chevron-up"} 
+              size={24} 
+              color="rgba(0,0,0,0.3)" 
+            />
+          </Pressable>
 
           {/* Navigation Bar (Tabs on top of content) */}
           <View style={styles.bottomNavBar}>
@@ -1047,10 +1019,12 @@ export default function LabScreen({
             })}
           </View>
 
-          {/* Hideable Content Panel — fixed-height clip box + translateY for native-thread animation */}
+          {/* Hideable Content Panel — fixed-height clip box + opacity fade for artifact-free collapse */}
           {activeTab != null && (
-            <View style={{ height: panelVisible ? panelMaxHeight : 0, overflow: 'hidden' }}>
-            <View style={[styles.contentPanel, { height: panelMaxHeight }]}>
+            <Animated.View 
+              pointerEvents={isPanelOpen ? 'auto' : 'none'}
+              style={[styles.contentPanel, { height: panelMaxHeight, opacity: contentOpacity }]}
+            >
               {activeTab === "capture" && (
                 <LabCaptureTab
                   detectMode={detectMode}
@@ -1128,8 +1102,7 @@ export default function LabScreen({
                   isSupported={isSupported}
                 />
               )}
-            </View>
-            </View>
+            </Animated.View>
           )}
         </Animated.View>
       </View>
@@ -1279,10 +1252,7 @@ const styles = StyleSheet.create({
     height: 40,
   },
   panelDragHandle: {
-    width: 48,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "rgba(0,0,0,0.15)",
+    display: 'none',
   },
   // Navigation Bar (Tabs) inside the bottom sheet
   bottomNavBar: {
