@@ -8,11 +8,13 @@ type LabScreenProps = {
   onBack: () => void;
   debugEnabled: boolean;
   showHandOverlay: boolean;
+  children?: React.ReactNode;
 };
 
 export default function LabScreen({
   onBack,
   showHandOverlay,
+  children,
 }: LabScreenProps) {
   const { width } = useWindowDimensions();
   const isSmall = width < 360;
@@ -48,6 +50,8 @@ export default function LabScreen({
       topFadeHeight={topFadeHeight}
       topPadding={isTablet ? 24 : isSmall ? 14 : 18}
       torchEnabled={cameraRuntime.torchEnabled}
-    />
+    >
+      {children}
+    </CameraShell>
   );
 }
