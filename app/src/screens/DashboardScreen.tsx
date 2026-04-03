@@ -76,23 +76,18 @@ export default function DashboardScreen({
               <View style={styles.heroOverlay} />
               <View style={styles.liveBadge}>
                 <Text style={styles.liveBadgeText}>LIVE DETECTION READY</Text>
-          </View>
               </View>
             </ImageBackground>
 
             <View style={styles.heroBody}>
               <Text style={styles.heroBodyTitle}>Translate ASL Letters</Text>
-          </View>
               <Text style={styles.heroBodySub}>
                 Start real-time translation using your device&apos;s camera to
                 identify landmarks and signs.
               </Text>
-          </View>
-
               <Pressable style={styles.startBtn} onPress={onTranslate}>
                 <Ionicons name="videocam-outline" size={18} color="#fff" />
                 <Text style={styles.startBtnText}>Start Camera</Text>
-          </View>
               </Pressable>
             </View>
           </View>
@@ -101,7 +96,6 @@ export default function DashboardScreen({
         {/* Tips */}
         <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: SPACING.SPACE_LG }]}>
           <Text style={styles.sectionTitle}>Tips for Better Accuracy</Text>
-          </View>
         </View>
 
         <View style={[styles.tipsList, { paddingHorizontal: P }]}>
@@ -111,11 +105,9 @@ export default function DashboardScreen({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.tipTitle}>Good Lighting</Text>
-          </View>
               <Text style={styles.tipDesc}>
                 Ensure your hands are well-lit for the sensor to track landmarks accurately.
               </Text>
-          </View>
             </View>
           </View>
 
@@ -125,17 +117,13 @@ export default function DashboardScreen({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.tipTitle}>Stay in Frame</Text>
-          </View>
               <Text style={styles.tipDesc}>
                 Keep your hands within the camera frame, about 2–3 feet away from the lens.
               </Text>
-          </View>
             </View>
           </View>
         </View>
       </ScrollView>
-
-
     </SafeAreaView>
   );
 }
