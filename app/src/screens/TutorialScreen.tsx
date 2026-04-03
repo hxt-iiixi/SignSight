@@ -18,7 +18,6 @@ import { SPACING } from "../config/spacing";
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const PRIMARY = "#E66E19";
-const PRIMARY_CONTAINER = "#F47A22";
 const BG = "#F8F9FA";
 const CARD = "#FFFFFF";
 const BORDER = "#F3F4F5";
@@ -83,7 +82,7 @@ const LETTER_DESCRIPTIONS: Record<string, string> = {
   Z: "Draw the letter Z in the air with the index finger.",
 };
 
-export default function TutorialScreen({ onBack }: { onBack: () => void }) {
+export default function TutorialScreen() {
   const [selected, setSelected] = useState("A");
   const [showImageModal, setShowImageModal] = useState(false);
   const { width } = useWindowDimensions();

@@ -30,7 +30,6 @@ type SettingsScreenProps = {
 };
 
 export default function SettingsScreen({
-  onBack,
   debugEnabled,
   setDebugEnabled,
   showHandOverlay,

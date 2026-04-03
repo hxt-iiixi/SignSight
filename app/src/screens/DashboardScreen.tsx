@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   Platform,
   ScrollView,
-  StatusBar,
   useWindowDimensions,
   ImageBackground,
   Image,
@@ -17,7 +16,6 @@ import { TYPOGRAPHY } from "../config/typography";
 import { SPACING } from "../config/spacing";
 
 const PRIMARY = "#E66E19";
-const PRIMARY_CONTAINER = "#F47A22";
 const BG = "#F8F9FA";
 const CARD = "#FFFFFF";
 const TEXT = "#191C1D";
@@ -26,14 +24,8 @@ const BORDER = "#F3F4F5";
 
 export default function DashboardScreen({
   onTranslate,
-  onTutorial,
-  onSettings,
-  onFeedback,
 }: {
   onTranslate: () => void;
-  onTutorial: () => void;
-  onSettings: () => void;
-  onFeedback: () => void;
 }) {
   const { width } = useWindowDimensions();
 
@@ -41,8 +33,6 @@ export default function DashboardScreen({
   const isTablet = width >= 768;
 
   const P = isTablet ? 28 : isSmall ? 14 : 18;
-  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const topSpacing = statusBarInset + (isTablet ? 24 : 16);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
   const scrollBottomPadding = bottomNavPadding + 110;
 

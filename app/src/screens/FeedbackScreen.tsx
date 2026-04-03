@@ -19,18 +19,16 @@ import { TYPOGRAPHY } from "../config/typography";
 import { SPACING } from "../config/spacing";
 import { 
   ACCENT as PRIMARY,
-  PRIMARY_CONTAINER, 
   BORDER, 
   TEXT_SECONDARY as MUTED, 
   TEXT, 
-  BG, 
-  BG_CARD as CARD 
+  BG
 } from "../components/lab/shared/labColors";
 
 const CATEGORIES = ["general", "bug", "feature", "ui"] as const;
 type Category = (typeof CATEGORIES)[number];
 
-export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
+export default function FeedbackScreen() {
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState<Category>("general");
   const [rating, setRating] = useState<number | null>(4);
