@@ -7,6 +7,8 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  Modal,
+  SafeAreaView,
   Platform,
   StatusBar,
   TextInput,
@@ -124,8 +126,8 @@ export default function CameraScreenVC({
 
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const bottomSafeLift = Platform.OS === "android" ? 26 : 8;
-  const translatorBottomInset = Platform.OS === "android" ? 24 : 8;
+  const bottomSafeLift = Platform.OS === "android" ? 44 : 32;
+  const translatorBottomInset = Platform.OS === "android" ? 36 : 18;
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -227,6 +229,7 @@ export default function CameraScreenVC({
   const [showModelVersions, setShowModelVersions] = useState(false);
   const [showArchivedModelVersions, setShowArchivedModelVersions] = useState(false);
   const [showTargetChoices, setShowTargetChoices] = useState(false);
+  const [showTranslatorModelChoices, setShowTranslatorModelChoices] = useState(false);
   const [modelRenameDrafts, setModelRenameDrafts] = useState<ModelRenameDrafts>(
     {}
   );
@@ -2032,15 +2035,6 @@ export default function CameraScreenVC({
         >
           {/* Prediction Slot */}
           <View style={styles.panelTop}>
-            {/* Top row: mode + hand status */}
-            <View style={styles.topRow}>
-              <View style={styles.modeIndicator}>
-                <Text style={styles.modeText}>
-                  {detectMode === "WORDS" ? "WORDS" : "LETTERS"} · {cameraPosition.toUpperCase()}
-                </Text>
-              </View>
-            </View>
-
             {/* Main row: prediction + confidence */}
             <View style={styles.mainRow}>
               <View style={styles.predictionWrap}>
@@ -2063,44 +2057,167 @@ export default function CameraScreenVC({
 
           {/* Action Slot */}
           <View style={[styles.panelBottom, { paddingBottom: SPACING.SPACE_SM }]}>
-            <Pressable
-              onPress={() => {
-                if (isRecordingGesture) {
-                  setStatus("Stop recording first.");
-                  return;
-                }
-                setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
-              }}
-              style={({ pressed }) => [
-                styles.actionBtn,
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <Text style={styles.actionBtnText}>
-                {detectMode === "LETTERS" ? "Switch to Words" : "Switch to Letters"}
-              </Text>
-            </Pressable>
+            <View style={styles.translatorSessionBar}>
+              <Pressable
+                onPress={() => {
+                  if (isRecordingGesture) {
+                    setStatus("Stop recording first.");
+                    return;
+                  }
+                  setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
+                }}
+                style={({ pressed }) => [
+                  styles.translatorBarAction,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons
+                  name={detectMode === "LETTERS" ? "text" : "chatbubble-ellipses"}
+                  size={14}
+                  color={ACCENT}
+                />
+                <Text style={styles.translatorBarActionText}>
+                  {detectMode === "LETTERS" ? "Letters" : "Words"}
+                </Text>
+              </Pressable>
 
-            <Pressable
-              onPress={() =>
-                setCameraPosition((p) => (p === "back" ? "front" : "back"))
-              }
-              style={({ pressed }) => [
-                styles.actionBtn,
-                pressed && { opacity: 0.8 },
-              ]}
-            >
-              <Ionicons 
-                name={cameraPosition === "back" ? "camera-reverse" : "camera"} 
-                size={18} 
-                color={TEXT} 
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.actionBtnText}>Flip Camera</Text>
-            </Pressable>
+              <View style={styles.translatorBarSeparator} />
+
+              <Pressable
+                onPress={() =>
+                  setCameraPosition((p) => (p === "back" ? "front" : "back"))
+                }
+                style={({ pressed }) => [
+                  styles.translatorIconAction,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons
+                  name="camera-reverse-outline"
+                  size={18}
+                  color={TEXT}
+                />
+              </Pressable>
+
+              <View style={styles.translatorBarSeparator} />
+
+              <Pressable
+                onPress={() => setShowTranslatorModelChoices(true)}
+                style={({ pressed }) => [
+                  styles.translatorModelItem,
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Ionicons name="layers-outline" size={16} color={TEXT} />
+                <Text style={styles.translatorModelButtonText}>Model</Text>
+                <Ionicons name="chevron-down" size={14} color={TEXT} />
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
+
+      {!isLab ? (
+        <Modal
+          visible={showTranslatorModelChoices}
+          animationType="fade"
+          transparent
+          onRequestClose={() => setShowTranslatorModelChoices(false)}
+        >
+          <View style={styles.modelPickerBackdrop}>
+            <SafeAreaView style={styles.modelPickerSafeArea}>
+              <Pressable
+                style={styles.modelPickerBackdropPressable}
+                onPress={() => setShowTranslatorModelChoices(false)}
+              />
+              <View style={styles.modelPickerContainer}>
+              <View style={styles.modelPickerHeader}>
+                <View style={styles.modelPickerHeaderText}>
+                  <View style={styles.modelPickerHandle} />
+                  <Text style={styles.modelPickerEyebrow}>Model</Text>
+                  <Text style={styles.modelPickerTitle}>Choose translation model</Text>
+                  <Text style={styles.modelPickerSubtitle}>
+                    Choose which landmark model should power translation.
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => setShowTranslatorModelChoices(false)}
+                  style={({ pressed }) => [
+                    styles.modelPickerCloseButton,
+                    pressed && { opacity: 0.85 },
+                  ]}
+                >
+                  <Ionicons name="close" size={18} color={TEXT} />
+                </Pressable>
+              </View>
+
+              <ScrollView
+                contentContainerStyle={styles.modelPickerList}
+                showsVerticalScrollIndicator={false}
+              >
+                {availableLandmarkModelVersions.length === 0 ? (
+                  <View style={styles.modelPickerEmptyState}>
+                    <Ionicons name="cube-outline" size={28} color={MUTED} />
+                    <Text style={styles.modelPickerEmptyTitle}>No saved models</Text>
+                    <Text style={styles.modelPickerEmptyText}>
+                      Train a landmark model in Developer Lab first.
+                    </Text>
+                  </View>
+                ) : (
+                  availableLandmarkModelVersions.map((version) => {
+                    const versionId = String(version.version_id);
+                    const isActive = versionId === activeLandmarkModelVersionId;
+                    return (
+                      <Pressable
+                        key={versionId}
+                        onPress={() => {
+                          if (!isActive) {
+                            void activateLandmarkModelVersion(versionId);
+                          }
+                          setShowTranslatorModelChoices(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.modelPickerCard,
+                          isActive && styles.modelPickerCardActive,
+                          pressed && { opacity: 0.85 },
+                        ]}
+                      >
+                        <View style={styles.modelPickerCardMain}>
+                          <View style={styles.modelPickerCardTitleRow}>
+                            <Text style={styles.modelPickerCardTitle} numberOfLines={1}>
+                              {String(version.label ?? versionId)}
+                            </Text>
+                            {isActive ? (
+                              <View style={styles.modelPickerLiveBadge}>
+                                <View style={styles.modelPickerLiveDot} />
+                                <Text style={styles.modelPickerLiveText}>LIVE</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                          <Text style={styles.modelPickerCardMeta} numberOfLines={1}>
+                            {version.training_mode === "bootstrap"
+                              ? "Bootstrap"
+                              : "Full reviewed"}
+                            {Array.isArray(version.active_static_letters)
+                              ? ` · ${version.active_static_letters.length} letters`
+                              : ""}
+                          </Text>
+                        </View>
+                        {isActive ? (
+                          <Ionicons name="checkmark-circle" size={20} color={ACCENT} />
+                        ) : (
+                          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                        )}
+                      </Pressable>
+                    );
+                  })
+                )}
+              </ScrollView>
+              </View>
+            </SafeAreaView>
+          </View>
+        </Modal>
+      ) : null}
     </View>
   );
 }
@@ -2212,31 +2329,6 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  dot: { width: 6, height: 6, borderRadius: 6, backgroundColor: "#9CA3AF" },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  modeIndicator: {
-    paddingVertical: 2,
-  },
-  modeText: {
-    color: ACCENT,
-    fontWeight: "900",
-    fontSize: TYPOGRAPHY.TEXT_XXS,
-    letterSpacing: 1.2,
-  },
-  handStatusIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  handStatusText: {
-    fontWeight: "800",
-    fontSize: TYPOGRAPHY.TEXT_XS,
-    letterSpacing: 0.2,
-  },
   mainRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -2283,6 +2375,221 @@ const styles = StyleSheet.create({
     color: MUTED,
     fontWeight: "800",
     fontSize: TYPOGRAPHY.TEXT_XS,
+  },
+  translatorSessionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "nowrap",
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XS,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    gap: SPACING.SPACE_XXS,
+  },
+  translatorBarAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.SPACE_XXS,
+    paddingVertical: 8,
+    paddingHorizontal: SPACING.SPACE_XS,
+    borderRadius: 999,
+    backgroundColor: "rgba(249,250,251,0.92)",
+    flexShrink: 1,
+  },
+  translatorIconAction: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(249,250,251,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(31,41,55,0.08)",
+    flexShrink: 0,
+  },
+  translatorBarActionText: {
+    color: ACCENT,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+  },
+  translatorBarSecondaryText: {
+    color: MUTED,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+  },
+  translatorBarSeparator: {
+    display: "none",
+  },
+  translatorModelItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: SPACING.SPACE_XS,
+    paddingVertical: 8,
+    paddingHorizontal: SPACING.SPACE_SM,
+    borderRadius: 999,
+    backgroundColor: "rgba(249,250,251,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(31,41,55,0.08)",
+    flexShrink: 0,
+  },
+  translatorModelButtonText: {
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+  },
+  modelPickerBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(31,41,55,0.20)",
+    justifyContent: "flex-end",
+  },
+  modelPickerSafeArea: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  modelPickerBackdropPressable: {
+    flex: 1,
+  },
+  modelPickerContainer: {
+    maxHeight: "72%",
+    backgroundColor: BG,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: SPACING.SPACE_XS,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: BORDER,
+  },
+  modelPickerHeader: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingTop: SPACING.SPACE_MD,
+    paddingBottom: SPACING.SPACE_SM,
+    gap: SPACING.SPACE_SM,
+  },
+  modelPickerHeaderText: {
+    flex: 1,
+  },
+  modelPickerHandle: {
+    alignSelf: "center",
+    width: 42,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(151,109,78,0.28)",
+    marginBottom: SPACING.SPACE_SM,
+  },
+  modelPickerEyebrow: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    marginBottom: 2,
+  },
+  modelPickerTitle: {
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_LG,
+  },
+  modelPickerSubtitle: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    marginTop: SPACING.SPACE_XXS,
+  },
+  modelPickerCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modelPickerList: {
+    padding: SPACING.SPACE_MD,
+    gap: SPACING.SPACE_SM,
+    paddingBottom: SPACING.SPACE_2XL,
+  },
+  modelPickerEmptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: SPACING.SPACE_2XL,
+    gap: SPACING.SPACE_XS,
+  },
+  modelPickerEmptyTitle: {
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_MD,
+  },
+  modelPickerEmptyText: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    textAlign: "center",
+  },
+  modelPickerCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.SPACE_SM,
+    padding: SPACING.SPACE_MD,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+  },
+  modelPickerCardActive: {
+    borderColor: "rgba(230,110,25,0.30)",
+    backgroundColor: "rgba(255,243,224,0.85)",
+  },
+  modelPickerCardMain: {
+    flex: 1,
+    minWidth: 0,
+  },
+  modelPickerCardTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.SPACE_XS,
+  },
+  modelPickerCardTitle: {
+    flex: 1,
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+  },
+  modelPickerCardMeta: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    marginTop: SPACING.SPACE_XXS,
+  },
+  modelPickerLiveBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: SPACING.SPACE_XS,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(34,197,94,0.10)",
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.18)",
+  },
+  modelPickerLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#16A34A",
+  },
+  modelPickerLiveText: {
+    color: "#15803D",
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    letterSpacing: 0.4,
   },
 
   // --- MODERN MINIMAL HUD ---
@@ -2653,14 +2960,6 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: { color: ACCENT, fontWeight: "900" },
   trainingModeCard: {
-    padding: SPACING.SPACE_MD,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: BORDER,
-    gap: SPACING.SPACE_XS,
-  },
-  modelPickerCard: {
     padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",

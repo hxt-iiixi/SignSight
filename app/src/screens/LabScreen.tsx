@@ -820,7 +820,7 @@ export default function LabScreen({
       </View>
 
       {/* ─── Top overlays (over camera) ─────────────────────── */}
-      <View style={[styles.topOverlays, { paddingTop: statusBarInset + 16 }]}>
+      <View style={[styles.topOverlays, { paddingTop: statusBarInset + 8 }]}>
         {/* Back + title */}
         <View style={styles.cameraOverlay}>
           <Pressable onPress={onBack} style={styles.backBtn}>
@@ -836,7 +836,6 @@ export default function LabScreen({
           {/* Live recognition header */}
           <LabLiveHeader
             detectMode={detectMode}
-            cameraPosition={cameraPosition}
             displayLabel={lastLabel}
             confidence={lastConf}
             activeModelLabel={activeLandmarkModelVersion?.label ?? null}
@@ -1160,7 +1159,7 @@ const styles = StyleSheet.create({
   cameraOverlay: {
     paddingHorizontal: PAD_MD,
     paddingTop: 8,
-    paddingBottom: 6,
+    paddingBottom: 2,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1192,7 +1191,7 @@ const styles = StyleSheet.create({
   },
   topHudContainer: {
     marginHorizontal: 16,
-    marginTop: 8,
+    marginTop: 4,
     borderRadius: 20,
     backgroundColor: "rgba(255, 255, 255, 0.95)",
     overflow: "hidden",
@@ -1209,7 +1208,7 @@ const styles = StyleSheet.create({
   // Bottom stack (holds quick save bar + bottom sheet)
   bottomStack: {
     position: "absolute",
-    bottom: Platform.OS === "android" ? 10 : 0,
+    bottom: Platform.OS === "android" ? 0 : 0,
     left: 0,
     right: 0,
     zIndex: 20,
@@ -1252,7 +1251,7 @@ const styles = StyleSheet.create({
   bottomNavBar: {
     flexDirection: "row",
     paddingTop: 4,
-    paddingBottom: Platform.OS === "android" ? 18 : 10,
+    paddingBottom: Platform.OS === "android" ? 1 : 2,
     paddingHorizontal: 18,
     justifyContent: "space-around",
     // No borders or shadow here since it's part of the unified bottomSheet
@@ -1262,7 +1261,7 @@ const styles = StyleSheet.create({
     gap: 3,
     flex: 1,
     paddingTop: 4,
-    paddingBottom: 8,
+    paddingBottom: 2,
   },
   navLabel: {
     fontSize: TYPOGRAPHY.TEXT_XXS,

@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from "react-native";
 import {
   TEXT,
   TEXT_SECONDARY,
-  ACCENT,
   BORDER,
   SUCCESS,
   SUCCESS_LIGHT,
@@ -18,7 +17,6 @@ import type { DetectMode } from "../../ml/streamTypes";
 
 type LabLiveHeaderProps = {
   detectMode: DetectMode;
-  cameraPosition: "front" | "back";
   displayLabel: string;
   confidence: number;
   activeModelLabel: string | null;
@@ -43,7 +41,6 @@ function getConfidenceTone(confidence: number) {
 
 export default function LabLiveHeader({
   detectMode,
-  cameraPosition,
   displayLabel,
   confidence,
   activeModelLabel,
@@ -61,15 +58,6 @@ export default function LabLiveHeader({
 
   return (
     <View style={styles.container}>
-      {/* Top row: mode */}
-      <View style={styles.topRow}>
-        <View style={styles.modeIndicator}>
-          <Text style={styles.modeText}>
-            {isWords ? "WORDS" : "LETTERS"} · {cameraPosition.toUpperCase()}
-          </Text>
-        </View>
-      </View>
-
       {/* Main row: prediction + confidence */}
       <View style={styles.mainRow}>
         <View style={styles.predictionWrap}>
@@ -108,19 +96,6 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingBottom: 10,
     gap: 8,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  modeIndicator: {
-    paddingVertical: 2,
-  },
-  modeText: {
-    color: ACCENT,
-    fontWeight: "900",
-    fontSize: TYPOGRAPHY.TEXT_XXS,
-    letterSpacing: 1.2,
   },
   mainRow: {
     flexDirection: "row",
