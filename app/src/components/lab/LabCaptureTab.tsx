@@ -105,8 +105,8 @@ export default function LabCaptureTab({
           <Ionicons name="hand-left-outline" size={36} color={TEXT_SECONDARY} />
           <Text style={styles.emptyTitle}>No target selected</Text>
           <Text style={styles.emptyDescription}>
-            Select a {isLetters ? "letter" : "word"} target from the session bar
-            above to start capturing samples.
+            Use the target control in the bottom bar to choose a{" "}
+            {isLetters ? "letter" : "word"} and start capturing samples.
           </Text>
         </View>
       </ScrollView>
@@ -381,52 +381,64 @@ export default function LabCaptureTab({
       </LabCard>
 
       {/* Recording controls */}
-      <View style={styles.actionRow}>
+      <View style={styles.actionTileRow}>
         <Pressable
           onPress={onToggleRecording}
           style={({ pressed }) => [
-            isRecordingGesture ? styles.stopButton : styles.recordButton,
+            styles.actionTile,
+            isRecordingGesture ? styles.actionTileDanger : styles.actionTileAccent,
             pressed && { opacity: 0.85 },
           ]}
         >
           <Ionicons
             name={isRecordingGesture ? "stop-circle" : "radio-button-on"}
-            size={16}
-            color={isRecordingGesture ? RECORDING : ACCENT}
+            size={18}
+            color={isRecordingGesture ? RECORDING : "#FFFFFF"}
           />
           <Text
             style={[
-              styles.actionButtonText,
-              { color: isRecordingGesture ? RECORDING : ACCENT },
+              styles.actionTileTitle,
+              { color: isRecordingGesture ? RECORDING : "#FFFFFF" },
             ]}
           >
-            {isRecordingGesture ? "Stop Recording" : "Start Recording"}
+            {isRecordingGesture ? "Stop" : "Record"}
+          </Text>
+          <Text
+            style={[
+              styles.actionTileSubtitle,
+              { color: isRecordingGesture ? RECORDING : "rgba(255,255,255,0.88)" },
+            ]}
+          >
+            {isRecordingGesture ? "End capture" : "Start sequence"}
           </Text>
         </Pressable>
 
         <Pressable
           onPress={onSaveGesture}
           style={({ pressed }) => [
-            styles.primaryAction,
-            { flex: 1 },
+            styles.actionTile,
+            styles.actionTileNeutral,
             pressed && { opacity: 0.88 },
           ]}
         >
-          <Ionicons name="save-outline" size={16} color={ACCENT} />
-          <Text style={styles.primaryActionText}>Save</Text>
+          <Ionicons name="save-outline" size={18} color={ACCENT} />
+          <Text style={styles.actionTileTitleAlt}>Save</Text>
+          <Text style={styles.actionTileSubtitleAlt}>Commit sequence</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onClearFrames}
+          style={({ pressed }) => [
+            styles.actionTile,
+            styles.actionTileMuted,
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Ionicons name="trash-outline" size={18} color={TEXT_SECONDARY} />
+          <Text style={styles.actionTileTitleAlt}>Clear</Text>
+          <Text style={styles.actionTileSubtitleAlt}>Reset frames</Text>
         </Pressable>
       </View>
-
-      <Pressable
-        onPress={onClearFrames}
-        style={({ pressed }) => [
-          styles.secondaryAction,
-          pressed && { opacity: 0.85 },
-        ]}
-      >
-        <Ionicons name="trash-outline" size={14} color={TEXT_SECONDARY} />
-        <Text style={styles.secondaryActionText}>Clear All Frames</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -554,9 +566,58 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     fontSize: TYPOGRAPHY.TEXT_SM,
   },
-  actionRow: {
+  actionTileRow: {
     flexDirection: "row",
     gap: 10,
+  },
+  actionTile: {
+    flex: 1,
+    minHeight: 110,
+    borderRadius: RADIUS_LG,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 14,
+    borderWidth: 1,
+  },
+  actionTileAccent: {
+    backgroundColor: ACCENT,
+    borderColor: ACCENT,
+  },
+  actionTileDanger: {
+    backgroundColor: "#FEE2E2",
+    borderColor: "rgba(220,38,38,0.30)",
+  },
+  actionTileNeutral: {
+    backgroundColor: BG_CARD,
+    borderColor: ACCENT_BORDER,
+  },
+  actionTileMuted: {
+    backgroundColor: "rgba(249,250,251,0.96)",
+    borderColor: BORDER,
+  },
+  actionTileTitle: {
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+  },
+  actionTileSubtitle: {
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  actionTileTitleAlt: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+  },
+  actionTileSubtitleAlt: {
+    color: TEXT_SECONDARY,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
   },
   recordButton: {
     flex: 1,
