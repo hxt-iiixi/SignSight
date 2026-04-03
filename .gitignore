@@ -49,6 +49,7 @@ GEMINI.md
 # next.js
 /.next/
 /out/
+.github
 
 # production
 /build
