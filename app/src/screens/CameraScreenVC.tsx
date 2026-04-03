@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   type LayoutChangeEvent,
   Alert,
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -10,11 +11,13 @@ import {
   Modal,
   SafeAreaView,
   Platform,
+  PanResponder,
   StatusBar,
   TextInput,
   useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import {
   Camera,
   type CameraDeviceFormat,
@@ -128,6 +131,7 @@ export default function CameraScreenVC({
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
   const bottomSafeLift = Platform.OS === "android" ? 44 : 32;
   const translatorBottomInset = Platform.OS === "android" ? 36 : 18;
+  const translatorModelSheetMaxHeight = Math.round(height * 0.5);
 
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -230,6 +234,9 @@ export default function CameraScreenVC({
   const [showArchivedModelVersions, setShowArchivedModelVersions] = useState(false);
   const [showTargetChoices, setShowTargetChoices] = useState(false);
   const [showTranslatorModelChoices, setShowTranslatorModelChoices] = useState(false);
+  const [showTranslatorMenu, setShowTranslatorMenu] = useState(false);
+  const [showTranslatorModeChoices, setShowTranslatorModeChoices] = useState(false);
+  const [torchEnabled, setTorchEnabled] = useState(false);
   const [modelRenameDrafts, setModelRenameDrafts] = useState<ModelRenameDrafts>(
     {}
   );
@@ -243,6 +250,7 @@ export default function CameraScreenVC({
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const isMountedRef = useRef(true);
   const isProcessingRef = useRef(false);
+  const translatorSheetTranslateY = useRef(new Animated.Value(translatorModelSheetMaxHeight)).current;
 
   const clearRecordBuffer = () => {
     buffersRef.current.recordingFrames = [];
@@ -943,6 +951,68 @@ export default function CameraScreenVC({
     };
   }, [cameraLayout.height, cameraLayout.width, format]);
 
+  const openTranslatorModelSheet = () => {
+    setShowTranslatorMenu(false);
+    setShowTranslatorModelChoices(true);
+    translatorSheetTranslateY.setValue(translatorModelSheetMaxHeight);
+    Animated.spring(translatorSheetTranslateY, {
+      toValue: 0,
+      useNativeDriver: true,
+      damping: 20,
+      stiffness: 220,
+      mass: 0.9,
+    }).start();
+  };
+
+  const closeTranslatorModelSheet = () => {
+    Animated.timing(translatorSheetTranslateY, {
+      toValue: translatorModelSheetMaxHeight,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setShowTranslatorModelChoices(false);
+      }
+    });
+  };
+
+  const translatorSheetPanResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) =>
+          Math.abs(gestureState.dy) > Math.abs(gestureState.dx) &&
+          gestureState.dy > 6,
+        onPanResponderMove: (_, gestureState) => {
+          translatorSheetTranslateY.setValue(
+            Math.max(0, Math.min(translatorModelSheetMaxHeight, gestureState.dy))
+          );
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy > translatorModelSheetMaxHeight * 0.22) {
+            closeTranslatorModelSheet();
+            return;
+          }
+          Animated.spring(translatorSheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 220,
+            mass: 0.9,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(translatorSheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            damping: 20,
+            stiffness: 220,
+            mass: 0.9,
+          }).start();
+        },
+      }),
+    [translatorModelSheetMaxHeight, translatorSheetTranslateY]
+  );
+
   if (!device || !format) {
     return (
       <View style={styles.center}>
@@ -986,6 +1056,11 @@ export default function CameraScreenVC({
     lastGesturePredictionAtMs == null
       ? null
       : Math.max(0, Date.now() - lastGesturePredictionAtMs);
+  const translatorTopStrongHeight = Math.max(30, statusBarInset + 8);
+  const translatorTopMidHeight = 52;
+  const translatorTopFadeHeight =
+    translatorTopStrongHeight + translatorTopMidHeight + 14;
+  const translatorTopBarTop = translatorTopStrongHeight + 2;
 
   return (
     <View style={styles.container}>
@@ -998,6 +1073,7 @@ export default function CameraScreenVC({
           photo={false}
           video={false}
           audio={false}
+          torch={torchEnabled ? "on" : "off"}
           frameProcessor={frameProcessor}
           isMirrored={cameraPosition === "front"}
           resizeMode="cover"
@@ -1018,28 +1094,165 @@ export default function CameraScreenVC({
             (latestHandFrame?.landmarks?.length ?? 0) === 21
           }
         />
-        <View style={styles.minimalHeader}>
-          <Pressable onPress={onBack} style={styles.minimalBackBtn}>
-            <Ionicons name="chevron-back" size={22} color={TEXT} />
-          </Pressable>
-          <View style={styles.minimalHeaderStatus}>
-            {showDebugHud && (
-              <View style={[styles.chipsRow, { marginTop: 0 }]}>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>FPS {fpsCounter}</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>LM {lmFps}/s</Text>
-                </View>
-                <View style={styles.chip}>
-                  <Text style={styles.chipText}>
-                    {debugState.hasHand ? "Hand OK" : "No Hand"}
-                  </Text>
-                </View>
-              </View>
-            )}
+        <View style={[styles.translatorTopFade, { height: translatorTopFadeHeight }]}>
+          <Svg width="100%" height="100%" style={StyleSheet.absoluteFill}>
+            <Defs>
+              <LinearGradient id="translatorTopFadeGradient" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#000000" stopOpacity={0.8} />
+                <Stop offset="0.35" stopColor="#000000" stopOpacity={0.30} />
+                <Stop offset="1" stopColor="#000000" stopOpacity={0} />
+              </LinearGradient>
+            </Defs>
+            <Rect
+              x="0"
+              y="0"
+              width="100%"
+              height="100%"
+              fill="url(#translatorTopFadeGradient)"
+            />
+          </Svg>
+        </View>
+
+        <View style={[styles.translatorTopBar, { top: translatorTopBarTop }]}>
+          <View style={styles.translatorTopBarContent}>
+            <View style={styles.translatorTopBarLeft}>
+              <Pressable onPress={onBack} style={styles.topBarIconButton}>
+                <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+              </Pressable>
+              <Pressable
+                onPress={() => {
+                  if (!device?.hasTorch) {
+                    return;
+                  }
+                  setTorchEnabled((value) => !value);
+                }}
+                style={({ pressed }) => [
+                  styles.topBarIconButton,
+                  !device?.hasTorch && styles.topBarIconButtonDisabled,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Ionicons
+                  name={torchEnabled ? "flash" : "flash-off"}
+                  size={18}
+                  color={torchEnabled ? "#FDE68A" : "#FFFFFF"}
+                />
+              </Pressable>
+            </View>
+
+            <Text style={styles.translatorTopTitle}>SignSight</Text>
+
+            <View style={styles.translatorTopBarRight}>
+              <Pressable
+                onPress={() => {
+                  setShowTranslatorMenu((value) => !value);
+                  setShowTranslatorModeChoices(false);
+                }}
+                style={({ pressed }) => [
+                  styles.topBarIconButton,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Ionicons name="ellipsis-vertical" size={18} color="#FFFFFF" />
+              </Pressable>
+            </View>
           </View>
         </View>
+
+        {!isLab && showTranslatorMenu ? (
+          <View style={[styles.translatorMenuWrap, { top: translatorTopBarTop + 50 }]}>
+            <View style={styles.translatorMenuCard}>
+              <Pressable
+                onPress={openTranslatorModelSheet}
+                style={({ pressed }) => [
+                  styles.translatorMenuItem,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <View style={styles.translatorMenuItemLeft}>
+                  <Ionicons name="layers-outline" size={18} color={TEXT} />
+                  <Text style={styles.translatorMenuItemTitle}>Model</Text>
+                </View>
+                <Text style={styles.translatorMenuItemMeta} numberOfLines={1}>
+                  {String(
+                    activeLandmarkModelVersion?.label ??
+                      activeLandmarkModelVersionId ??
+                      "Choose"
+                  )}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() =>
+                  setShowTranslatorModeChoices((value) => !value)
+                }
+                style={({ pressed }) => [
+                  styles.translatorMenuItem,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <View style={styles.translatorMenuItemLeft}>
+                  <Ionicons
+                    name={
+                      detectMode === "LETTERS"
+                        ? "text-outline"
+                        : "chatbubble-ellipses-outline"
+                    }
+                    size={18}
+                    color={TEXT}
+                  />
+                  <Text style={styles.translatorMenuItemTitle}>Mode</Text>
+                </View>
+                <View style={styles.translatorMenuItemRight}>
+                  <Text style={styles.translatorMenuItemMeta}>
+                    {detectMode === "LETTERS" ? "Letters" : "Words"}
+                  </Text>
+                  <Ionicons
+                    name={showTranslatorModeChoices ? "chevron-up" : "chevron-down"}
+                    size={14}
+                    color={MUTED}
+                  />
+                </View>
+              </Pressable>
+
+              {showTranslatorModeChoices ? (
+                <View style={styles.translatorModeChoices}>
+                  {(["LETTERS", "WORDS"] as const).map((mode) => {
+                    const isActive = detectMode === mode;
+                    return (
+                      <Pressable
+                        key={mode}
+                        onPress={() => {
+                          if (isRecordingGesture) {
+                            setStatus("Stop recording first.");
+                            return;
+                          }
+                          setDetectMode(mode);
+                          setShowTranslatorModeChoices(false);
+                          setShowTranslatorMenu(false);
+                        }}
+                        style={({ pressed }) => [
+                          styles.translatorModeChoice,
+                          isActive && styles.translatorModeChoiceActive,
+                          pressed && { opacity: 0.82 },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.translatorModeChoiceText,
+                            isActive && styles.translatorModeChoiceTextActive,
+                          ]}
+                        >
+                          {mode === "LETTERS" ? "Letters" : "Words"}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
       </View>
 
       {isLab ? (
@@ -2029,90 +2242,35 @@ export default function CameraScreenVC({
       ) : (
         <View
           style={[
-            styles.unifiedBottomPanel,
-            { bottom: bottomSafeLift },
+            styles.translatorOutputWrap,
+            { bottom: bottomSafeLift + translatorBottomInset },
           ]}
         >
-          {/* Prediction Slot */}
-          <View style={styles.panelTop}>
-            {/* Main row: prediction + confidence */}
-            <View style={styles.mainRow}>
-              <View style={styles.predictionWrap}>
-                <Text style={styles.predictionLabel} numberOfLines={1}>
-                  {displayLabel}
-                </Text>
-              </View>
-
-              <View style={styles.confidenceIndicator}>
-                <Text style={[
-                  styles.confidenceText, 
-                  { color: Math.round(lastConf * 100) >= 50 ? (Math.round(lastConf * 100) >= 75 ? "#10B981" : "#F59E0B") : MUTED }
-                ]}>
-                  {Math.round(lastConf * 100)}%
-                </Text>
-                <Text style={styles.confidenceMetaText}>CONF</Text>
-              </View>
+          <View style={styles.translatorOutputCard}>
+            <View style={styles.translatorOutputTextWrap}>
+              <Text style={styles.translatorOutputLabel} numberOfLines={1}>
+                {displayLabel}
+              </Text>
+              <Text style={styles.translatorOutputConfidence}>
+                {Math.round(lastConf * 100)}% confidence
+              </Text>
             </View>
-          </View>
 
-          {/* Action Slot */}
-          <View style={[styles.panelBottom, { paddingBottom: SPACING.SPACE_SM }]}>
-            <View style={styles.translatorSessionBar}>
-              <Pressable
-                onPress={() => {
-                  if (isRecordingGesture) {
-                    setStatus("Stop recording first.");
-                    return;
-                  }
-                  setDetectMode((m) => (m === "LETTERS" ? "WORDS" : "LETTERS"));
-                }}
-                style={({ pressed }) => [
-                  styles.translatorBarAction,
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Ionicons
-                  name={detectMode === "LETTERS" ? "text" : "chatbubble-ellipses"}
-                  size={14}
-                  color={ACCENT}
-                />
-                <Text style={styles.translatorBarActionText}>
-                  {detectMode === "LETTERS" ? "Letters" : "Words"}
-                </Text>
-              </Pressable>
-
-              <View style={styles.translatorBarSeparator} />
-
-              <Pressable
-                onPress={() =>
-                  setCameraPosition((p) => (p === "back" ? "front" : "back"))
-                }
-                style={({ pressed }) => [
-                  styles.translatorIconAction,
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Ionicons
-                  name="camera-reverse-outline"
-                  size={18}
-                  color={TEXT}
-                />
-              </Pressable>
-
-              <View style={styles.translatorBarSeparator} />
-
-              <Pressable
-                onPress={() => setShowTranslatorModelChoices(true)}
-                style={({ pressed }) => [
-                  styles.translatorModelItem,
-                  pressed && { opacity: 0.7 },
-                ]}
-              >
-                <Ionicons name="layers-outline" size={16} color={TEXT} />
-                <Text style={styles.translatorModelButtonText}>Model</Text>
-                <Ionicons name="chevron-down" size={14} color={TEXT} />
-              </Pressable>
-            </View>
+            <Pressable
+              onPress={() =>
+                setCameraPosition((p) => (p === "back" ? "front" : "back"))
+              }
+              style={({ pressed }) => [
+                styles.translatorFlipButton,
+                pressed && { opacity: 0.78 },
+              ]}
+            >
+              <Ionicons
+                name="camera-reverse-outline"
+                size={18}
+                color="#FFFFFF"
+              />
+            </Pressable>
           </View>
         </View>
       )}
@@ -2128,92 +2286,102 @@ export default function CameraScreenVC({
             <SafeAreaView style={styles.modelPickerSafeArea}>
               <Pressable
                 style={styles.modelPickerBackdropPressable}
-                onPress={() => setShowTranslatorModelChoices(false)}
+                onPress={closeTranslatorModelSheet}
               />
-              <View style={styles.modelPickerContainer}>
-              <View style={styles.modelPickerHeader}>
-                <View style={styles.modelPickerHeaderText}>
-                  <View style={styles.modelPickerHandle} />
-                  <Text style={styles.modelPickerEyebrow}>Model</Text>
-                  <Text style={styles.modelPickerTitle}>Choose translation model</Text>
-                  <Text style={styles.modelPickerSubtitle}>
-                    Choose which landmark model should power translation.
-                  </Text>
-                </View>
-                <Pressable
-                  onPress={() => setShowTranslatorModelChoices(false)}
-                  style={({ pressed }) => [
-                    styles.modelPickerCloseButton,
-                    pressed && { opacity: 0.85 },
-                  ]}
-                >
-                  <Ionicons name="close" size={18} color={TEXT} />
-                </Pressable>
-              </View>
-
-              <ScrollView
-                contentContainerStyle={styles.modelPickerList}
-                showsVerticalScrollIndicator={false}
+              <Animated.View
+                style={[
+                  styles.modelPickerContainer,
+                  {
+                    maxHeight: translatorModelSheetMaxHeight,
+                    transform: [{ translateY: translatorSheetTranslateY }],
+                  },
+                ]}
               >
-                {availableLandmarkModelVersions.length === 0 ? (
-                  <View style={styles.modelPickerEmptyState}>
-                    <Ionicons name="cube-outline" size={28} color={MUTED} />
-                    <Text style={styles.modelPickerEmptyTitle}>No saved models</Text>
-                    <Text style={styles.modelPickerEmptyText}>
-                      Train a landmark model in Developer Lab first.
+                <View {...translatorSheetPanResponder.panHandlers}>
+                  <View style={styles.modelPickerHandle} />
+                </View>
+                <View style={styles.modelPickerHeader}>
+                  <View style={styles.modelPickerHeaderText}>
+                    <Text style={styles.modelPickerEyebrow}>Model</Text>
+                    <Text style={styles.modelPickerTitle}>Choose translation model</Text>
+                    <Text style={styles.modelPickerSubtitle}>
+                      Pick which saved SignSight model powers live translation.
                     </Text>
                   </View>
-                ) : (
-                  availableLandmarkModelVersions.map((version) => {
-                    const versionId = String(version.version_id);
-                    const isActive = versionId === activeLandmarkModelVersionId;
-                    return (
-                      <Pressable
-                        key={versionId}
-                        onPress={() => {
-                          if (!isActive) {
-                            void activateLandmarkModelVersion(versionId);
-                          }
-                          setShowTranslatorModelChoices(false);
-                        }}
-                        style={({ pressed }) => [
-                          styles.modelPickerCard,
-                          isActive && styles.modelPickerCardActive,
-                          pressed && { opacity: 0.85 },
-                        ]}
-                      >
-                        <View style={styles.modelPickerCardMain}>
-                          <View style={styles.modelPickerCardTitleRow}>
-                            <Text style={styles.modelPickerCardTitle} numberOfLines={1}>
-                              {String(version.label ?? versionId)}
+                  <Pressable
+                    onPress={closeTranslatorModelSheet}
+                    style={({ pressed }) => [
+                      styles.modelPickerCloseButton,
+                      pressed && { opacity: 0.85 },
+                    ]}
+                  >
+                    <Ionicons name="close" size={18} color={TEXT} />
+                  </Pressable>
+                </View>
+
+                <ScrollView
+                  contentContainerStyle={styles.modelPickerList}
+                  showsVerticalScrollIndicator={false}
+                >
+                  {availableLandmarkModelVersions.length === 0 ? (
+                    <View style={styles.modelPickerEmptyState}>
+                      <Ionicons name="cube-outline" size={28} color={MUTED} />
+                      <Text style={styles.modelPickerEmptyTitle}>No saved models</Text>
+                      <Text style={styles.modelPickerEmptyText}>
+                        Train a landmark model in Developer Lab first.
+                      </Text>
+                    </View>
+                  ) : (
+                    availableLandmarkModelVersions.map((version) => {
+                      const versionId = String(version.version_id);
+                      const isActive = versionId === activeLandmarkModelVersionId;
+                      return (
+                        <Pressable
+                          key={versionId}
+                          onPress={() => {
+                            if (!isActive) {
+                              void activateLandmarkModelVersion(versionId);
+                            }
+                            closeTranslatorModelSheet();
+                          }}
+                          style={({ pressed }) => [
+                            styles.modelPickerCard,
+                            isActive && styles.modelPickerCardActive,
+                            pressed && { opacity: 0.85 },
+                          ]}
+                        >
+                          <View style={styles.modelPickerCardMain}>
+                            <View style={styles.modelPickerCardTitleRow}>
+                              <Text style={styles.modelPickerCardTitle} numberOfLines={1}>
+                                {String(version.label ?? versionId)}
+                              </Text>
+                              {isActive ? (
+                                <View style={styles.modelPickerLiveBadge}>
+                                  <View style={styles.modelPickerLiveDot} />
+                                  <Text style={styles.modelPickerLiveText}>LIVE</Text>
+                                </View>
+                              ) : null}
+                            </View>
+                            <Text style={styles.modelPickerCardMeta} numberOfLines={1}>
+                              {version.training_mode === "bootstrap"
+                                ? "Bootstrap"
+                                : "Full reviewed"}
+                              {Array.isArray(version.active_static_letters)
+                                ? ` · ${version.active_static_letters.length} letters`
+                                : ""}
                             </Text>
-                            {isActive ? (
-                              <View style={styles.modelPickerLiveBadge}>
-                                <View style={styles.modelPickerLiveDot} />
-                                <Text style={styles.modelPickerLiveText}>LIVE</Text>
-                              </View>
-                            ) : null}
                           </View>
-                          <Text style={styles.modelPickerCardMeta} numberOfLines={1}>
-                            {version.training_mode === "bootstrap"
-                              ? "Bootstrap"
-                              : "Full reviewed"}
-                            {Array.isArray(version.active_static_letters)
-                              ? ` · ${version.active_static_letters.length} letters`
-                              : ""}
-                          </Text>
-                        </View>
-                        {isActive ? (
-                          <Ionicons name="checkmark-circle" size={20} color={ACCENT} />
-                        ) : (
-                          <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
-                        )}
-                      </Pressable>
-                    );
-                  })
-                )}
-              </ScrollView>
-              </View>
+                          {isActive ? (
+                            <Ionicons name="checkmark-circle" size={20} color={ACCENT} />
+                          ) : (
+                            <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                          )}
+                        </Pressable>
+                      );
+                    })
+                  )}
+                </ScrollView>
+              </Animated.View>
             </SafeAreaView>
           </View>
         </Modal>
@@ -2376,69 +2544,203 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: TYPOGRAPHY.TEXT_XS,
   },
-  translatorSessionBar: {
+  translatorTopBar: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    zIndex: 20,
+  },
+  translatorTopFade: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
+  translatorTopBarContent: {
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "nowrap",
-    paddingHorizontal: SPACING.SPACE_SM,
-    paddingVertical: SPACING.SPACE_XS,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    gap: SPACING.SPACE_XXS,
+    justifyContent: "space-between",
+    paddingHorizontal: SPACING.SPACE_MD,
+    minHeight: 44,
+    position: "relative",
   },
-  translatorBarAction: {
+  translatorTopBarLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.SPACE_XXS,
-    paddingVertical: 8,
-    paddingHorizontal: SPACING.SPACE_XS,
-    borderRadius: 999,
-    backgroundColor: "rgba(249,250,251,0.92)",
-    flexShrink: 1,
+    gap: SPACING.SPACE_SM,
+    minWidth: 92,
+    zIndex: 10,
   },
-  translatorIconAction: {
+  translatorTopBarRight: {
+    minWidth: 44,
+    alignItems: "flex-end",
+    zIndex: 10,
+  },
+  topBarIconButton: {
     width: 38,
     height: 38,
-    borderRadius: 999,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(249,250,251,0.92)",
+  },
+  topBarIconButtonDisabled: {
+    opacity: 0.4,
+  },
+  translatorTopTitle: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    textAlignVertical: "center",
+    textAlign: "center",
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_LG,
+    letterSpacing: 0.2,
+    textShadowColor: "rgba(0,0,0,0.25)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+    ...Platform.select({
+      ios: {
+        lineHeight: 44,
+      },
+      android: {
+        textAlignVertical: "center",
+      },
+    }),
+  },
+  translatorMenuWrap: {
+    position: "absolute",
+    right: SPACING.SPACE_MD,
+    zIndex: 25,
+  },
+  translatorMenuCard: {
+    minWidth: 220,
+    borderRadius: 22,
+    backgroundColor: "rgba(255,249,242,0.98)",
     borderWidth: 1,
-    borderColor: "rgba(31,41,55,0.08)",
-    flexShrink: 0,
+    borderColor: "rgba(229,231,235,0.96)",
+    padding: SPACING.SPACE_SM,
+    gap: SPACING.SPACE_XXS,
+    ...Platform.select({
+      android: { elevation: 8 },
+      ios: {
+        shadowColor: "#000",
+        shadowOpacity: 0.15,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 10 },
+      },
+    }),
   },
-  translatorBarActionText: {
-    color: ACCENT,
-    fontWeight: "800",
-    fontSize: TYPOGRAPHY.TEXT_XS,
-  },
-  translatorBarSecondaryText: {
-    color: MUTED,
-    fontWeight: "800",
-    fontSize: TYPOGRAPHY.TEXT_XS,
-  },
-  translatorBarSeparator: {
-    display: "none",
-  },
-  translatorModelItem: {
+  translatorMenuItem: {
+    borderRadius: 16,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_SM,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    borderWidth: 1,
+    borderColor: "rgba(229,231,235,0.9)",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING.SPACE_XS,
-    paddingVertical: 8,
-    paddingHorizontal: SPACING.SPACE_SM,
-    borderRadius: 999,
-    backgroundColor: "rgba(249,250,251,0.92)",
-    borderWidth: 1,
-    borderColor: "rgba(31,41,55,0.08)",
-    flexShrink: 0,
+    justifyContent: "space-between",
+    gap: SPACING.SPACE_SM,
   },
-  translatorModelButtonText: {
+  translatorMenuItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.SPACE_XS,
+    minWidth: 0,
+    flex: 1,
+  },
+  translatorMenuItemRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.SPACE_XXS,
+  },
+  translatorMenuItemTitle: {
+    color: TEXT,
+    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+  },
+  translatorMenuItemMeta: {
+    color: MUTED,
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    maxWidth: 104,
+  },
+  translatorModeChoices: {
+    flexDirection: "row",
+    gap: SPACING.SPACE_XS,
+    paddingTop: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_XXS,
+  },
+  translatorModeChoice: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.86)",
+    borderWidth: 1,
+    borderColor: "rgba(229,231,235,0.92)",
+  },
+  translatorModeChoiceActive: {
+    backgroundColor: SOFT_PINK,
+    borderColor: "rgba(190,24,93,0.18)",
+  },
+  translatorModeChoiceText: {
     color: TEXT,
     fontWeight: "800",
     fontSize: TYPOGRAPHY.TEXT_XS,
+  },
+  translatorModeChoiceTextActive: {
+    color: ACCENT,
+  },
+  translatorOutputWrap: {
+    position: "absolute",
+    left: SPACING.SPACE_MD,
+    right: SPACING.SPACE_MD,
+    zIndex: 15,
+  },
+  translatorOutputCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.SPACE_MD,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_SM,
+    borderRadius: 24,
+    backgroundColor: "rgba(17,24,39,0.26)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
+  },
+  translatorOutputTextWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  translatorOutputLabel: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_2XL,
+    letterSpacing: 0.1,
+  },
+  translatorOutputConfidence: {
+    color: "rgba(255,255,255,0.82)",
+    fontWeight: "700",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    marginTop: 4,
+  },
+  translatorFlipButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.18)",
   },
   modelPickerBackdrop: {
     flex: 1,
@@ -2453,7 +2755,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modelPickerContainer: {
-    maxHeight: "72%",
     backgroundColor: BG,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -2481,6 +2782,7 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 999,
     backgroundColor: "rgba(151,109,78,0.28)",
+    marginTop: SPACING.SPACE_XS,
     marginBottom: SPACING.SPACE_SM,
   },
   modelPickerEyebrow: {
