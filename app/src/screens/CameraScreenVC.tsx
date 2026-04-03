@@ -50,15 +50,17 @@ type CameraScreenVCProps = {
   variant?: "translator" | "lab";
 };
 
-const ACCENT = "#BE185D";
+const PRIMARY = "#E66E19";
+const PRIMARY_CONTAINER = "#F47A22";
+const ACCENT = PRIMARY;
 const RECORDING = "#EF4444";
-const BG = "#FFF9F2";
-const TEXT = "#1F2937";
-const MUTED = "#6B7280";
-const SOFT_PINK = "#FCE7F3";
-const SOFT_YELLOW = "#FEF3C7";
-const SOFT_BLUE = "#DBEAFE";
-const BORDER = "#E5E7EB";
+const BG = "#F8F9FA";
+const TEXT = "#191C1D";
+const MUTED = "#737373";
+const SOFT_PINK = "rgba(230, 110, 25, 0.25)";
+const SOFT_YELLOW = "rgba(230, 110, 25, 0.15)";
+const SOFT_BLUE = "#E0F2FE";
+const BORDER = "#F3F4F5";
 const TARGET_CAMERA_FPS = 30;
 const TARGET_VIDEO_FORMAT = { width: 640, height: 480 } as const;
 
@@ -130,7 +132,7 @@ export default function CameraScreenVC({
   const PAD = isTablet ? 24 : isSmall ? 14 : 18;
   const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
   const bottomSafeLift = Platform.OS === "android" ? 44 : 32;
-  const translatorBottomInset = Platform.OS === "android" ? 36 : 18;
+  const translatorBottomInset = Platform.OS === "android" ? 6 : 4;
   const translatorModelSheetMaxHeight = Math.round(height * 0.5);
 
   const { hasPermission, requestPermission } = useCameraPermission();
@@ -1117,7 +1119,7 @@ export default function CameraScreenVC({
           <View style={styles.translatorTopBarContent}>
             <View style={styles.translatorTopBarLeft}>
               <Pressable onPress={onBack} style={styles.topBarIconButton}>
-                <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+                <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
               </Pressable>
               <Pressable
                 onPress={() => {
@@ -1134,7 +1136,7 @@ export default function CameraScreenVC({
               >
                 <Ionicons
                   name={torchEnabled ? "flash" : "flash-off"}
-                  size={18}
+                  size={24}
                   color={torchEnabled ? "#FDE68A" : "#FFFFFF"}
                 />
               </Pressable>
@@ -1144,115 +1146,19 @@ export default function CameraScreenVC({
 
             <View style={styles.translatorTopBarRight}>
               <Pressable
-                onPress={() => {
-                  setShowTranslatorMenu((value) => !value);
-                  setShowTranslatorModeChoices(false);
-                }}
+                onPress={() =>
+                  setCameraPosition((p) => (p === "back" ? "front" : "back"))
+                }
                 style={({ pressed }) => [
                   styles.topBarIconButton,
                   pressed && { opacity: 0.8 },
                 ]}
               >
-                <Ionicons name="ellipsis-vertical" size={18} color="#FFFFFF" />
+                <Ionicons name="camera-reverse-outline" size={24} color="#FFFFFF" />
               </Pressable>
             </View>
           </View>
         </View>
-
-        {!isLab && showTranslatorMenu ? (
-          <View style={[styles.translatorMenuWrap, { top: translatorTopBarTop + 50 }]}>
-            <View style={styles.translatorMenuCard}>
-              <Pressable
-                onPress={openTranslatorModelSheet}
-                style={({ pressed }) => [
-                  styles.translatorMenuItem,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <View style={styles.translatorMenuItemLeft}>
-                  <Ionicons name="layers-outline" size={18} color={TEXT} />
-                  <Text style={styles.translatorMenuItemTitle}>Model</Text>
-                </View>
-                <Text style={styles.translatorMenuItemMeta} numberOfLines={1}>
-                  {String(
-                    activeLandmarkModelVersion?.label ??
-                      activeLandmarkModelVersionId ??
-                      "Choose"
-                  )}
-                </Text>
-              </Pressable>
-
-              <Pressable
-                onPress={() =>
-                  setShowTranslatorModeChoices((value) => !value)
-                }
-                style={({ pressed }) => [
-                  styles.translatorMenuItem,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <View style={styles.translatorMenuItemLeft}>
-                  <Ionicons
-                    name={
-                      detectMode === "LETTERS"
-                        ? "text-outline"
-                        : "chatbubble-ellipses-outline"
-                    }
-                    size={18}
-                    color={TEXT}
-                  />
-                  <Text style={styles.translatorMenuItemTitle}>Mode</Text>
-                </View>
-                <View style={styles.translatorMenuItemRight}>
-                  <Text style={styles.translatorMenuItemMeta}>
-                    {detectMode === "LETTERS" ? "Letters" : "Words"}
-                  </Text>
-                  <Ionicons
-                    name={showTranslatorModeChoices ? "chevron-up" : "chevron-down"}
-                    size={14}
-                    color={MUTED}
-                  />
-                </View>
-              </Pressable>
-
-              {showTranslatorModeChoices ? (
-                <View style={styles.translatorModeChoices}>
-                  {(["LETTERS", "WORDS"] as const).map((mode) => {
-                    const isActive = detectMode === mode;
-                    return (
-                      <Pressable
-                        key={mode}
-                        onPress={() => {
-                          if (isRecordingGesture) {
-                            setStatus("Stop recording first.");
-                            return;
-                          }
-                          setDetectMode(mode);
-                          setShowTranslatorModeChoices(false);
-                          setShowTranslatorMenu(false);
-                        }}
-                        style={({ pressed }) => [
-                          styles.translatorModeChoice,
-                          isActive && styles.translatorModeChoiceActive,
-                          pressed && { opacity: 0.82 },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.translatorModeChoiceText,
-                            isActive && styles.translatorModeChoiceTextActive,
-                          ]}
-                        >
-                          {mode === "LETTERS" ? "Letters" : "Words"}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
       </View>
 
       {isLab ? (
@@ -2246,31 +2152,59 @@ export default function CameraScreenVC({
             { bottom: bottomSafeLift + translatorBottomInset },
           ]}
         >
-          <View style={styles.translatorOutputCard}>
-            <View style={styles.translatorOutputTextWrap}>
-              <Text style={styles.translatorOutputLabel} numberOfLines={1}>
-                {displayLabel}
-              </Text>
-              <Text style={styles.translatorOutputConfidence}>
-                {Math.round(lastConf * 100)}% confidence
-              </Text>
+          <View style={[styles.translatorOutputCard, { flexDirection: "column", alignItems: "stretch", paddingVertical: SPACING.SPACE_MD, gap: SPACING.SPACE_MD }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <View style={styles.translatorOutputTextWrap}>
+                <Text style={styles.translatorOutputLabel} numberOfLines={1}>
+                  {displayLabel}
+                </Text>
+                <Text style={styles.translatorOutputConfidence}>
+                  {Math.round(lastConf * 100)}% confidence
+                </Text>
+              </View>
             </View>
 
-            <Pressable
-              onPress={() =>
-                setCameraPosition((p) => (p === "back" ? "front" : "back"))
-              }
-              style={({ pressed }) => [
-                styles.translatorFlipButton,
-                pressed && { opacity: 0.78 },
-              ]}
-            >
-              <Ionicons
-                name="camera-reverse-outline"
-                size={18}
-                color="#FFFFFF"
-              />
-            </Pressable>
+            <View style={{ flexDirection: "row", gap: SPACING.SPACE_SM }}>
+              <Pressable
+                onPress={openTranslatorModelSheet}
+                style={({ pressed }) => [
+                  styles.btn,
+                  { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.18)", paddingVertical: SPACING.SPACE_XS },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={[styles.btnText, { color: "#FFFFFF", fontSize: TYPOGRAPHY.TEXT_XS }]} numberOfLines={1}>
+                  {String(activeLandmarkModelVersion?.label ?? activeLandmarkModelVersionId ?? "Model")}
+                </Text>
+              </Pressable>
+
+              <Pressable
+                onPress={() => {
+                  if (isRecordingGesture) {
+                    setStatus("Stop recording first.");
+                    return;
+                  }
+                  setDetectMode((m) => {
+                    const next = m === "LETTERS" ? "WORDS" : "LETTERS";
+                    if (next === "LETTERS") {
+                      setIsRecordingGesture(false);
+                      clearRecordBuffer();
+                      clearPredictBuffer();
+                    }
+                    return next;
+                  });
+                }}
+                style={({ pressed }) => [
+                  styles.btn,
+                  { flex: 1, backgroundColor: "rgba(255,255,255,0.12)", borderColor: "rgba(255,255,255,0.18)", paddingVertical: SPACING.SPACE_XS },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={[styles.btnText, { color: "#FFFFFF", fontSize: TYPOGRAPHY.TEXT_XS }]}>
+                  {detectMode === "LETTERS" ? "Mode: Letters" : "Mode: Words"}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       )}
@@ -2579,9 +2513,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   topBarIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -2598,7 +2532,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#FFFFFF",
     fontWeight: "900",
-    fontSize: TYPOGRAPHY.TEXT_LG,
+    fontSize: TYPOGRAPHY.TEXT_2XL,
     letterSpacing: 0.2,
     textShadowColor: "rgba(0,0,0,0.25)",
     textShadowOffset: { width: 0, height: 1 },
@@ -2688,7 +2622,7 @@ const styles = StyleSheet.create({
   },
   translatorModeChoiceActive: {
     backgroundColor: SOFT_PINK,
-    borderColor: "rgba(190,24,93,0.18)",
+    borderColor: "rgba(230,110,25,0.30)",
   },
   translatorModeChoiceText: {
     color: TEXT,
@@ -2723,7 +2657,7 @@ const styles = StyleSheet.create({
   translatorOutputLabel: {
     color: "#FFFFFF",
     fontWeight: "900",
-    fontSize: TYPOGRAPHY.TEXT_2XL,
+    fontSize: TYPOGRAPHY.TEXT_4XL,
     letterSpacing: 0.1,
   },
   translatorOutputConfidence: {
@@ -2885,10 +2819,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 999,
-    backgroundColor: "#16A34A",
+    backgroundColor: "#22C55E",
   },
   modelPickerLiveText: {
-    color: "#15803D",
+    color: "#16A34A",
     fontWeight: "800",
     fontSize: TYPOGRAPHY.TEXT_XXS,
     letterSpacing: 0.4,
@@ -3049,7 +2983,7 @@ const styles = StyleSheet.create({
   },
   labFieldCardAccent: {
     backgroundColor: SOFT_PINK,
-    borderColor: "rgba(249,168,212,0.45)",
+    borderColor: "rgba(230,110,25,0.30)",
   },
   labFieldLabel: {
     color: MUTED,
@@ -3112,10 +3046,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: SOFT_BLUE,
     borderWidth: 1,
-    borderColor: "rgba(96,165,250,0.24)",
+    borderColor: "rgba(100,100,100,0.15)",
   },
   labStatusBadgeText: {
-    color: "#1D4ED8",
+    color: MUTED,
     fontWeight: "900",
     fontSize: TYPOGRAPHY.TEXT_XS,
   },
@@ -3210,7 +3144,7 @@ const styles = StyleSheet.create({
   },
   labSummaryPillAccent: {
     backgroundColor: SOFT_PINK,
-    borderColor: "rgba(249,168,212,0.45)",
+    borderColor: "rgba(230,110,25,0.30)",
   },
   labSummaryLabel: {
     color: MUTED,
@@ -3247,7 +3181,7 @@ const styles = StyleSheet.create({
 
   btnAccent: {
     backgroundColor: SOFT_PINK,
-    borderColor: "rgba(249,168,212,0.45)",
+    borderColor: "rgba(230,110,25,0.30)",
   },
   btnTextDark: { color: ACCENT },
 
@@ -3255,7 +3189,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: SPACING.SPACE_SM,
     borderRadius: 16,
-    borderColor: "rgba(249,168,212,0.45)",
+    borderColor: "rgba(230,110,25,0.30)",
     backgroundColor: SOFT_PINK,
     alignItems: "center",
     justifyContent: "center",
@@ -3354,7 +3288,7 @@ const styles = StyleSheet.create({
     gap: SPACING.SPACE_XXS,
   },
   targetChoiceCardActive: {
-    backgroundColor: SOFT_BLUE,
+    backgroundColor: SOFT_PINK,
   },
   targetChoiceTitle: {
     color: TEXT,
@@ -3373,8 +3307,8 @@ const styles = StyleSheet.create({
     gap: SPACING.SPACE_XXS,
   },
   versionCardActive: {
-    backgroundColor: SOFT_BLUE,
-    borderColor: "rgba(96,165,250,0.35)",
+    backgroundColor: SOFT_PINK,
+    borderColor: "rgba(230,110,25,0.30)",
   },
   versionTitle: {
     color: TEXT,
@@ -3386,9 +3320,9 @@ const styles = StyleSheet.create({
     gap: SPACING.SPACE_XS,
     padding: SPACING.SPACE_SM,
     borderRadius: 16,
-    backgroundColor: "rgba(252,231,243,0.72)",
+    backgroundColor: SOFT_PINK,
     borderWidth: 1,
-    borderColor: "rgba(249,168,212,0.35)",
+    borderColor: "rgba(230,110,25,0.30)",
     alignItems: "flex-start",
   },
   trainingNoticeText: {
@@ -3426,7 +3360,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: SOFT_YELLOW,
     borderWidth: 1,
-    borderColor: "rgba(253,230,138,0.45)",
+    borderColor: "rgba(230,110,25,0.15)",
   },
-  pillMiniText: { color: "#92400E", fontWeight: "900" },
+  pillMiniText: { color: MUTED, fontWeight: "900" },
 });

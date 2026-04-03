@@ -18,11 +18,12 @@ import { SPACING } from "../config/spacing";
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const PRIMARY = "#E66E19";
-const BG = "#F8F7F6";
+const PRIMARY_CONTAINER = "#F47A22";
+const BG = "#F8F9FA";
 const CARD = "#FFFFFF";
-const BORDER = "#E7D9D0";
-const MUTED = "#976D4E";
-const TEXT = "#1B130E";
+const BORDER = "#F3F4F5";
+const MUTED = "#737373";
+const TEXT = "#191C1D";
 
 const ASL_IMAGES: Record<string, any> = {
   A: require("../../assets/asl/A.png"),
@@ -357,7 +358,7 @@ const styles = StyleSheet.create({
   letterBtnActive: {
     borderWidth: 2,
     borderColor: PRIMARY,
-    backgroundColor: "rgba(230,110,25,0.05)",
+    backgroundColor: "rgba(230, 110, 25, 0.15)",
   },
   letterText: {
     fontSize: TYPOGRAPHY.TEXT_MD,

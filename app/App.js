@@ -254,7 +254,8 @@ function Chip({ label, active, onPress }) {
 }
 
 const PRIMARY = "#E66E19";
-const MUTED = "#976D4E";
+const PRIMARY_CONTAINER = "#F47A22";
+const MUTED = "#737373";
 
 function NavItem({
   icon,
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     borderTopWidth: 1,
-    borderTopColor: "#F3ECE7",
+    borderTopColor: "#F3F4F5",
     ...Platform.select({
       android: { elevation: 10 },
       ios: {

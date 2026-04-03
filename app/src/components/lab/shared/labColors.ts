@@ -11,17 +11,18 @@ import { SPACING } from "../../../config/spacing";
 
 // ── Brand / accent ──────────────────────────────────────────────
 export const ACCENT = "#E66E19";
+export const PRIMARY_CONTAINER = "#F47A22";
 export const ACCENT_LIGHT = "#FFF3E0";
 export const ACCENT_BORDER = "rgba(230,126,34,0.30)";
 
 // ── Surfaces ────────────────────────────────────────────────────
-export const BG = "#FFF9F2";
+export const BG = "#F8F9FA";
 export const BG_CARD = "#FFFFFF";
 export const BG_MUTED = "#F5F1EB";
 export const BG_OVERLAY = "rgba(255,255,255,0.94)";
 
 // ── Text ────────────────────────────────────────────────────────
-export const TEXT = "#1F2937";
+export const TEXT = "#191C1D";
 export const TEXT_SECONDARY = "#6B7280";
 export const TEXT_TERTIARY = "#9CA3AF";
 

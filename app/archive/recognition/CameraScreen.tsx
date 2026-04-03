@@ -18,7 +18,7 @@ import { WebView } from "react-native-webview";
 import Svg, { Circle } from "react-native-svg";
 import { API_BASE } from "../../src/config/api";
 
-const ACCENT = "#2EE6A6";
+const ACCENT = "#EA580C";
 
 export default function CameraScreen() {
   const [permission, requestPermission] = useCameraPermissions();

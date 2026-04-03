@@ -18,7 +18,8 @@ import { API_BASE } from "../config/api";
 import { TYPOGRAPHY } from "../config/typography";
 import { SPACING } from "../config/spacing";
 import { 
-  ACCENT as PRIMARY, 
+  ACCENT as PRIMARY,
+  PRIMARY_CONTAINER, 
   BORDER, 
   TEXT_SECONDARY as MUTED, 
   TEXT, 
