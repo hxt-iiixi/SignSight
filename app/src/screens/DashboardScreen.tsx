@@ -54,13 +54,15 @@ export default function DashboardScreen({
       >
         {/* Header and Page Title */}
         <View style={[styles.pageHead, { paddingHorizontal: P }]}>
-          <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.SPACE_SM }}>
-            <Image source={require("../../assets/logo.png")} style={{ width: 44, height: 44, resizeMode: "contain" }} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.SPACE_XXS }}>
+            <Image 
+              source={require("../../assets/logo.png")} 
+              style={{ width: 32, height: 32, resizeMode: "contain" }} 
+            />
             <Text style={styles.pageTitle}>
              SignSight
             </Text>
           </View>
-          <Text style={styles.pageSub}>Real-time sign language interpretation</Text>
         </View>
 
         {/* Hero Card */}

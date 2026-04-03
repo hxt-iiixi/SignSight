@@ -2646,9 +2646,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.SPACE_MD,
     paddingVertical: SPACING.SPACE_SM,
     borderRadius: 24,
-    backgroundColor: "rgba(17,24,39,0.26)",
+    backgroundColor: "rgba(0, 0, 0, 0.41)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.18)",
+    borderColor: "#ff8d3b1b",
   },
   translatorOutputTextWrap: {
     flex: 1,
