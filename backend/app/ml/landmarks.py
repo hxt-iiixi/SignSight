@@ -201,6 +201,18 @@ def analyze_hand_landmarks(
         [_safe_norm(points[idx][:2] - palm_center[:2]) for idx in FINGERTIP_INDICES[1:]],
         dtype=np.float32,
     )
+    knuckle_ridge = points[17][:2] - points[5][:2]
+    knuckle_ridge_norm = _safe_norm(knuckle_ridge)
+    if knuckle_ridge_norm < 1e-6:
+        thumb_knuckle_clearance = 0.0
+    else:
+        thumb_knuckle_clearance = float(
+            abs(
+                knuckle_ridge[0] * (points[5][1] - thumb_tip[1])
+                - (points[5][0] - thumb_tip[0]) * knuckle_ridge[1]
+            )
+            / knuckle_ridge_norm
+        )
 
     return {
         "points": points,
@@ -219,6 +231,7 @@ def analyze_hand_landmarks(
         "thumb_closest_base": thumb_closest_base,
         "aperture": aperture,
         "folded_finger_tips_to_palm": folded_finger_tips_to_palm,
+        "thumb_knuckle_clearance": thumb_knuckle_clearance,
     }
 
 

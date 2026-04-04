@@ -711,6 +711,66 @@ def _fingertips_cross(points: np.ndarray, first: tuple[int, int], second: tuple[
     ) < 0.0
 
 
+def _thumb_outside_a_shape(
+    extension_scores: np.ndarray,
+    thumb_to_tip_distance: np.ndarray,
+    thumb_crossing: np.ndarray,
+    thumb_closest_base: int,
+    thumb_knuckle_clearance: float,
+) -> bool:
+    return (
+        float(thumb_crossing[0]) >= 0.42
+        and float(thumb_crossing[2]) >= 0.48
+        and float(thumb_to_tip_distance[0]) >= 0.24
+        and float(thumb_to_tip_distance[1]) >= 0.30
+        and thumb_closest_base == 0
+        and thumb_knuckle_clearance >= 0.08
+        # Allow a bent thumb for A, but still reject a thumb that is fully tucked in.
+        and float(extension_scores[0]) >= 0.46
+    )
+
+
+def _thumb_resting_on_fist_for_s(
+    thumb_to_tip_distance: np.ndarray,
+    thumb_crossing: np.ndarray,
+    thumb_closest_base: int,
+    thumb_knuckle_clearance: float,
+) -> bool:
+    return (
+        thumb_knuckle_clearance <= 0.07
+        and float(thumb_crossing[0]) <= 0.40
+        and float(thumb_crossing[2]) <= 0.42
+        and float(thumb_to_tip_distance[0]) <= 0.34
+        and float(thumb_to_tip_distance[1]) <= 0.36
+        and thumb_closest_base in {0, 1, 2}
+    )
+
+
+def _classify_as_family(
+    extension_scores: np.ndarray,
+    thumb_to_tip_distance: np.ndarray,
+    thumb_crossing: np.ndarray,
+    thumb_closest_base: int,
+    thumb_knuckle_clearance: float,
+) -> Optional[str]:
+    if _thumb_outside_a_shape(
+        extension_scores,
+        thumb_to_tip_distance,
+        thumb_crossing,
+        thumb_closest_base,
+        thumb_knuckle_clearance,
+    ):
+        return "A"
+    if _thumb_resting_on_fist_for_s(
+        thumb_to_tip_distance,
+        thumb_crossing,
+        thumb_closest_base,
+        thumb_knuckle_clearance,
+    ):
+        return "S"
+    return None
+
+
 
 
 
@@ -731,6 +791,7 @@ def _suggest_rule_label(
     index_direction = analysis["index_direction"]
     folded_finger_tips_to_palm = analysis["folded_finger_tips_to_palm"]
     thumb_closest_base = int(analysis["thumb_closest_base"])
+    thumb_knuckle_clearance = float(analysis["thumb_knuckle_clearance"])
     aperture = float(analysis["aperture"])
     points = analysis["points"]
 
@@ -772,14 +833,17 @@ def _suggest_rule_label(
 
     if _family_active(raw_label, top_labels, {"A", "S"}) and {"A", "S"} <= set(top_labels):
         if fist_like:
-            thumb_outside_fist = (
-                float(extension_scores[0]) >= 0.66
-                and float(thumb_crossing[0]) >= 0.56
-                and float(thumb_crossing[2]) >= 0.60
-                and float(thumb_to_tip_distance[0]) >= 0.33
-                and thumb_closest_base == 0
+            as_family = _classify_as_family(
+                extension_scores,
+                thumb_to_tip_distance,
+                thumb_crossing,
+                thumb_closest_base,
+                thumb_knuckle_clearance,
             )
-            return "A" if thumb_outside_fist else "S"
+            if as_family is not None:
+                return as_family
+            if set(top_labels).issubset({"A", "S"}):
+                return None
 
     if _family_active(raw_label, top_labels, {"E", "S", "T"}):
         fingertips_tucked = float(np.mean(folded_finger_tips_to_palm)) < 0.42
@@ -801,11 +865,24 @@ def _suggest_rule_label(
             and thumb_cross_norm >= 0.14
             and mean_inner_extension <= 0.36
             and mean_inner_curl >= 0.55
+            and _thumb_resting_on_fist_for_s(
+                thumb_to_tip_distance,
+                thumb_crossing,
+                thumb_closest_base,
+                thumb_knuckle_clearance,
+            )
         ):
             return "S"
         if fingertips_tucked and thumb_cross_norm <= 0.20 and thumb_cross_y >= -0.12:
             return "E"
-        return "S"
+        if _thumb_resting_on_fist_for_s(
+            thumb_to_tip_distance,
+            thumb_crossing,
+            thumb_closest_base,
+            thumb_knuckle_clearance,
+        ):
+            return "S"
+        return None
 
     if _family_active(raw_label, top_labels, {"M", "N", "T", "S"}):
         if fist_like:
@@ -815,7 +892,13 @@ def _suggest_rule_label(
                 return "N"
             if float(thumb_to_tip_distance[0]) < 0.20:
                 return "T"
-            return "S"
+            if _thumb_resting_on_fist_for_s(
+                thumb_to_tip_distance,
+                thumb_crossing,
+                thumb_closest_base,
+                thumb_knuckle_clearance,
+            ):
+                return "S"
 
     return None
 
