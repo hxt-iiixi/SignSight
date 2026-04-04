@@ -31,6 +31,13 @@ type TargetSheetItem = {
   deficits: string[];
   statusText: string;
   statusColor: string;
+  statusKind: "active" | "ready" | "unready" | "collecting" | "none";
+  unreadyStats?: {
+    approved: number;
+    signers: number | null;
+    left: number | null;
+    right: number | null;
+  };
   selected: boolean;
 };
 
@@ -44,6 +51,14 @@ type ModelSheetItem = {
 };
 
 const MODEL_ROW_HEIGHT = 72;
+
+function extractDeficitCount(
+  deficits: string[],
+  matcher: RegExp
+): number | null {
+  const match = deficits.find((deficit) => matcher.test(deficit))?.match(/(\d+)\s*\/\s*\d+/);
+  return match ? Number(match[1]) : null;
+}
 
 const TargetRow = memo(function TargetRow({
   item,
@@ -69,13 +84,17 @@ const TargetRow = memo(function TargetRow({
               >
                 {item.label}
               </Text>
-              {item.statusText === "Active (in model)" ? (
+              {item.statusKind === "active" ? (
                 <View style={styles.inlineActiveBadge}>
                   <Ionicons name="sparkles" size={12} color="#16A34A" />
                 </View>
+              ) : item.statusKind === "unready" ? (
+                <View style={styles.inlineUnreadyBadge}>
+                  <Ionicons name="alert-circle" size={12} color="#DC2626" />
+                </View>
               ) : null}
             </View>
-            {item.statusText !== "Active (in model)" ? (
+            {item.statusKind !== "active" && item.statusKind !== "unready" ? (
               <Text style={[styles.sheetStatusText, { color: item.statusColor }]}>
                 {item.statusText}
               </Text>
@@ -88,11 +107,40 @@ const TargetRow = memo(function TargetRow({
           ) : null}
         </View>
 
-        {item.count > 0 ? (
+        {item.count > 0 && item.statusKind !== "unready" ? (
           <Text style={styles.sheetItemMeta}>Samples: {item.count}</Text>
         ) : null}
 
-        {item.deficits.length > 0 ? (
+        {item.statusKind === "unready" && item.unreadyStats ? (
+          <View style={styles.unreadyStatsCard}>
+            <View style={styles.unreadyStatsGrid}>
+              <View style={styles.unreadyStatsCell}>
+                <Text style={styles.unreadyStatsLabel}>Approved</Text>
+                <Text style={styles.unreadyStatsValue}>{item.unreadyStats.approved}</Text>
+              </View>
+              <View style={styles.unreadyStatsCell}>
+                <Text style={styles.unreadyStatsLabel}>Left Hand</Text>
+                <Text style={styles.unreadyStatsValue}>
+                  {item.unreadyStats.left ?? "—"}
+                </Text>
+              </View>
+              <View style={styles.unreadyStatsCell}>
+                <Text style={styles.unreadyStatsLabel}>Signers</Text>
+                <Text style={styles.unreadyStatsValue}>
+                  {item.unreadyStats.signers ?? "—"}
+                </Text>
+              </View>
+              <View style={styles.unreadyStatsCell}>
+                <Text style={styles.unreadyStatsLabel}>Right Hand</Text>
+                <Text style={styles.unreadyStatsValue}>
+                  {item.unreadyStats.right ?? "—"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        {item.deficits.length > 0 && item.statusKind !== "unready" ? (
           <View style={styles.deficitsWrap}>
             {item.deficits.map((deficit, index) => (
               <Text key={`${item.id}-deficit-${index}`} style={styles.deficitText}>
@@ -283,19 +331,24 @@ export function CaptureCard() {
 
       let statusText = "N/A";
       let statusColor = "#737373";
+      let statusKind: TargetSheetItem["statusKind"] = "none";
 
       if (isActive) {
         statusText = "Active (in model)";
         statusColor = "#16A34A";
+        statusKind = "active";
       } else if (isReady) {
         statusText = "Ready (pending model)";
         statusColor = "#0284C7";
+        statusKind = "ready";
       } else if (isUnready) {
         statusText = "Unready (needs data)";
         statusColor = "#DC2626";
+        statusKind = "unready";
       } else if (count > 0) {
         statusText = "Collecting data";
         statusColor = "#D97706";
+        statusKind = "collecting";
       } else {
         statusText = "No data";
       }
@@ -307,6 +360,16 @@ export function CaptureCard() {
         deficits,
         statusText,
         statusColor,
+        statusKind,
+        unreadyStats:
+          statusKind === "unready"
+            ? {
+                approved: count,
+                signers: extractDeficitCount(deficits, /signers/i),
+                left: extractDeficitCount(deficits, /left hand/i),
+                right: extractDeficitCount(deficits, /right hand/i),
+              }
+            : undefined,
         selected: selectedLabel === label,
       };
     });
@@ -718,6 +781,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  inlineUnreadyBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(220,38,38,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   selectedIconBadge: {
     width: 18,
     height: 18,
@@ -747,6 +818,38 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEE2E2",
     padding: 6,
     borderRadius: 6,
+  },
+  unreadyStatsCard: {
+    marginTop: 5,
+    backgroundColor: "#FEF2F2",
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingHorizontal: 8,
+    paddingVertical: 7,
+  },
+  unreadyStatsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: 6,
+  },
+  unreadyStatsCell: {
+    width: "50%",
+    paddingRight: 4,
+  },
+  unreadyStatsLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#991B1B",
+    textTransform: "uppercase",
+    letterSpacing: 0.15,
+    marginBottom: 0,
+  },
+  unreadyStatsValue: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#7F1D1D",
+    lineHeight: 16,
   },
   deficitText: {
     fontSize: 12,
