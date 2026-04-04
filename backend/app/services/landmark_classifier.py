@@ -410,6 +410,7 @@ def _version_entry(
         if isinstance(metadata.get("active_static_word_labels"), list)
         else [],
         "trained_at": metadata.get("trained_at"),
+        "accuracy": metadata.get("accuracy"),
         "source": source,
     }
 
@@ -1196,6 +1197,7 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
         "version_id": version_id,
         "label": f"{normalized_mode.replace('_', ' ')} {trained_at}",
         "training_mode": normalized_mode,
+        "accuracy": float(acc),
         "active_static_letters": sorted(
             str(label) for label in model.classes_ if str(label) in LABELS
         ),

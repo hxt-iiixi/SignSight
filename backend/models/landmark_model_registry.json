@@ -3,7 +3,7 @@
   "versions": [
     {
       "version_id": "legacy_20260401T101811Z",
-      "label": "legacy_20260401T101811Z",
+      "label": "SS Legacy 1",
       "training_mode": "full_reviewed",
       "active_static_letters": [
         "A",
@@ -33,53 +33,6 @@
       ],
       "trained_at": "2026-04-01T10:18:11+00:00",
       "source": "migrated_legacy"
-    },
-    {
-      "version_id": "landmarks_bootstrap_20260401T113016Z",
-      "label": "bootstrap-killa",
-      "training_mode": "bootstrap",
-      "active_static_letters": [
-        "A",
-        "B",
-        "C",
-        "F",
-        "O"
-      ],
-      "trained_at": "2026-04-01T11:30:16+00:00",
-      "source": "trained"
-    },
-    {
-      "version_id": "landmarks_bootstrap_20260401T124401Z",
-      "label": "bootst-latest",
-      "training_mode": "bootstrap",
-      "active_static_letters": [
-        "A",
-        "B",
-        "C",
-        "F",
-        "O",
-        "S"
-      ],
-      "trained_at": "2026-04-01T12:44:01+00:00",
-      "source": "trained"
-    },
-    {
-      "version_id": "landmarks_bootstrap_20260401T130318Z",
-      "label": "mnt letter",
-      "training_mode": "bootstrap",
-      "active_static_letters": [
-        "A",
-        "B",
-        "C",
-        "F",
-        "M",
-        "N",
-        "O",
-        "S",
-        "T"
-      ],
-      "trained_at": "2026-04-01T13:03:18+00:00",
-      "source": "trained"
     },
     {
       "version_id": "landmarks_bootstrap_20260401T160709Z",
@@ -472,6 +425,56 @@
       "trained_at": "2026-04-01T15:58:57+00:00",
       "source": "trained",
       "archived_at": "2026-04-02T05:27:54+00:00"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T113016Z",
+      "label": "bootstrap-killa",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "F",
+        "O"
+      ],
+      "trained_at": "2026-04-01T11:30:16+00:00",
+      "source": "trained",
+      "archived_at": "2026-04-04T17:25:22+00:00"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T130318Z",
+      "label": "mnt letter",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "F",
+        "M",
+        "N",
+        "O",
+        "S",
+        "T"
+      ],
+      "trained_at": "2026-04-01T13:03:18+00:00",
+      "source": "trained",
+      "archived_at": "2026-04-04T17:25:33+00:00"
+    },
+    {
+      "version_id": "landmarks_bootstrap_20260401T124401Z",
+      "label": "bootst-latest",
+      "training_mode": "bootstrap",
+      "active_static_letters": [
+        "A",
+        "B",
+        "C",
+        "F",
+        "O",
+        "S"
+      ],
+      "trained_at": "2026-04-01T12:44:01+00:00",
+      "source": "trained",
+      "archived_at": "2026-04-04T17:25:35+00:00"
     }
   ]
 }

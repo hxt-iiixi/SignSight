@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
+import { Platform, Pressable, StatusBar, useWindowDimensions, View, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -13,15 +13,14 @@ import { RecognitionOverlay } from "../../../modules/camera/components/Recogniti
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
 import { useRecognitionRuntime } from "../../../modules/camera/hooks/useRecognitionRuntime";
+import {
+  ModelsTabScreen,
+  type ModelManagementItem,
+  type TrainingModeValue,
+} from "../components/ModelsTabScreen";
 
 type Mode = "letters" | "words";
-
-type ModelItem = {
-  id: string;
-  label: string;
-  detail?: string;
-  rawInfo?: any;
-};
+type ModelItem = ModelManagementItem;
 
 type LabTabParamList = {
   CaptureTab: undefined;
@@ -31,6 +30,97 @@ type LabTabParamList = {
 };
 
 type SaveState = "idle" | "saving" | "success" | "error" | "info";
+type ActionState = "idle" | "running";
+
+function normalizeModelsResponse(rawModels: any[]): ModelItem[] {
+  const registryInfo = rawModels.find(
+    (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
+  )?.info;
+  const activeVersionId =
+    typeof registryInfo?.active_version_id === "string"
+      ? registryInfo.active_version_id
+      : null;
+
+  return rawModels
+    .filter(
+      (model: any) =>
+        model.type === "json" &&
+        (model.path.includes("landmark_versions/") ||
+          model.path.includes("archived_models/"))
+    )
+    .map((model: any) => {
+      const info = model.info || {};
+      const trainedAt = typeof info.trained_at === "string" ? info.trained_at : null;
+      const archivedAt = typeof info.archived_at === "string" ? info.archived_at : null;
+      const dateObj = trainedAt ? new Date(trainedAt) : null;
+      const detail =
+        dateObj && !Number.isNaN(dateObj.getTime())
+          ? dateObj.toLocaleDateString()
+          : typeof info.training_mode === "string"
+            ? info.training_mode
+            : "";
+      const versionId =
+        typeof info.version_id === "string"
+          ? info.version_id
+          : model.path.split("/").pop()?.replace(".json", "") ?? model.path;
+      const isArchived = Boolean(model.is_archived || model.path.includes("archived_models/"));
+      const accuracy =
+        typeof info.accuracy === "number" && Number.isFinite(info.accuracy)
+          ? info.accuracy
+          : null;
+
+      return {
+        id: model.path,
+        versionId,
+        label:
+          typeof info.label === "string"
+            ? info.label
+            : model.path.split("/").pop()?.replace(".json", "") ?? versionId,
+        detail,
+        rawInfo: info,
+        trainedAt,
+        trainingMode: (info.training_mode === "full_reviewed"
+          ? "full_reviewed"
+          : "bootstrap") as TrainingModeValue,
+        isActive: versionId === activeVersionId,
+        isArchived,
+        accuracy,
+        archivedAt,
+        activeStaticLetters: Array.isArray(info.active_static_letters)
+          ? info.active_static_letters.map(String)
+          : [],
+        activeStaticWordLabels: Array.isArray(info.active_static_word_labels)
+          ? info.active_static_word_labels.map(String)
+          : [],
+        readyStaticLetters: Array.isArray(info.ready_static_letters)
+          ? info.ready_static_letters.map(String)
+          : [],
+        readyStaticWordLabels: Array.isArray(info.ready_static_word_labels)
+          ? info.ready_static_word_labels.map(String)
+          : [],
+        unreadyStaticLetters: Array.isArray(info.unready_static_letters)
+          ? info.unready_static_letters.map(String)
+          : [],
+        deficitsByLabel:
+          info.deficits_by_label && typeof info.deficits_by_label === "object"
+            ? info.deficits_by_label
+            : {},
+        trainingSampleCounts:
+          info.training_sample_counts && typeof info.training_sample_counts === "object"
+            ? info.training_sample_counts
+            : {},
+        quotasUsed:
+          info.quotas_used && typeof info.quotas_used === "object"
+            ? info.quotas_used
+            : null,
+      };
+    })
+    .sort((a, b) => {
+      const aTime = a.trainedAt ? new Date(a.trainedAt).getTime() : 0;
+      const bTime = b.trainedAt ? new Date(b.trainedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+}
 
 const Tab = createBottomTabNavigator<LabTabParamList>();
 
@@ -269,6 +359,15 @@ export default function LabDeveloperScreen() {
   const [availableModels, setAvailableModels] = useState<ModelItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState<string>("None");
+  const [modelsLoading, setModelsLoading] = useState(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [trainingMode, setTrainingMode] = useState<TrainingModeValue>("bootstrap");
+  const [trainingState, setTrainingState] = useState<ActionState>("idle");
+  const [trainingMessage, setTrainingMessage] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [activatingModelId, setActivatingModelId] = useState<string | null>(null);
+  const [archivingModelId, setArchivingModelId] = useState<string | null>(null);
+  const [renamingModelId, setRenamingModelId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
@@ -279,63 +378,33 @@ export default function LabDeveloperScreen() {
   );
 
   async function fetchModels() {
+    setModelsLoading(true);
+    setModelsError(null);
     try {
       const res = await fetch(`${API_BASE}/models`);
       const data = await res.json();
       const rawModels = Array.isArray(data.models) ? data.models : [];
-      const registryInfo = rawModels.find(
-        (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
-      )?.info;
-      const activeVersionId =
-        typeof registryInfo?.active_version_id === "string"
-          ? registryInfo.active_version_id
-          : null;
+      const normalized = normalizeModelsResponse(rawModels);
+      const preferredModel =
+        normalized.find((model) => model.isActive) ??
+        normalized.find((model) => !model.isArchived) ??
+        normalized[0] ??
+        null;
 
-      if (rawModels.length > 0) {
-        const activeVersions = rawModels
-          .filter(
-            (m: any) =>
-              m.type === "json" &&
-              m.path.includes("landmark_versions/") &&
-              !m.path.includes("archived_models")
-          )
-          .map((m: any) => {
-            const info = m.info || {};
-            const label =
-              info.label || m.path.split("/").pop()?.replace(".json", "");
-            const dateObj = info.trained_at ? new Date(info.trained_at) : null;
-            const detail =
-              dateObj && !Number.isNaN(dateObj.getTime())
-                ? dateObj.toLocaleDateString()
-                : info.training_mode || "";
+      setAvailableModels(normalized);
 
-            return {
-              id: m.path,
-              label,
-              detail,
-              rawInfo: info,
-              _tempDate:
-                dateObj && !Number.isNaN(dateObj.getTime())
-                  ? dateObj.getTime()
-                  : 0,
-            };
-          })
-          .sort((a: any, b: any) => b._tempDate - a._tempDate);
-
-        const preferredModel =
-          activeVersions.find(
-            (model) => model.rawInfo?.version_id === activeVersionId
-          ) ?? activeVersions[0];
-
-        setAvailableModels(activeVersions);
-
-        if (preferredModel) {
-          setSelectedModel(preferredModel);
-          setActiveModelLabel(preferredModel.label);
-        }
+      if (preferredModel) {
+        setSelectedModel(preferredModel);
+        setActiveModelLabel(preferredModel.label);
+      } else {
+        setSelectedModel(null);
+        setActiveModelLabel("None");
       }
     } catch (err) {
       console.log("Failed to fetch models", err);
+      setModelsError("Failed to load landmark models.");
+    } finally {
+      setModelsLoading(false);
     }
   }
 
@@ -349,12 +418,14 @@ export default function LabDeveloperScreen() {
       return;
     }
 
-    const versionId = model.rawInfo?.version_id;
+    const versionId = model.versionId;
     if (!versionId) {
       return;
     }
 
     try {
+      setActivatingModelId(modelId);
+      setModelsError(null);
       const response = await fetch(`${API_BASE}/activate_landmark_model`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -363,13 +434,105 @@ export default function LabDeveloperScreen() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || payload?.ok === false) {
+        setModelsError(payload?.error ?? "Failed to activate model.");
         return;
       }
 
-      setSelectedModel(model);
-      setActiveModelLabel(model.label);
+      await fetchModels();
     } catch (error) {
       console.log("Failed to activate model", error);
+      setModelsError("Failed to activate model.");
+    } finally {
+      setActivatingModelId(null);
+    }
+  }
+
+  async function handleTrainModel() {
+    try {
+      setTrainingState("running");
+      setTrainingMessage("Retraining landmark model...");
+      setModelsError(null);
+      const response = await fetch(`${API_BASE}/train_landmarks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trainingMode }),
+      });
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok || payload?.ok === false) {
+        setTrainingMessage(payload?.error ?? "Retraining failed.");
+        return;
+      }
+
+      const accuracy =
+        typeof payload?.accuracy === "number"
+          ? `${(payload.accuracy * 100).toFixed(1)}%`
+          : "completed";
+      setTrainingMessage(`Retraining finished. Holdout accuracy ${accuracy}.`);
+      await fetchModels();
+    } catch (error) {
+      console.log("Failed to train model", error);
+      setTrainingMessage("Retraining failed.");
+    } finally {
+      setTrainingState("idle");
+    }
+  }
+
+  async function handleRenameModel(modelId: string, nextLabel: string) {
+    const model = availableModels.find((item) => item.id === modelId);
+    if (!model || !nextLabel.trim()) {
+      return;
+    }
+
+    try {
+      setRenamingModelId(modelId);
+      setModelsError(null);
+      const response = await fetch(`${API_BASE}/rename_landmark_model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId: model.versionId, label: nextLabel.trim() }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok === false) {
+        setModelsError(payload?.error ?? "Failed to rename model.");
+        return;
+      }
+
+      await fetchModels();
+    } catch (error) {
+      console.log("Failed to rename model", error);
+      setModelsError("Failed to rename model.");
+    } finally {
+      setRenamingModelId(null);
+    }
+  }
+
+  async function handleArchiveModel(modelId: string) {
+    const model = availableModels.find((item) => item.id === modelId);
+    if (!model) {
+      return;
+    }
+
+    try {
+      setArchivingModelId(modelId);
+      setModelsError(null);
+      const response = await fetch(`${API_BASE}/archive_landmark_model`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ versionId: model.versionId }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok === false) {
+        setModelsError(payload?.error ?? "Failed to archive model.");
+        return;
+      }
+
+      await fetchModels();
+    } catch (error) {
+      console.log("Failed to archive model", error);
+      setModelsError("Failed to archive model.");
+    } finally {
+      setArchivingModelId(null);
     }
   }
 
@@ -411,7 +574,7 @@ export default function LabDeveloperScreen() {
             <CaptureTabScreen
               mode={mode}
               bottomOffset={tabBarHeight}
-              availableModels={availableModels}
+              availableModels={availableModels.filter((model) => !model.isArchived)}
               selectedModel={selectedModel}
               activeModelLabel={activeModelLabel}
               selectedLabel={selectedLabel}
@@ -443,9 +606,30 @@ export default function LabDeveloperScreen() {
         />
         <Tab.Screen
           name="ModelsTab"
-          component={StaticLabTabScreen}
           options={{ title: "Models" }}
-        />
+        >
+          {() => (
+            <ModelsTabScreen
+              models={availableModels}
+              activeModel={availableModels.find((model) => model.isActive) ?? selectedModel}
+              loading={modelsLoading}
+              error={modelsError}
+              trainingMode={trainingMode}
+              onTrainingModeChange={setTrainingMode}
+              onTrain={handleTrainModel}
+              trainingState={trainingState}
+              trainingMessage={trainingMessage}
+              showArchived={showArchived}
+              onToggleArchived={() => setShowArchived((current) => !current)}
+              activatingModelId={activatingModelId}
+              archivingModelId={archivingModelId}
+              renamingModelId={renamingModelId}
+              onActivateModel={handleActivateModel}
+              onArchiveModel={handleArchiveModel}
+              onRenameModel={handleRenameModel}
+            />
+          )}
+        </Tab.Screen>
         <Tab.Screen
           name="MetricsTab"
           component={StaticLabTabScreen}
