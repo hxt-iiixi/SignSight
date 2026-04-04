@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  BottomSheetFlatList,
   BottomSheetModal,
-  BottomSheetScrollView,
   BottomSheetView,
+  useBottomSheetSpringConfigs,
 } from "@gorhom/bottom-sheet";
 
 import {
@@ -26,6 +27,103 @@ export interface ModelItem {
 type Mode = "letters" | "words";
 type SheetKind = "target" | "model" | null;
 
+type TargetSheetItem = {
+  id: string;
+  label: string;
+  count: number;
+  deficits: string[];
+  statusText: string;
+  statusColor: string;
+  selected: boolean;
+};
+
+type ModelSheetItem = {
+  id: string;
+  label: string;
+  detail?: string;
+  selected: boolean;
+  model: ModelItem;
+};
+
+const TARGET_ROW_HEIGHT = 96;
+const MODEL_ROW_HEIGHT = 72;
+
+const TargetRow = memo(function TargetRow({
+  item,
+  onPress,
+}: {
+  item: TargetSheetItem;
+  onPress: (label: string) => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.sheetListItem, item.selected && styles.sheetItemActive]}
+      onPress={() => onPress(item.label)}
+    >
+      <View style={styles.sheetItemContent}>
+        <View style={styles.sheetRow}>
+          <Text
+            style={[
+              styles.sheetItemText,
+              item.selected && styles.sheetItemTextActive,
+              styles.sheetTargetText,
+            ]}
+          >
+            {item.label}
+          </Text>
+          <Text style={[styles.sheetStatusText, { color: item.statusColor }]}>
+            {item.statusText}
+          </Text>
+        </View>
+
+        {item.count > 0 ? (
+          <Text style={styles.sheetItemMeta}>Samples: {item.count}</Text>
+        ) : null}
+
+        {item.deficits.length > 0 ? (
+          <View style={styles.deficitsWrap}>
+            {item.deficits.map((deficit, index) => (
+              <Text key={`${item.id}-deficit-${index}`} style={styles.deficitText}>
+                • {deficit}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const ModelRow = memo(function ModelRow({
+  item,
+  onPress,
+}: {
+  item: ModelSheetItem;
+  onPress: (model: ModelItem) => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.sheetListItem, item.selected && styles.sheetItemActive]}
+      onPress={() => onPress(item.model)}
+    >
+      <View style={styles.sheetItemContent}>
+        <Text
+          style={[
+            styles.sheetItemText,
+            item.selected && styles.sheetItemTextActive,
+          ]}
+          numberOfLines={1}
+        >
+          {item.label}
+        </Text>
+        {item.detail ? (
+          <Text style={styles.sheetItemMeta}>{item.detail}</Text>
+        ) : null}
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export function CaptureCard() {
   const [mode, setMode] = useState<Mode>("letters");
   const [selectedLabel, setSelectedLabel] = useState<string>("N/A");
@@ -40,6 +138,11 @@ export function CaptureCard() {
 
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["50%"], []);
+  const animationConfigs = useBottomSheetSpringConfigs({
+    damping: 34,
+    stiffness: 280,
+    overshootClamping: true,
+  });
 
   const letterLabels = [...ASL_LABELS];
   const wordLabels = [
@@ -55,6 +158,7 @@ export function CaptureCard() {
     "GOODBYE",
   ];
   const currentLabels = mode === "letters" ? letterLabels : wordLabels;
+  const selectedModelInfo = selectedModelObj.rawInfo || {};
 
   useEffect(() => {
     async function fetchModels() {
@@ -131,6 +235,94 @@ export function CaptureCard() {
 
   const sheetTitle =
     activeSheet === "model" ? "Select Model" : "Select Target";
+
+  const targetSheetData = useMemo<TargetSheetItem[]>(() => {
+    return currentLabels.map((label) => {
+      const isActive =
+        (selectedModelInfo.active_static_letters || []).includes(label) ||
+        (selectedModelInfo.active_static_word_labels || []).includes(label);
+      const isReady =
+        (selectedModelInfo.ready_static_letters || []).includes(label) ||
+        (selectedModelInfo.ready_static_word_labels || []).includes(label);
+      const isUnready =
+        (selectedModelInfo.unready_static_letters || []).includes(label);
+      const count = selectedModelInfo.training_sample_counts?.[label] || 0;
+      const deficits = selectedModelInfo.deficits_by_label?.[label] || [];
+
+      let statusText = "N/A";
+      let statusColor = "#737373";
+
+      if (isActive) {
+        statusText = "Active (in model)";
+        statusColor = "#16A34A";
+      } else if (isReady) {
+        statusText = "Ready (pending model)";
+        statusColor = "#0284C7";
+      } else if (isUnready) {
+        statusText = "Unready (needs data)";
+        statusColor = "#DC2626";
+      } else if (count > 0) {
+        statusText = "Collecting data";
+        statusColor = "#D97706";
+      } else {
+        statusText = "No data";
+      }
+
+      return {
+        id: label,
+        label,
+        count,
+        deficits,
+        statusText,
+        statusColor,
+        selected: selectedLabel === label,
+      };
+    });
+  }, [currentLabels, selectedLabel, selectedModelInfo]);
+
+  const modelSheetData = useMemo<ModelSheetItem[]>(
+    () =>
+      availableModels.map((model) => ({
+        id: model.id,
+        label: model.label,
+        detail: model.detail,
+        selected: selectedModelObj.id === model.id,
+        model,
+      })),
+    [availableModels, selectedModelObj.id]
+  );
+
+  const handleTargetSelect = useCallback(
+    (label: string) => {
+      setSelectedLabel(label);
+      closeSheet();
+    },
+    [closeSheet]
+  );
+
+  const handleModelSelect = useCallback(
+    (model: ModelItem) => {
+      setSelectedModelObj(model);
+      closeSheet();
+    },
+    [closeSheet]
+  );
+
+  const renderTargetItem = useCallback(
+    ({ item }: { item: TargetSheetItem }) => (
+      <TargetRow item={item} onPress={handleTargetSelect} />
+    ),
+    [handleTargetSelect]
+  );
+
+  const renderModelItem = useCallback(
+    ({ item }: { item: ModelSheetItem }) => (
+      <ModelRow item={item} onPress={handleModelSelect} />
+    ),
+    [handleModelSelect]
+  );
+
+  const keyExtractor = useCallback((item: { id: string }) => item.id, []);
 
   return (
     <View style={styles.wrapper}>
@@ -227,6 +419,7 @@ export function CaptureCard() {
         enableDynamicSizing={false}
         enablePanDownToClose
         animateOnMount
+        animationConfigs={animationConfigs}
         backdropComponent={null}
         onDismiss={() => setActiveSheet(null)}
         backgroundStyle={styles.bottomSheet}
@@ -237,123 +430,37 @@ export function CaptureCard() {
           <Text style={styles.sheetTitle}>{sheetTitle}</Text>
 
           {activeSheet === "model" ? (
-            <BottomSheetScrollView contentContainerStyle={styles.sheetList}>
-              {availableModels.map((m) => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[
-                    styles.sheetListItem,
-                    selectedModelObj.id === m.id && styles.sheetItemActive,
-                  ]}
-                  onPress={() => {
-                    setSelectedModelObj(m);
-                    closeSheet();
-                  }}
-                >
-                  <View>
-                    <Text
-                      style={[
-                        styles.sheetItemText,
-                        selectedModelObj.id === m.id &&
-                          styles.sheetItemTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {m.label}
-                    </Text>
-                    {m.detail ? (
-                      <Text style={styles.sheetItemMeta}>{m.detail}</Text>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </BottomSheetScrollView>
-          ) : (
-            <BottomSheetScrollView contentContainerStyle={styles.sheetList}>
-              {currentLabels.map((lbl) => {
-                const info = selectedModelObj.rawInfo || {};
-                const isActive =
-                  (info.active_static_letters || []).includes(lbl) ||
-                  (info.active_static_word_labels || []).includes(lbl);
-                const isReady =
-                  (info.ready_static_letters || []).includes(lbl) ||
-                  (info.ready_static_word_labels || []).includes(lbl);
-                const isUnready = (info.unready_static_letters || []).includes(
-                  lbl
-                );
-                const count = info.training_sample_counts?.[lbl] || 0;
-                const deficits = info.deficits_by_label?.[lbl] || [];
-
-                let statusText = "N/A";
-                let statusColor = "#737373";
-
-                if (isActive) {
-                  statusText = "Active (in model)";
-                  statusColor = "#16A34A";
-                } else if (isReady) {
-                  statusText = "Ready (pending model)";
-                  statusColor = "#0284C7";
-                } else if (isUnready) {
-                  statusText = "Unready (needs data)";
-                  statusColor = "#DC2626";
-                } else if (count > 0) {
-                  statusText = "Collecting data";
-                  statusColor = "#D97706";
-                } else {
-                  statusText = "No data";
-                }
-
-                return (
-                  <TouchableOpacity
-                    key={lbl}
-                    style={[
-                      styles.sheetListItem,
-                      selectedLabel === lbl && styles.sheetItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedLabel(lbl);
-                      closeSheet();
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.sheetRow}>
-                        <Text
-                          style={[
-                            styles.sheetItemText,
-                            selectedLabel === lbl &&
-                              styles.sheetItemTextActive,
-                            styles.sheetTargetText,
-                          ]}
-                        >
-                          {lbl}
-                        </Text>
-                        <Text
-                          style={[styles.sheetStatusText, { color: statusColor }]}
-                        >
-                          {statusText}
-                        </Text>
-                      </View>
-
-                      {count > 0 ? (
-                        <Text style={styles.sheetItemMeta}>
-                          Samples: {count}
-                        </Text>
-                      ) : null}
-
-                      {deficits.length > 0 ? (
-                        <View style={styles.deficitsWrap}>
-                          {deficits.map((d: string, idx: number) => (
-                            <Text key={idx} style={styles.deficitText}>
-                              • {d}
-                            </Text>
-                          ))}
-                        </View>
-                      ) : null}
-                    </View>
-                  </TouchableOpacity>
-                );
+            <BottomSheetFlatList
+              data={modelSheetData}
+              renderItem={renderModelItem}
+              keyExtractor={keyExtractor}
+              contentContainerStyle={styles.sheetList}
+              initialNumToRender={8}
+              maxToRenderPerBatch={8}
+              windowSize={5}
+              removeClippedSubviews
+              getItemLayout={(_, index) => ({
+                length: MODEL_ROW_HEIGHT,
+                offset: MODEL_ROW_HEIGHT * index,
+                index,
               })}
-            </BottomSheetScrollView>
+            />
+          ) : (
+            <BottomSheetFlatList
+              data={targetSheetData}
+              renderItem={renderTargetItem}
+              keyExtractor={keyExtractor}
+              contentContainerStyle={styles.sheetList}
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={6}
+              removeClippedSubviews
+              getItemLayout={(_, index) => ({
+                length: TARGET_ROW_HEIGHT,
+                offset: TARGET_ROW_HEIGHT * index,
+                index,
+              })}
+            />
           )}
         </BottomSheetView>
       </BottomSheetModal>
@@ -377,10 +484,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 4,
     marginBottom: SPACING.SPACE_LG,
   },
   cardContainer: {
@@ -388,10 +495,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     backgroundColor: BG_CARD,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 4,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.05)",
     overflow: "hidden",
@@ -424,10 +531,10 @@ const styles = StyleSheet.create({
   modeButtonActive: {
     backgroundColor: "#FFFFFF",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 2,
+    elevation: 1,
   },
   modeText: {
     fontSize: TYPOGRAPHY.TEXT_XS,
@@ -477,10 +584,10 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 10,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 4,
   },
   sheetHandleWrap: {
     paddingTop: 10,
@@ -514,6 +621,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F9FA",
     borderWidth: 1,
     borderColor: "#E5E7EB",
+  },
+  sheetItemContent: {
+    flex: 1,
   },
   sheetItemActive: {
     borderColor: "rgba(230,110,25,0.35)",
