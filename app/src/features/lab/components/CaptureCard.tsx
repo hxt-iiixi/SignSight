@@ -25,7 +25,6 @@ export interface ModelItem {
 }
 
 type Mode = "letters" | "words";
-type SheetKind = "target" | "model" | null;
 
 type TargetSheetItem = {
   id: string;
@@ -127,7 +126,6 @@ const ModelRow = memo(function ModelRow({
 export function CaptureCard() {
   const [mode, setMode] = useState<Mode>("letters");
   const [selectedLabel, setSelectedLabel] = useState<string>("N/A");
-  const [activeSheet, setActiveSheet] = useState<SheetKind>(null);
   const [availableModels, setAvailableModels] = useState<ModelItem[]>([
     { id: "None", label: "None" },
   ]);
@@ -136,7 +134,8 @@ export function CaptureCard() {
     label: "None",
   });
 
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const targetSheetRef = useRef<BottomSheetModal>(null);
+  const modelSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["50%"], []);
   const animationConfigs = useBottomSheetSpringConfigs({
     damping: 34,
@@ -213,28 +212,26 @@ export function CaptureCard() {
     fetchModels();
   }, []);
 
-  const openSheet = useCallback((kind: Exclude<SheetKind, null>) => {
-    setActiveSheet(kind);
+  const openTargetSheet = useCallback(() => {
+    targetSheetRef.current?.present();
   }, []);
 
-  useEffect(() => {
-    if (!activeSheet) return;
-    requestAnimationFrame(() => {
-      bottomSheetRef.current?.present();
-    });
-  }, [activeSheet]);
+  const openModelSheet = useCallback(() => {
+    modelSheetRef.current?.present();
+  }, []);
 
-  const closeSheet = useCallback(() => {
-    bottomSheetRef.current?.dismiss();
+  const closeTargetSheet = useCallback(() => {
+    targetSheetRef.current?.dismiss();
+  }, []);
+
+  const closeModelSheet = useCallback(() => {
+    modelSheetRef.current?.dismiss();
   }, []);
 
   const handleModeChange = (newMode: Mode) => {
     setMode(newMode);
     setSelectedLabel("N/A");
   };
-
-  const sheetTitle =
-    activeSheet === "model" ? "Select Model" : "Select Target";
 
   const targetSheetData = useMemo<TargetSheetItem[]>(() => {
     return currentLabels.map((label) => {
@@ -295,17 +292,17 @@ export function CaptureCard() {
   const handleTargetSelect = useCallback(
     (label: string) => {
       setSelectedLabel(label);
-      closeSheet();
+      closeTargetSheet();
     },
-    [closeSheet]
+    [closeTargetSheet]
   );
 
   const handleModelSelect = useCallback(
     (model: ModelItem) => {
       setSelectedModelObj(model);
-      closeSheet();
+      closeModelSheet();
     },
-    [closeSheet]
+    [closeModelSheet]
   );
 
   const renderTargetItem = useCallback(
@@ -377,7 +374,7 @@ export function CaptureCard() {
           <View style={styles.selectorsRow}>
             <TouchableOpacity
               style={styles.selectorButton}
-              onPress={() => openSheet("target")}
+              onPress={openTargetSheet}
             >
               <View style={styles.selectorTextContainer}>
                 <Text style={styles.selectorLabel}>Target</Text>
@@ -394,7 +391,7 @@ export function CaptureCard() {
 
             <TouchableOpacity
               style={styles.selectorButton}
-              onPress={() => openSheet("model")}
+              onPress={openModelSheet}
             >
               <View style={styles.selectorTextContainer}>
                 <Text style={styles.selectorLabel}>Model</Text>
@@ -413,7 +410,7 @@ export function CaptureCard() {
       </View>
 
       <BottomSheetModal
-        ref={bottomSheetRef}
+        ref={targetSheetRef}
         index={0}
         snapPoints={snapPoints}
         enableDynamicSizing={false}
@@ -421,47 +418,60 @@ export function CaptureCard() {
         animateOnMount
         animationConfigs={animationConfigs}
         backdropComponent={null}
-        onDismiss={() => setActiveSheet(null)}
         backgroundStyle={styles.bottomSheet}
         handleIndicatorStyle={styles.sheetHandle}
         handleStyle={styles.sheetHandleWrap}
       >
         <BottomSheetView style={styles.sheetContent}>
-          <Text style={styles.sheetTitle}>{sheetTitle}</Text>
+          <Text style={styles.sheetTitle}>Select Target</Text>
+          <BottomSheetFlatList
+            data={targetSheetData}
+            renderItem={renderTargetItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.sheetList}
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={6}
+            removeClippedSubviews
+            getItemLayout={(_, index) => ({
+              length: TARGET_ROW_HEIGHT,
+              offset: TARGET_ROW_HEIGHT * index,
+              index,
+            })}
+          />
+        </BottomSheetView>
+      </BottomSheetModal>
 
-          {activeSheet === "model" ? (
-            <BottomSheetFlatList
-              data={modelSheetData}
-              renderItem={renderModelItem}
-              keyExtractor={keyExtractor}
-              contentContainerStyle={styles.sheetList}
-              initialNumToRender={8}
-              maxToRenderPerBatch={8}
-              windowSize={5}
-              removeClippedSubviews
-              getItemLayout={(_, index) => ({
-                length: MODEL_ROW_HEIGHT,
-                offset: MODEL_ROW_HEIGHT * index,
-                index,
-              })}
-            />
-          ) : (
-            <BottomSheetFlatList
-              data={targetSheetData}
-              renderItem={renderTargetItem}
-              keyExtractor={keyExtractor}
-              contentContainerStyle={styles.sheetList}
-              initialNumToRender={10}
-              maxToRenderPerBatch={10}
-              windowSize={6}
-              removeClippedSubviews
-              getItemLayout={(_, index) => ({
-                length: TARGET_ROW_HEIGHT,
-                offset: TARGET_ROW_HEIGHT * index,
-                index,
-              })}
-            />
-          )}
+      <BottomSheetModal
+        ref={modelSheetRef}
+        index={0}
+        snapPoints={snapPoints}
+        enableDynamicSizing={false}
+        enablePanDownToClose
+        animateOnMount
+        animationConfigs={animationConfigs}
+        backdropComponent={null}
+        backgroundStyle={styles.bottomSheet}
+        handleIndicatorStyle={styles.sheetHandle}
+        handleStyle={styles.sheetHandleWrap}
+      >
+        <BottomSheetView style={styles.sheetContent}>
+          <Text style={styles.sheetTitle}>Select Model</Text>
+          <BottomSheetFlatList
+            data={modelSheetData}
+            renderItem={renderModelItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.sheetList}
+            initialNumToRender={8}
+            maxToRenderPerBatch={8}
+            windowSize={5}
+            removeClippedSubviews
+            getItemLayout={(_, index) => ({
+              length: MODEL_ROW_HEIGHT,
+              offset: MODEL_ROW_HEIGHT * index,
+              index,
+            })}
+          />
         </BottomSheetView>
       </BottomSheetModal>
     </View>
