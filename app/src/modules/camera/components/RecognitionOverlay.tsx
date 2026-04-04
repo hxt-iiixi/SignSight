@@ -13,6 +13,8 @@ import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
 import type { PredictionViewModel } from "../../../shared/types/mobile";
 
+type SaveState = "idle" | "saving" | "success" | "error" | "info";
+
 export function RecognitionOverlay({
   prediction,
   bottomOffset = SPACING.SPACE_3XL,
@@ -28,6 +30,8 @@ export function RecognitionOverlay({
   modelOptions,
   onModelSelect,
   quotaLabel,
+  saveState = "idle",
+  saveMessage,
   signerId,
   onSignerIdChange,
   variantTag,
@@ -47,6 +51,8 @@ export function RecognitionOverlay({
   modelOptions?: Array<{ id: string; label: string }>;
   onModelSelect?: (id: string) => void;
   quotaLabel?: string;
+  saveState?: SaveState;
+  saveMessage?: string | null;
   signerId?: string;
   onSignerIdChange?: (value: string) => void;
   variantTag?: string;
@@ -73,6 +79,20 @@ export function RecognitionOverlay({
         <View style={styles.headerText}>
           <Text style={styles.label}>{prediction.hasHand ? prediction.label : "No hand"}</Text>
           <Text style={styles.meta}>{quotaLabel ? compactMeta : `${Math.round(prediction.confidence * 100)}% confidence`}</Text>
+          {saveMessage ? (
+            <Text
+              style={[
+                styles.statusText,
+                saveState === "error"
+                  ? styles.statusError
+                  : saveState === "success"
+                    ? styles.statusSuccess
+                    : styles.statusInfo,
+              ]}
+            >
+              {saveMessage}
+            </Text>
+          ) : null}
         </View>
         {collapsible ? (
           <View style={styles.chevronBadge}>
@@ -297,6 +317,20 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.78)",
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
+  },
+  statusText: {
+    marginTop: 6,
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+  },
+  statusSuccess: {
+    color: "#8CE6A4",
+  },
+  statusError: {
+    color: "#FCA5A5",
+  },
+  statusInfo: {
+    color: "rgba(255,255,255,0.76)",
   },
   chevronBadge: {
     width: 32,

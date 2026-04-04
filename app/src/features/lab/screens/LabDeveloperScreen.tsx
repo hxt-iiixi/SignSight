@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Platform, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Platform, Pressable, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -8,6 +8,7 @@ import { useAppSettings } from "../../../app/providers/AppSettingsProvider";
 import { API_BASE } from "../../../config/api";
 import { BG } from "../../../components/lab/shared/labColors";
 import { ASL_LABELS } from "../../../ml/labels";
+import { saveStreamingLandmarkSample } from "../../../ml/streamingRecognition";
 import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
@@ -29,6 +30,8 @@ type LabTabParamList = {
   MetricsTab: undefined;
 };
 
+type SaveState = "idle" | "saving" | "success" | "error" | "info";
+
 const Tab = createBottomTabNavigator<LabTabParamList>();
 
 function CaptureTabScreen({
@@ -41,10 +44,15 @@ function CaptureTabScreen({
   onSelectLabel,
   onModeChange,
   onSelectModel,
+  onRefreshModels,
+  captureSessionId,
   signerId,
   onSignerIdChange,
   variantTag,
   onVariantTagChange,
+  saveState,
+  saveMessage,
+  setSaveFeedback,
 }: {
   mode: Mode;
   bottomOffset: number;
@@ -55,10 +63,15 @@ function CaptureTabScreen({
   onSelectLabel: (value: string) => void;
   onModeChange: (value: Mode) => void;
   onSelectModel: (modelId: string) => void;
+  onRefreshModels: () => Promise<void>;
+  captureSessionId: string;
   signerId: string;
   onSignerIdChange: (value: string) => void;
   variantTag: string;
   onVariantTagChange: (value: string) => void;
+  saveState: SaveState;
+  saveMessage: string | null;
+  setSaveFeedback: (state: SaveState, message: string | null) => void;
 }) {
   const navigation = useNavigation<any>();
   const { showHandOverlay } = useAppSettings();
@@ -112,6 +125,58 @@ function CaptureTabScreen({
     0;
   const quotaLabel =
     normalizedTarget === "None" || quotaTarget <= 0 ? "—" : `${sampleCount}/${quotaTarget}`;
+  const canSaveLetterSample =
+    mode === "letters" &&
+    normalizedTarget !== "None" &&
+    !!recognitionRuntime.latestHandFrame?.hasHand &&
+    (recognitionRuntime.latestHandFrame?.landmarks?.length ?? 0) === 21 &&
+    !!signerId.trim() &&
+    !!captureSessionId;
+
+  async function handleCapturePress() {
+    if (mode === "words") {
+      setSaveFeedback("info", "Word dataset saving is not enabled yet.");
+      return;
+    }
+
+    if (normalizedTarget === "None") {
+      setSaveFeedback("error", "Select a target before saving.");
+      return;
+    }
+
+    if (!signerId.trim()) {
+      setSaveFeedback("error", "Signer ID is required.");
+      return;
+    }
+
+    if (!recognitionRuntime.latestHandFrame?.hasHand || (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21) {
+      setSaveFeedback("error", "No valid hand detected to save.");
+      return;
+    }
+
+    setSaveFeedback("saving", "Saving sample...");
+
+    const result = await saveStreamingLandmarkSample(
+      recognitionRuntime.latestHandFrame,
+      API_BASE,
+      normalizedTarget,
+      {
+        signerId: signerId.trim(),
+        captureSessionId,
+        cameraPosition: cameraRuntime.cameraPosition,
+        deviceId: cameraRuntime.device?.id ?? undefined,
+        variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+      }
+    );
+
+    if (!result.ok) {
+      setSaveFeedback("error", result.error ?? "Failed to save sample.");
+      return;
+    }
+
+    setSaveFeedback("success", `Saved ${normalizedTarget}.`);
+    await onRefreshModels();
+  }
 
   return (
     <CameraShell
@@ -159,15 +224,23 @@ function CaptureTabScreen({
         onSignerIdChange={onSignerIdChange}
         variantTag={variantTag}
         onVariantTagChange={onVariantTagChange}
+        saveState={saveState}
+        saveMessage={saveMessage}
       />
       <View style={[styles.captureActionWrap, { bottom: actionButtonBottom }]}>
-        <View style={styles.captureActionButton}>
+        <Pressable
+          style={[
+            styles.captureActionButton,
+            (!canSaveLetterSample || saveState === "saving") && styles.captureActionButtonDisabled,
+          ]}
+          onPress={handleCapturePress}
+        >
           <Ionicons
             name={mode === "letters" ? "camera" : "videocam"}
             size={24}
             color="#FFFFFF"
           />
-        </View>
+        </Pressable>
       </View>
     </CameraShell>
   );
@@ -196,72 +269,77 @@ export default function LabDeveloperScreen() {
   const [availableModels, setAvailableModels] = useState<ModelItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState<string>("None");
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
   const tabBarHeight = 72 + bottomNavPadding;
+  const captureSessionId = useMemo(
+    () => `${new Date().toISOString().slice(0, 10)}_lab_${Math.random().toString(36).slice(2, 8)}`,
+    []
+  );
+
+  async function fetchModels() {
+    try {
+      const res = await fetch(`${API_BASE}/models`);
+      const data = await res.json();
+      const rawModels = Array.isArray(data.models) ? data.models : [];
+      const registryInfo = rawModels.find(
+        (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
+      )?.info;
+      const activeVersionId =
+        typeof registryInfo?.active_version_id === "string"
+          ? registryInfo.active_version_id
+          : null;
+
+      if (rawModels.length > 0) {
+        const activeVersions = rawModels
+          .filter(
+            (m: any) =>
+              m.type === "json" &&
+              m.path.includes("landmark_versions/") &&
+              !m.path.includes("archived_models")
+          )
+          .map((m: any) => {
+            const info = m.info || {};
+            const label =
+              info.label || m.path.split("/").pop()?.replace(".json", "");
+            const dateObj = info.trained_at ? new Date(info.trained_at) : null;
+            const detail =
+              dateObj && !Number.isNaN(dateObj.getTime())
+                ? dateObj.toLocaleDateString()
+                : info.training_mode || "";
+
+            return {
+              id: m.path,
+              label,
+              detail,
+              rawInfo: info,
+              _tempDate:
+                dateObj && !Number.isNaN(dateObj.getTime())
+                  ? dateObj.getTime()
+                  : 0,
+            };
+          })
+          .sort((a: any, b: any) => b._tempDate - a._tempDate);
+
+        const preferredModel =
+          activeVersions.find(
+            (model) => model.rawInfo?.version_id === activeVersionId
+          ) ?? activeVersions[0];
+
+        setAvailableModels(activeVersions);
+
+        if (preferredModel) {
+          setSelectedModel(preferredModel);
+          setActiveModelLabel(preferredModel.label);
+        }
+      }
+    } catch (err) {
+      console.log("Failed to fetch models", err);
+    }
+  }
 
   useEffect(() => {
-    async function fetchModels() {
-      try {
-        const res = await fetch(`${API_BASE}/models`);
-        const data = await res.json();
-        const rawModels = Array.isArray(data.models) ? data.models : [];
-        const registryInfo = rawModels.find(
-          (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
-        )?.info;
-        const activeVersionId =
-          typeof registryInfo?.active_version_id === "string"
-            ? registryInfo.active_version_id
-            : null;
-
-        if (rawModels.length > 0) {
-          const activeVersions = rawModels
-            .filter(
-              (m: any) =>
-                m.type === "json" &&
-                m.path.includes("landmark_versions/") &&
-                !m.path.includes("archived_models")
-            )
-            .map((m: any) => {
-              const info = m.info || {};
-              const label =
-                info.label || m.path.split("/").pop()?.replace(".json", "");
-              const dateObj = info.trained_at ? new Date(info.trained_at) : null;
-              const detail =
-                dateObj && !Number.isNaN(dateObj.getTime())
-                  ? dateObj.toLocaleDateString()
-                  : info.training_mode || "";
-
-              return {
-                id: m.path,
-                label,
-                detail,
-                rawInfo: info,
-                _tempDate:
-                  dateObj && !Number.isNaN(dateObj.getTime())
-                    ? dateObj.getTime()
-                    : 0,
-              };
-            })
-            .sort((a: any, b: any) => b._tempDate - a._tempDate);
-
-          const preferredModel =
-            activeVersions.find(
-              (model) => model.rawInfo?.version_id === activeVersionId
-            ) ?? activeVersions[0];
-
-          setAvailableModels(activeVersions);
-
-          if (preferredModel) {
-            setSelectedModel(preferredModel);
-            setActiveModelLabel(preferredModel.label);
-          }
-        }
-
-      } catch (err) {
-        console.log("Failed to fetch models", err);
-      }
-    }
-
     void fetchModels();
   }, []);
 
@@ -293,6 +371,11 @@ export default function LabDeveloperScreen() {
     } catch (error) {
       console.log("Failed to activate model", error);
     }
+  }
+
+  function setSaveFeedback(nextState: SaveState, message: string | null) {
+    setSaveState(nextState);
+    setSaveMessage(message);
   }
 
   return (
@@ -336,12 +419,19 @@ export default function LabDeveloperScreen() {
               onModeChange={(nextMode) => {
                 setMode(nextMode);
                 setSelectedLabel("N/A");
+                setSaveState("idle");
+                setSaveMessage(null);
               }}
               onSelectModel={handleActivateModel}
+              onRefreshModels={fetchModels}
+              captureSessionId={captureSessionId}
               signerId={signerId}
               onSignerIdChange={setSignerId}
               variantTag={variantTag}
               onVariantTagChange={setVariantTag}
+              saveState={saveState}
+              saveMessage={saveMessage}
+              setSaveFeedback={setSaveFeedback}
             />
           )}
         </Tab.Screen>
@@ -398,5 +488,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 6,
     elevation: 4,
+  },
+  captureActionButtonDisabled: {
+    opacity: 0.55,
   },
 });
