@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import HandLandmarkOverlay from "../../../components/HandLandmarkOverlay";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
+import type { HandTrackingFrameResult } from "../../../ml/streamTypes";
 import { CameraTopBar } from "./CameraTopBar";
 
 const BG = "#F8F9FA";
@@ -47,7 +48,7 @@ export function CameraShell({
   format: any;
   frameProcessor?: any;
   frozenBackdropUri?: string | null;
-  latestHandFrame: { hasHand?: boolean; landmarks?: any[]; timestampMs?: number } | null;
+  latestHandFrame: HandTrackingFrameResult | null;
   onBack: () => void;
   onCameraLayout: (event: any) => void;
   onFlipCamera: () => void;

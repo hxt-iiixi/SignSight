@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 16,
-    pointerEvents: "none",
+    pointerEvents: "box-none",
   },
   captureActionButton: {
     width: 64,
