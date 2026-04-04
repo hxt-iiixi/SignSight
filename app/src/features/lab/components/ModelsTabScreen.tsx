@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -153,10 +153,8 @@ export function ModelsTabScreen({
   trainingMessage,
   showArchived,
   onToggleArchived,
-  activatingModelId,
   archivingModelId,
   renamingModelId,
-  onActivateModel,
   onArchiveModel,
   onRenameModel,
 }: {
@@ -171,20 +169,43 @@ export function ModelsTabScreen({
   trainingMessage: string | null;
   showArchived: boolean;
   onToggleArchived: () => void;
-  activatingModelId: string | null;
   archivingModelId: string | null;
   renamingModelId: string | null;
-  onActivateModel: (modelId: string) => void;
   onArchiveModel: (modelId: string) => void;
   onRenameModel: (modelId: string, nextLabel: string) => void;
 }) {
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [menuModelId, setMenuModelId] = useState<string | null>(null);
+  const [showReadinessInfo, setShowReadinessInfo] = useState(false);
 
   const activeModels = useMemo(() => models.filter((model) => !model.isArchived), [models]);
   const archivedModels = useMemo(() => models.filter((model) => model.isArchived), [models]);
   const readiness = readinessSummary(activeModel);
+  const hasReadinessInfo = useMemo(() => {
+    if (!activeModel || !readiness.body?.trim()) {
+      return false;
+    }
+    return Object.values(activeModel.trainingSampleCounts || {}).some(
+      (count) => Number(count || 0) > 0
+    );
+  }, [activeModel, readiness.body]);
+
+  useEffect(() => {
+    if (!showReadinessInfo || !hasReadinessInfo) {
+      return;
+    }
+    const timeoutId = setTimeout(() => {
+      setShowReadinessInfo(false);
+    }, 2400);
+    return () => clearTimeout(timeoutId);
+  }, [showReadinessInfo, hasReadinessInfo]);
+
+  useEffect(() => {
+    if (!hasReadinessInfo && showReadinessInfo) {
+      setShowReadinessInfo(false);
+    }
+  }, [hasReadinessInfo, showReadinessInfo]);
 
   return (
     <ScrollView
@@ -198,8 +219,57 @@ export function ModelsTabScreen({
             <Ionicons name="hardware-chip-outline" size={16} color={ACCENT} />
             <Text style={styles.sectionTitle}>Training Center</Text>
           </View>
-          {loading ? <ActivityIndicator size="small" color={ACCENT} /> : null}
+          <View style={styles.headerUtilities}>
+            {hasReadinessInfo ? (
+              <Pressable
+                style={styles.infoIconButton}
+                onPress={() => setShowReadinessInfo(true)}
+              >
+                <Ionicons name="help-circle-outline" size={21} color={TEXT_SECONDARY} />
+              </Pressable>
+            ) : null}
+            {loading ? <ActivityIndicator size="small" color={ACCENT} /> : null}
+          </View>
         </View>
+
+        {showReadinessInfo && hasReadinessInfo ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.readinessMessage,
+              styles.readinessFloatingOverlay,
+              readiness.tone === "success"
+                ? styles.readinessMessageSuccess
+                : readiness.tone === "warning"
+                  ? styles.readinessMessageWarning
+                  : styles.readinessMessageInfo,
+            ]}
+          >
+            <View style={styles.readinessMessageRow}>
+              <Ionicons
+                name={
+                  readiness.tone === "success"
+                    ? "checkmark-circle-outline"
+                    : readiness.tone === "warning"
+                      ? "alert-circle-outline"
+                      : "information-circle-outline"
+                }
+                size={16}
+                color={
+                  readiness.tone === "success"
+                    ? SUCCESS
+                    : readiness.tone === "warning"
+                      ? WARNING
+                      : INFO
+                }
+              />
+              <View style={styles.readinessMessageText}>
+                <Text style={styles.readinessTitle}>{readiness.title}</Text>
+                <Text style={styles.readinessBody}>{readiness.body}</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.sectionBody}>
           <View style={styles.modeCard}>
@@ -236,41 +306,6 @@ export function ModelsTabScreen({
             })}
           </View>
 
-          <View
-            style={[
-              styles.readinessMessage,
-              readiness.tone === "success"
-                ? styles.readinessMessageSuccess
-                : readiness.tone === "warning"
-                  ? styles.readinessMessageWarning
-                  : styles.readinessMessageInfo,
-            ]}
-          >
-            <View style={styles.readinessMessageRow}>
-              <Ionicons
-                name={
-                  readiness.tone === "success"
-                    ? "checkmark-circle-outline"
-                    : readiness.tone === "warning"
-                      ? "alert-circle-outline"
-                      : "information-circle-outline"
-                }
-                size={18}
-                color={
-                  readiness.tone === "success"
-                    ? SUCCESS
-                    : readiness.tone === "warning"
-                      ? WARNING
-                      : INFO
-                }
-              />
-              <View style={styles.readinessMessageText}>
-                <Text style={styles.readinessTitle}>{readiness.title}</Text>
-                <Text style={styles.readinessBody}>{readiness.body}</Text>
-              </View>
-            </View>
-          </View>
-
           {trainingMessage ? (
             <Text
               style={[
@@ -304,30 +339,35 @@ export function ModelsTabScreen({
       <InsetDivider />
 
       <View style={styles.section}>
-        <View style={styles.sectionHeader}>
+        <View style={[styles.sectionHeader, styles.sectionHeaderStack]}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="layers-outline" size={16} color={ACCENT} />
             <Text style={styles.sectionTitle}>Model Versions</Text>
           </View>
-          <Pressable style={styles.ghostToggle} onPress={onToggleArchived}>
-            <Text style={styles.ghostToggleText}>
+          <Pressable style={styles.archivedToggleInline} onPress={onToggleArchived}>
+            <Ionicons
+              name={showArchived ? "eye-off-outline" : "eye-outline"}
+              size={16}
+              color={TEXT_SECONDARY}
+            />
+            <Text style={styles.archivedToggleText}>
               {showArchived ? "Hide archived" : "Show archived"}
             </Text>
           </Pressable>
         </View>
 
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+        <View style={styles.sectionBody}>
+          {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {activeModels.map((model) => {
+          {activeModels.map((model) => {
           const expanded = expandedModelId === model.id;
           const renameValue = renameDrafts[model.id] ?? model.label;
-          const activationBusy = activatingModelId === model.id;
           const archiveBusy = archivingModelId === model.id;
           const renameBusy = renamingModelId === model.id;
           const menuOpen = menuModelId === model.id;
           const statusLabel = model.isActive ? "Active" : "Candidate";
 
-          return (
+            return (
             <View key={model.id} style={styles.versionCard}>
               <View style={styles.versionTopRow}>
                 <View style={styles.versionTitleWrap}>
@@ -357,21 +397,6 @@ export function ModelsTabScreen({
                               <Ionicons name="search-outline" size={16} color={TEXT} />
                               <Text style={styles.menuItemText}>
                                 {expanded ? "Hide details" : "Inspect"}
-                              </Text>
-                            </View>
-                          </Pressable>
-                          <Pressable
-                            style={[styles.menuItem, model.isActive && styles.menuItemDisabled]}
-                            disabled={model.isActive || activationBusy}
-                            onPress={() => {
-                              setMenuModelId(null);
-                              onActivateModel(model.id);
-                            }}
-                          >
-                            <View style={styles.menuItemRow}>
-                              <Ionicons name="flash-outline" size={16} color={TEXT} />
-                              <Text style={styles.menuItemText}>
-                                {model.isActive ? "Active" : activationBusy ? "Activating..." : "Activate"}
                               </Text>
                             </View>
                           </Pressable>
@@ -496,17 +521,17 @@ export function ModelsTabScreen({
                 </View>
               ) : null}
             </View>
-          );
-        })}
+            );
+          })}
 
-        {showArchived && archivedModels.length ? (
-          <View style={styles.archivedSection}>
-            <InsetDivider />
-            <Text style={styles.archivedTitle}>Archived Models</Text>
-            {archivedModels.map((model) => {
+          {showArchived && archivedModels.length ? (
+            <View style={styles.archivedSection}>
+              <InsetDivider />
+              <Text style={styles.archivedTitle}>Archived Models</Text>
+              {archivedModels.map((model) => {
               const expanded = expandedModelId === model.id;
               const menuOpen = menuModelId === model.id;
-              return (
+                return (
                 <View key={model.id} style={[styles.versionCard, styles.archivedCard]}>
                   <View style={styles.versionTopRow}>
                     <View style={styles.versionTitleWrap}>
@@ -585,10 +610,11 @@ export function ModelsTabScreen({
                     </View>
                   ) : null}
                 </View>
-              );
-            })}
-          </View>
-        ) : null}
+                );
+              })}
+            </View>
+          ) : null}
+        </View>
       </View>
     </ScrollView>
   );
@@ -605,13 +631,23 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.SPACE_XL,
     gap: SPACING.SPACE_LG,
   },
-  section: {
-    gap: SPACING.SPACE_XS,
-  },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+  headerUtilities: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING.SPACE_SM,
+  },
+  sectionHeaderStack: {
+    alignItems: "flex-start",
+    gap: 2,
+  },
+  section: {
+    gap: SPACING.SPACE_XS,
+    position: "relative",
   },
   sectionTitleRow: {
     flexDirection: "row",
@@ -685,14 +721,33 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT,
   },
   readinessMessage: {
-    borderRadius: RADIUS_MD,
+    borderRadius: 14,
     borderWidth: 1,
-    padding: SPACING.SPACE_SM,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: 10,
+  },
+  readinessFloatingOverlay: {
+    position: "absolute",
+    top: 26,
+    right: 0,
+    maxWidth: 260,
+    zIndex: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  infoIconButton: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
   readinessMessageRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: SPACING.SPACE_SM,
+    gap: SPACING.SPACE_XS,
   },
   readinessMessageText: {
     flex: 1,
@@ -709,6 +764,17 @@ const styles = StyleSheet.create({
   readinessMessageInfo: {
     backgroundColor: INFO_LIGHT,
     borderColor: INFO_BORDER,
+  },
+  archivedToggleInline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginLeft: 22,
+  },
+  archivedToggleText: {
+    color: TEXT_SECONDARY,
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "800",
   },
   readinessTitle: {
     color: TEXT,
@@ -746,19 +812,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "900",
   },
-  ghostToggle: {
-    borderRadius: RADIUS_PILL,
-    paddingHorizontal: SPACING.SPACE_SM,
-    paddingVertical: 7,
-    backgroundColor: BG_CARD,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  ghostToggleText: {
-    color: TEXT_SECONDARY,
-    fontSize: TYPOGRAPHY.TEXT_XS,
-    fontWeight: "800",
-  },
   errorText: {
     color: DANGER,
     fontSize: TYPOGRAPHY.TEXT_SM,
@@ -772,7 +825,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.SPACE_SM,
     paddingHorizontal: SPACING.SPACE_SM,
     gap: SPACING.SPACE_SM,
-    marginTop: SPACING.SPACE_XS,
+    marginTop: 2,
   },
   archivedCard: {
     backgroundColor: "#FCFCFC",
@@ -788,7 +841,7 @@ const styles = StyleSheet.create({
   },
   versionTitle: {
     color: TEXT,
-    fontSize: TYPOGRAPHY.TEXT_LG,
+    fontSize: 15,
     fontWeight: "900",
   },
   versionSubtitle: {

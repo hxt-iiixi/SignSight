@@ -365,7 +365,6 @@ export default function LabDeveloperScreen() {
   const [trainingState, setTrainingState] = useState<ActionState>("idle");
   const [trainingMessage, setTrainingMessage] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [activatingModelId, setActivatingModelId] = useState<string | null>(null);
   const [archivingModelId, setArchivingModelId] = useState<string | null>(null);
   const [renamingModelId, setRenamingModelId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -424,7 +423,6 @@ export default function LabDeveloperScreen() {
     }
 
     try {
-      setActivatingModelId(modelId);
       setModelsError(null);
       const response = await fetch(`${API_BASE}/activate_landmark_model`, {
         method: "POST",
@@ -442,8 +440,6 @@ export default function LabDeveloperScreen() {
     } catch (error) {
       console.log("Failed to activate model", error);
       setModelsError("Failed to activate model.");
-    } finally {
-      setActivatingModelId(null);
     }
   }
 
@@ -621,10 +617,8 @@ export default function LabDeveloperScreen() {
               trainingMessage={trainingMessage}
               showArchived={showArchived}
               onToggleArchived={() => setShowArchived((current) => !current)}
-              activatingModelId={activatingModelId}
               archivingModelId={archivingModelId}
               renamingModelId={renamingModelId}
-              onActivateModel={handleActivateModel}
               onArchiveModel={handleArchiveModel}
               onRenameModel={handleRenameModel}
             />
