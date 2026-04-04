@@ -1,10 +1,8 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
+import BottomSheet, {
   BottomSheetFlatList,
-  BottomSheetModal,
-  BottomSheetView,
   useBottomSheetSpringConfigs,
 } from "@gorhom/bottom-sheet";
 
@@ -44,7 +42,6 @@ type ModelSheetItem = {
   model: ModelItem;
 };
 
-const TARGET_ROW_HEIGHT = 96;
 const MODEL_ROW_HEIGHT = 72;
 
 const TargetRow = memo(function TargetRow({
@@ -56,23 +53,38 @@ const TargetRow = memo(function TargetRow({
 }) {
   return (
     <TouchableOpacity
-      style={[styles.sheetListItem, item.selected && styles.sheetItemActive]}
+      style={styles.sheetListItem}
       onPress={() => onPress(item.label)}
     >
       <View style={styles.sheetItemContent}>
         <View style={styles.sheetRow}>
-          <Text
-            style={[
-              styles.sheetItemText,
-              item.selected && styles.sheetItemTextActive,
-              styles.sheetTargetText,
-            ]}
-          >
-            {item.label}
-          </Text>
-          <Text style={[styles.sheetStatusText, { color: item.statusColor }]}>
-            {item.statusText}
-          </Text>
+          <View style={styles.sheetMainRow}>
+            <View style={styles.sheetTitleRow}>
+              <Text
+                style={[
+                  styles.sheetItemText,
+                  styles.sheetTargetText,
+                ]}
+              >
+                {item.label}
+              </Text>
+              {item.statusText === "Active (in model)" ? (
+                <View style={styles.inlineActiveBadge}>
+                  <Ionicons name="sparkles" size={12} color="#16A34A" />
+                </View>
+              ) : null}
+            </View>
+            {item.statusText !== "Active (in model)" ? (
+              <Text style={[styles.sheetStatusText, { color: item.statusColor }]}>
+                {item.statusText}
+              </Text>
+            ) : null}
+          </View>
+          {item.selected ? (
+            <View style={styles.selectedIconBadge}>
+              <Ionicons name="checkmark" size={18} color="#FFFFFF" />
+            </View>
+          ) : null}
         </View>
 
         {item.count > 0 ? (
@@ -89,6 +101,7 @@ const TargetRow = memo(function TargetRow({
           </View>
         ) : null}
       </View>
+      <View style={styles.sheetDivider} />
     </TouchableOpacity>
   );
 });
@@ -102,23 +115,30 @@ const ModelRow = memo(function ModelRow({
 }) {
   return (
     <TouchableOpacity
-      style={[styles.sheetListItem, item.selected && styles.sheetItemActive]}
+      style={styles.sheetListItem}
       onPress={() => onPress(item.model)}
     >
       <View style={styles.sheetItemContent}>
-        <Text
-          style={[
-            styles.sheetItemText,
-            item.selected && styles.sheetItemTextActive,
-          ]}
-          numberOfLines={1}
-        >
-          {item.label}
-        </Text>
-        {item.detail ? (
-          <Text style={styles.sheetItemMeta}>{item.detail}</Text>
-        ) : null}
+        <View style={styles.sheetRow}>
+          <View style={styles.sheetMainRow}>
+            <Text
+              style={styles.sheetItemText}
+              numberOfLines={1}
+            >
+              {item.label}
+            </Text>
+            {item.detail ? (
+              <Text style={styles.sheetItemMeta}>{item.detail}</Text>
+            ) : null}
+          </View>
+          {item.selected ? (
+            <View style={styles.selectedIconBadge}>
+              <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+            </View>
+          ) : null}
+        </View>
       </View>
+      <View style={styles.sheetDivider} />
     </TouchableOpacity>
   );
 });
@@ -133,9 +153,10 @@ export function CaptureCard() {
     id: "None",
     label: "None",
   });
+  const [openSheet, setOpenSheet] = useState<"target" | "model" | null>(null);
 
-  const targetSheetRef = useRef<BottomSheetModal>(null);
-  const modelSheetRef = useRef<BottomSheetModal>(null);
+  const targetSheetRef = useRef<BottomSheet>(null);
+  const modelSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ["50%"], []);
   const animationConfigs = useBottomSheetSpringConfigs({
     damping: 34,
@@ -204,6 +225,11 @@ export function CaptureCard() {
         }
 
         setAvailableModels(modelsList);
+        if (modelsList.length > 1) {
+          setSelectedModelObj(modelsList[1]);
+        } else {
+          setSelectedModelObj(modelsList[0]);
+        }
       } catch (err) {
         console.log("Failed to fetch models", err);
       }
@@ -213,19 +239,27 @@ export function CaptureCard() {
   }, []);
 
   const openTargetSheet = useCallback(() => {
-    targetSheetRef.current?.present();
-  }, []);
+    if (openSheet === "model") {
+      modelSheetRef.current?.close();
+    }
+    targetSheetRef.current?.snapToIndex(0);
+    setOpenSheet("target");
+  }, [openSheet]);
 
   const openModelSheet = useCallback(() => {
-    modelSheetRef.current?.present();
-  }, []);
+    if (openSheet === "target") {
+      targetSheetRef.current?.close();
+    }
+    modelSheetRef.current?.snapToIndex(0);
+    setOpenSheet("model");
+  }, [openSheet]);
 
   const closeTargetSheet = useCallback(() => {
-    targetSheetRef.current?.dismiss();
+    targetSheetRef.current?.close();
   }, []);
 
   const closeModelSheet = useCallback(() => {
-    modelSheetRef.current?.dismiss();
+    modelSheetRef.current?.close();
   }, []);
 
   const handleModeChange = (newMode: Mode) => {
@@ -323,167 +357,175 @@ export function CaptureCard() {
 
   return (
     <View style={styles.wrapper}>
-      <TouchableOpacity style={styles.captureBtnFloating}>
-        <Ionicons
-          name={mode === "letters" ? "camera" : "videocam"}
-          size={36}
-          color="#FFFFFF"
-        />
-      </TouchableOpacity>
+      <View style={styles.bottomStack}>
+        <TouchableOpacity style={styles.captureBtnFloating}>
+          <Ionicons
+            name={mode === "letters" ? "camera" : "videocam"}
+            size={36}
+            color="#FFFFFF"
+          />
+        </TouchableOpacity>
 
-      <View style={styles.cardContainer}>
-        <View style={styles.cardContent}>
-          <View style={styles.header}>
-            <Text style={styles.title}>Data Collector</Text>
-            <View style={styles.modeToggle}>
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  mode === "letters" && styles.modeButtonActive,
-                ]}
-                onPress={() => handleModeChange("letters")}
-              >
-                <Text
+        <View style={styles.cardContainer}>
+          <View style={styles.cardContent}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Dataset Collection</Text>
+              <View style={styles.modeToggle}>
+                <TouchableOpacity
                   style={[
-                    styles.modeText,
-                    mode === "letters" && styles.modeTextActive,
+                    styles.modeButton,
+                    mode === "letters" && styles.modeButtonActive,
                   ]}
+                  onPress={() => handleModeChange("letters")}
                 >
-                  Ltr
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.modeButton,
-                  mode === "words" && styles.modeButtonActive,
-                ]}
-                onPress={() => handleModeChange("words")}
-              >
-                <Text
+                  <Text
+                    style={[
+                      styles.modeText,
+                      mode === "letters" && styles.modeTextActive,
+                    ]}
+                  >
+                    Ltr
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
                   style={[
-                    styles.modeText,
-                    mode === "words" && styles.modeTextActive,
+                    styles.modeButton,
+                    mode === "words" && styles.modeButtonActive,
                   ]}
+                  onPress={() => handleModeChange("words")}
                 >
-                  Wrd
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.modeText,
+                      mode === "words" && styles.modeTextActive,
+                    ]}
+                  >
+                    Wrd
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.selectorsRow}>
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={openTargetSheet}
-            >
-              <View style={styles.selectorTextContainer}>
+            <View style={styles.selectorsRow}>
+              <View style={styles.selectorGroup}>
                 <Text style={styles.selectorLabel}>Target</Text>
-                <Text
-                  style={styles.selectorValue}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
+                <TouchableOpacity
+                  style={styles.selectorButton}
+                  onPress={openTargetSheet}
                 >
-                  {selectedLabel}
-                </Text>
+                  <View style={styles.selectorTextContainer}>
+                    <Text
+                      style={styles.selectorValue}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {selectedLabel}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={18} color="#737373" />
+                </TouchableOpacity>
               </View>
-              <Ionicons name="chevron-down" size={18} color="#737373" />
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.selectorButton}
-              onPress={openModelSheet}
-            >
-              <View style={styles.selectorTextContainer}>
+              <View style={styles.selectorGroup}>
                 <Text style={styles.selectorLabel}>Model</Text>
-                <Text
-                  style={styles.selectorValue}
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
+                <TouchableOpacity
+                  style={styles.selectorButton}
+                  onPress={openModelSheet}
                 >
-                  {selectedModelObj.label}
-                </Text>
+                  <View style={styles.selectorTextContainer}>
+                    <Text
+                      style={styles.selectorValue}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                    >
+                      {selectedModelObj.label}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-down" size={18} color="#737373" />
+                </TouchableOpacity>
               </View>
-              <Ionicons name="chevron-down" size={18} color="#737373" />
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
 
-      <BottomSheetModal
+      <BottomSheet
         ref={targetSheetRef}
-        index={0}
+        index={-1}
         snapPoints={snapPoints}
         enableDynamicSizing={false}
         enablePanDownToClose
-        animateOnMount
         animationConfigs={animationConfigs}
-        backdropComponent={null}
+        onChange={(index) => {
+          if (index < 0 && openSheet === "target") {
+            setOpenSheet(null);
+          }
+        }}
         backgroundStyle={styles.bottomSheet}
         handleIndicatorStyle={styles.sheetHandle}
         handleStyle={styles.sheetHandleWrap}
+        style={styles.persistentSheet}
       >
-        <BottomSheetView style={styles.sheetContent}>
-          <Text style={styles.sheetTitle}>Select Target</Text>
-          <BottomSheetFlatList
-            data={targetSheetData}
-            renderItem={renderTargetItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.sheetList}
-            initialNumToRender={10}
-            maxToRenderPerBatch={10}
-            windowSize={6}
-            removeClippedSubviews
-            getItemLayout={(_, index) => ({
-              length: TARGET_ROW_HEIGHT,
-              offset: TARGET_ROW_HEIGHT * index,
-              index,
-            })}
-          />
-        </BottomSheetView>
-      </BottomSheetModal>
+        <BottomSheetFlatList
+          data={targetSheetData}
+          renderItem={renderTargetItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.sheetList}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={6}
+          nestedScrollEnabled
+          removeClippedSubviews={false}
+        />
+      </BottomSheet>
 
-      <BottomSheetModal
+      <BottomSheet
         ref={modelSheetRef}
-        index={0}
+        index={-1}
         snapPoints={snapPoints}
         enableDynamicSizing={false}
         enablePanDownToClose
-        animateOnMount
         animationConfigs={animationConfigs}
-        backdropComponent={null}
+        onChange={(index) => {
+          if (index < 0 && openSheet === "model") {
+            setOpenSheet(null);
+          }
+        }}
         backgroundStyle={styles.bottomSheet}
         handleIndicatorStyle={styles.sheetHandle}
         handleStyle={styles.sheetHandleWrap}
+        style={styles.persistentSheet}
       >
-        <BottomSheetView style={styles.sheetContent}>
-          <Text style={styles.sheetTitle}>Select Model</Text>
-          <BottomSheetFlatList
-            data={modelSheetData}
-            renderItem={renderModelItem}
-            keyExtractor={keyExtractor}
-            contentContainerStyle={styles.sheetList}
-            initialNumToRender={8}
-            maxToRenderPerBatch={8}
-            windowSize={5}
-            removeClippedSubviews
-            getItemLayout={(_, index) => ({
-              length: MODEL_ROW_HEIGHT,
-              offset: MODEL_ROW_HEIGHT * index,
-              index,
-            })}
-          />
-        </BottomSheetView>
-      </BottomSheetModal>
+        <BottomSheetFlatList
+          data={modelSheetData}
+          renderItem={renderModelItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.sheetList}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          nestedScrollEnabled
+          removeClippedSubviews={false}
+          getItemLayout={(_, index) => ({
+            length: MODEL_ROW_HEIGHT,
+            offset: MODEL_ROW_HEIGHT * index,
+            index,
+          })}
+        />
+      </BottomSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "flex-end",
+    pointerEvents: "box-none",
+  },
+  bottomStack: {
+    pointerEvents: "box-none",
+    paddingBottom: 116,
   },
   captureBtnFloating: {
     alignSelf: "center",
@@ -505,10 +547,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     backgroundColor: BG_CARD,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
     borderWidth: 1,
     borderColor: "rgba(0,0,0,0.05)",
     overflow: "hidden",
@@ -557,18 +599,20 @@ const styles = StyleSheet.create({
   },
   selectorsRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: SPACING.SPACE_SM,
   },
-  selectorButton: {
+  selectorGroup: {
     flex: 1,
+  },
+  selectorButton: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#F8F9FA",
     paddingHorizontal: SPACING.SPACE_MD,
-    paddingVertical: SPACING.SPACE_SM,
+    minHeight: 40,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E5E7EB",
@@ -582,7 +626,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#737373",
     textTransform: "uppercase",
-    marginBottom: 2,
+    marginBottom: 6,
+    marginLeft: 2,
   },
   selectorValue: {
     fontSize: TYPOGRAPHY.TEXT_MD,
@@ -593,6 +638,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
@@ -603,49 +650,31 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 12,
   },
+  persistentSheet: {
+    zIndex: 20,
+  },
   sheetHandle: {
     width: 40,
     height: 5,
     backgroundColor: "#E5E7EB",
     borderRadius: 3,
   },
-  sheetContent: {
-    flex: 1,
-    paddingHorizontal: SPACING.SPACE_XL,
-    paddingBottom: SPACING.SPACE_XL,
-  },
-  sheetTitle: {
-    fontSize: TYPOGRAPHY.TEXT_LG,
-    fontWeight: "800",
-    color: "#191C1D",
-    marginBottom: SPACING.SPACE_MD,
-  },
   sheetList: {
-    paddingBottom: SPACING.SPACE_XL,
-    gap: SPACING.SPACE_SM,
+    paddingTop: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_XL,
+    paddingBottom: SPACING.SPACE_MD + 48,
+    gap: SPACING.SPACE_XS,
   },
   sheetListItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    backgroundColor: "#F8F9FA",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
+    paddingVertical: 10,
   },
   sheetItemContent: {
     flex: 1,
-  },
-  sheetItemActive: {
-    borderColor: "rgba(230,110,25,0.35)",
-    backgroundColor: "rgba(230,110,25,0.08)",
   },
   sheetItemText: {
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
     color: "#191C1D",
-  },
-  sheetItemTextActive: {
-    color: ACCENT,
   },
   sheetTargetText: {
     fontSize: 18,
@@ -658,12 +687,44 @@ const styles = StyleSheet.create({
   sheetRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: SPACING.SPACE_SM,
+  },
+  sheetMainRow: {
+    flex: 1,
+  },
+  sheetTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   sheetStatusText: {
     fontSize: 14,
     fontWeight: "600",
+  },
+  inlineActiveBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "rgba(22,163,74,0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  selectedIconBadge: {
+    width: 18,
+    height: 18,
+    borderRadius: 12,
+    backgroundColor: ACCENT,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  sheetDivider: {
+    height: 1,
+    backgroundColor: "#E8EAED",
+    marginTop: SPACING.SPACE_XS,
+    marginHorizontal: SPACING.SPACE_XXS,
   },
   deficitsWrap: {
     marginTop: 6,
