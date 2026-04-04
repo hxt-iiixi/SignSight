@@ -14,6 +14,7 @@ import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
 import { API_BASE } from "../../../config/api";
 import { ASL_LABELS } from "../../../ml/labels";
+import type { PredictionViewModel } from "../../../shared/types/mobile";
 
 export interface ModelItem {
   id: string;
@@ -22,7 +23,7 @@ export interface ModelItem {
   rawInfo?: any;
 }
 
-type Mode = "letters" | "words";
+export type Mode = "letters" | "words";
 
 type TargetSheetItem = {
   id: string;
@@ -192,8 +193,27 @@ const ModelRow = memo(function ModelRow({
   );
 });
 
-export function CaptureCard() {
-  const [mode, setMode] = useState<Mode>("letters");
+export function CaptureCard({
+  mode,
+  onModeChange,
+  prediction,
+  activeModelLabel,
+  activationError,
+  isActivatingModel = false,
+  onActivateModel,
+  bottomOffset = 0,
+  onSheetOpenChange,
+}: {
+  mode: Mode;
+  onModeChange: (mode: Mode) => void;
+  prediction: PredictionViewModel;
+  activeModelLabel?: string;
+  activationError?: string | null;
+  isActivatingModel?: boolean;
+  onActivateModel: (model: ModelItem) => Promise<boolean>;
+  bottomOffset?: number;
+  onSheetOpenChange?: (isOpen: boolean) => void;
+}) {
   const [selectedLabel, setSelectedLabel] = useState<string>("N/A");
   const [availableModels, setAvailableModels] = useState<ModelItem[]>([
     { id: "None", label: "None" },
@@ -230,15 +250,27 @@ export function CaptureCard() {
   const selectedModelInfo = selectedModelObj.rawInfo || {};
 
   useEffect(() => {
+    onSheetOpenChange?.(openSheet !== null);
+  }, [onSheetOpenChange, openSheet]);
+
+  useEffect(() => {
     async function fetchModels() {
       try {
         const res = await fetch(`${API_BASE}/models`);
         const data = await res.json();
+        const rawModels = Array.isArray(data.models) ? data.models : [];
+        const registryInfo = rawModels.find(
+          (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
+        )?.info;
+        const activeVersionId =
+          typeof registryInfo?.active_version_id === "string"
+            ? registryInfo.active_version_id
+            : null;
 
         let modelsList: ModelItem[] = [{ id: "None", label: "None" }];
 
-        if (data.models && Array.isArray(data.models)) {
-          const activeVersions = data.models
+        if (rawModels.length > 0) {
+          const activeVersions = rawModels
             .filter(
               (m: any) =>
                 m.type === "json" &&
@@ -271,12 +303,22 @@ export function CaptureCard() {
           if (activeVersions.length > 0) {
             modelsList = [...modelsList, ...activeVersions];
           }
+
+          const preferredModel =
+            activeVersions.find(
+              (model) => model.rawInfo?.version_id === activeVersionId
+            ) ?? activeVersions[0];
+
+          if (preferredModel) {
+            setSelectedModelObj(preferredModel);
+            if (!activeVersionId) {
+              void onActivateModel(preferredModel);
+            }
+          }
         }
 
         setAvailableModels(modelsList);
-        if (modelsList.length > 1) {
-          setSelectedModelObj(modelsList[1]);
-        } else {
+        if (modelsList.length === 1) {
           setSelectedModelObj(modelsList[0]);
         }
       } catch (err) {
@@ -285,7 +327,7 @@ export function CaptureCard() {
     }
 
     fetchModels();
-  }, []);
+  }, [onActivateModel]);
 
   const openTargetSheet = useCallback(() => {
     if (openSheet === "model") {
@@ -312,7 +354,7 @@ export function CaptureCard() {
   }, []);
 
   const handleModeChange = (newMode: Mode) => {
-    setMode(newMode);
+    onModeChange(newMode);
     setSelectedLabel("N/A");
   };
 
@@ -403,11 +445,21 @@ export function CaptureCard() {
   );
 
   const handleModelSelect = useCallback(
-    (model: ModelItem) => {
+    async (model: ModelItem) => {
+      if (model.id === selectedModelObj.id) {
+        closeModelSheet();
+        return;
+      }
+
+      const activated = await onActivateModel(model);
+      if (!activated) {
+        return;
+      }
+
       setSelectedModelObj(model);
       closeModelSheet();
     },
-    [closeModelSheet]
+    [closeModelSheet, onActivateModel, selectedModelObj.id]
   );
 
   const renderTargetItem = useCallback(
@@ -428,7 +480,7 @@ export function CaptureCard() {
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.bottomStack}>
+      <View style={[styles.bottomStack, { paddingBottom: bottomOffset }]}>
         <TouchableOpacity style={styles.captureBtnFloating}>
           <Ionicons
             name={mode === "letters" ? "camera" : "videocam"}
@@ -437,7 +489,57 @@ export function CaptureCard() {
           />
         </TouchableOpacity>
 
+            
+        {/* FIrst Section: Monitoring and Detection */}
         <View style={styles.cardContainer}>
+          <View style={styles.cardContent}>
+            <View style={styles.header}>
+              <Text style={styles.title}>Monitoring and Detection</Text>
+            </View>
+            <View style={styles.monitoringPanel}>
+              <View style={styles.monitoringMain}>
+                <Text style={styles.monitoringLabel}>Detection Result</Text>
+                <Text style={styles.monitoringValue}>
+                  {prediction.hasHand ? prediction.label : "No hand"}
+                </Text>
+                <Text style={styles.monitoringConfidence}>
+                  {Math.round(prediction.confidence * 100)}% confidence
+                </Text>
+              </View>
+
+              <View style={styles.monitoringMetaRow}>
+                <View style={styles.monitoringChip}>
+                  <Text style={styles.monitoringChipLabel}>Mode</Text>
+                  <Text style={styles.monitoringChipValue}>
+                    {mode === "letters" ? "Letters" : "Words"}
+                  </Text>
+                </View>
+                <View style={styles.monitoringChip}>
+                  <Text style={styles.monitoringChipLabel}>Hand</Text>
+                  <Text style={styles.monitoringChipValue}>
+                    {prediction.handedness ?? "Unknown"}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.monitoringFooter}>
+                <Text style={styles.monitoringFooterText}>
+                  Model: {activeModelLabel || selectedModelObj.label}
+                </Text>
+                {isActivatingModel ? (
+                  <Text style={styles.monitoringFooterStatus}>Switching model…</Text>
+                ) : null}
+              </View>
+
+              {activationError ? (
+                <Text style={styles.monitoringErrorText}>{activationError}</Text>
+              ) : null}
+            </View>
+          </View>
+
+
+
+          {/* Second Section: Dataset Management */}
           <View style={styles.cardContent}>
             <View style={styles.header}>
               <Text style={styles.title}>Dataset Collection</Text>
@@ -476,6 +578,7 @@ export function CaptureCard() {
                 </TouchableOpacity>
               </View>
             </View>
+            
 
             <View style={styles.selectorsRow}>
               <View style={styles.selectorGroup}>
@@ -596,7 +699,6 @@ const styles = StyleSheet.create({
   },
   bottomStack: {
     pointerEvents: "box-none",
-    paddingBottom: 116,
   },
   captureBtnFloating: {
     alignSelf: "center",
@@ -704,6 +806,82 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
     color: "#191C1D",
+  },
+  monitoringPanel: {
+    backgroundColor: "#F8F9FA",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    borderRadius: 16,
+    padding: SPACING.SPACE_MD,
+    gap: SPACING.SPACE_SM,
+  },
+  monitoringMain: {
+    gap: SPACING.SPACE_XXS,
+  },
+  monitoringLabel: {
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    color: "#737373",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  monitoringValue: {
+    fontSize: TYPOGRAPHY.TEXT_3XL,
+    fontWeight: "900",
+    color: "#191C1D",
+  },
+  monitoringConfidence: {
+    fontSize: TYPOGRAPHY.TEXT_MD,
+    fontWeight: "700",
+    color: ACCENT,
+  },
+  monitoringMetaRow: {
+    flexDirection: "row",
+    gap: SPACING.SPACE_SM,
+  },
+  monitoringChip: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#ECECEC",
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XS,
+  },
+  monitoringChipLabel: {
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    fontWeight: "700",
+    color: "#737373",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  monitoringChipValue: {
+    fontSize: TYPOGRAPHY.TEXT_MD,
+    fontWeight: "800",
+    color: "#191C1D",
+  },
+  monitoringFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: SPACING.SPACE_SM,
+  },
+  monitoringFooterText: {
+    flex: 1,
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    color: "#6B7280",
+  },
+  monitoringFooterStatus: {
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    color: ACCENT,
+  },
+  monitoringErrorText: {
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    color: "#DC2626",
   },
   bottomSheet: {
     backgroundColor: "#FFFFFF",

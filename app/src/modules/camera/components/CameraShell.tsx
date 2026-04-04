@@ -12,6 +12,7 @@ const TEXT = "#191C1D";
 
 export function CameraShell({
   CameraComponent,
+  cameraActive = true,
   cameraLayout,
   cameraPosition,
   children,
@@ -35,6 +36,7 @@ export function CameraShell({
   unsupportedMessage,
 }: {
   CameraComponent: typeof import("react-native-vision-camera").Camera;
+  cameraActive?: boolean;
   cameraLayout: { width: number; height: number };
   cameraPosition: "back" | "front";
   children?: React.ReactNode;
@@ -80,7 +82,7 @@ export function CameraShell({
           style={StyleSheet.absoluteFill}
           device={device}
           format={format}
-          isActive={true}
+          isActive={cameraActive}
           photo={false}
           video={false}
           audio={false}
