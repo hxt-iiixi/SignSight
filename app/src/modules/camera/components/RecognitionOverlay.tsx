@@ -2,6 +2,13 @@ import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
+import {
+  ACCENT,
+  BORDER_LIGHT,
+  TEXT_SECONDARY,
+  RADIUS_LG,
+  RADIUS_MD,
+} from "../../../components/lab/shared/labColors";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
 import type { PredictionViewModel } from "../../../shared/types/mobile";
@@ -77,8 +84,49 @@ export function RecognitionOverlay({
 
       {showDetails ? (
         <View style={styles.detailsGrid}>
+          <View style={styles.modeToggle}>
+            <Pressable
+              style={[
+                styles.modeButton,
+                modeValue === "letters" && styles.modeButtonActive,
+              ]}
+              onPress={(event) => {
+                event.stopPropagation();
+                onModeChange?.("letters");
+              }}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  modeValue === "letters" && styles.modeButtonTextActive,
+                ]}
+              >
+                Letters
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.modeButton,
+                modeValue === "words" && styles.modeButtonActive,
+              ]}
+              onPress={(event) => {
+                event.stopPropagation();
+                onModeChange?.("words");
+              }}
+            >
+              <Text
+                style={[
+                  styles.modeButtonText,
+                  modeValue === "words" && styles.modeButtonTextActive,
+                ]}
+              >
+                Words
+              </Text>
+            </Pressable>
+          </View>
+
           <Pressable
-            style={styles.detailChip}
+            style={styles.surfaceCard}
             onPress={(event) => {
               event.stopPropagation();
               setOpenPicker((current) => (current === "target" ? null : "target"));
@@ -94,7 +142,7 @@ export function RecognitionOverlay({
               <Ionicons
                 name={openPicker === "target" ? "chevron-up" : "chevron-down"}
                 size={18}
-                color="rgba(255,255,255,0.9)"
+                color={TEXT_SECONDARY}
               />
             </View>
 
@@ -124,52 +172,8 @@ export function RecognitionOverlay({
             ) : null}
           </Pressable>
 
-          <View style={styles.detailChip}>
-            <Text style={styles.detailLabel}>Mode</Text>
-            <View style={styles.modeToggle}>
-              <Pressable
-                style={[
-                  styles.modeButton,
-                  modeValue === "letters" && styles.modeButtonActive,
-                ]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  onModeChange?.("letters");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modeButtonText,
-                    modeValue === "letters" && styles.modeButtonTextActive,
-                  ]}
-                >
-                  Letters
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.modeButton,
-                  modeValue === "words" && styles.modeButtonActive,
-                ]}
-                onPress={(event) => {
-                  event.stopPropagation();
-                  onModeChange?.("words");
-                }}
-              >
-                <Text
-                  style={[
-                    styles.modeButtonText,
-                    modeValue === "words" && styles.modeButtonTextActive,
-                  ]}
-                >
-                  Words
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-
           <Pressable
-            style={styles.detailChip}
+            style={styles.surfaceCard}
             onPress={(event) => {
               event.stopPropagation();
               setOpenPicker((current) => (current === "model" ? null : "model"));
@@ -185,7 +189,7 @@ export function RecognitionOverlay({
               <Ionicons
                 name={openPicker === "model" ? "chevron-up" : "chevron-down"}
                 size={18}
-                color="rgba(255,255,255,0.9)"
+                color={TEXT_SECONDARY}
               />
             </View>
 
@@ -223,7 +227,7 @@ export function RecognitionOverlay({
       ) : null}
 
       {showMetadataInputs ? (
-        <View style={styles.metadataSection}>
+        <View style={styles.metadataRow}>
           {onSignerIdChange ? (
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Signer ID</Text>
@@ -231,7 +235,7 @@ export function RecognitionOverlay({
                 value={signerId ?? ""}
                 onChangeText={onSignerIdChange}
                 placeholder="person_01"
-                placeholderTextColor="rgba(255,255,255,0.38)"
+                placeholderTextColor={TEXT_SECONDARY}
                 style={styles.input}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -246,7 +250,7 @@ export function RecognitionOverlay({
                 value={variantTag ?? ""}
                 onChangeText={onVariantTagChange}
                 placeholder="low_light"
-                placeholderTextColor="rgba(255,255,255,0.38)"
+                placeholderTextColor={TEXT_SECONDARY}
                 style={styles.input}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -264,12 +268,12 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: SPACING.SPACE_MD,
     right: SPACING.SPACE_MD,
-    borderRadius: 24,
+    borderRadius: RADIUS_LG,
     paddingHorizontal: SPACING.SPACE_MD,
-    paddingVertical: SPACING.SPACE_SM,
-    backgroundColor: "rgba(0,0,0,0.36)",
+    paddingVertical: SPACING.SPACE_MD,
+    backgroundColor: "rgba(31, 30, 26, 0.66)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.14)",
+    borderColor: "rgba(255,255,255,0.10)",
   },
   headerRow: {
     flexDirection: "row",
@@ -283,30 +287,33 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: TYPOGRAPHY.TEXT_3XL,
     fontWeight: "900",
+    letterSpacing: -0.6,
   },
   meta: {
     marginTop: SPACING.SPACE_XXS,
-    color: "rgba(255,255,255,0.9)",
-    fontSize: TYPOGRAPHY.TEXT_LG,
+    color: "rgba(255,255,255,0.78)",
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
   },
   chevronBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(255,255,255,0.08)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
   },
   detailsGrid: {
     marginTop: SPACING.SPACE_SM,
     gap: SPACING.SPACE_SM,
   },
-  detailChip: {
-    borderRadius: 14,
+  surfaceCard: {
+    borderRadius: RADIUS_MD,
     paddingHorizontal: SPACING.SPACE_SM,
-    paddingVertical: SPACING.SPACE_XS,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    paddingVertical: SPACING.SPACE_SM,
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
@@ -319,7 +326,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    color: "rgba(255,255,255,0.68)",
+    color: "rgba(255,255,255,0.58)",
     fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -341,16 +348,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.SPACE_SM,
     paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
   },
   optionChipSelected: {
-    backgroundColor: "rgba(230,110,25,0.24)",
-    borderColor: "rgba(230,110,25,0.48)",
+    backgroundColor: "rgba(230,110,25,0.16)",
+    borderColor: "rgba(230,110,25,0.22)",
   },
   optionText: {
-    color: "rgba(255,255,255,0.82)",
+    color: "rgba(255,255,255,0.78)",
     fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "700",
   },
@@ -358,24 +365,23 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   modeToggle: {
-    marginTop: SPACING.SPACE_SM,
     flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.05)",
     borderRadius: 12,
-    padding: 4,
+    padding: 2,
     gap: 4,
   },
   modeButton: {
     flex: 1,
     borderRadius: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     alignItems: "center",
   },
   modeButtonActive: {
-    backgroundColor: "rgba(230,110,25,0.24)",
+    backgroundColor: "rgba(255,255,255,0.10)",
   },
   modeButtonText: {
-    color: "rgba(255,255,255,0.78)",
+    color: "rgba(255,255,255,0.72)",
     fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "700",
   },
@@ -387,37 +393,41 @@ const styles = StyleSheet.create({
     maxHeight: 180,
   },
   modelOption: {
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: SPACING.SPACE_SM,
     paddingVertical: SPACING.SPACE_SM,
   },
   modelOptionSelected: {
-    backgroundColor: "rgba(230,110,25,0.18)",
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   modelOptionText: {
-    color: "rgba(255,255,255,0.82)",
+    color: "#FFFFFF",
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
   },
-  metadataSection: {
+  metadataRow: {
     marginTop: SPACING.SPACE_SM,
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: SPACING.SPACE_SM,
   },
   inputGroup: {
+    flex: 1,
+    minWidth: 150,
     gap: 6,
   },
   inputLabel: {
-    color: "rgba(255,255,255,0.68)",
+    color: "rgba(255,255,255,0.58)",
     fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
   input: {
-    borderRadius: 14,
+    borderRadius: RADIUS_MD,
     paddingHorizontal: SPACING.SPACE_SM,
     paddingVertical: SPACING.SPACE_SM,
-    backgroundColor: "rgba(255,255,255,0.08)",
+    backgroundColor: "rgba(255,255,255,0.06)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
     color: "#FFFFFF",
