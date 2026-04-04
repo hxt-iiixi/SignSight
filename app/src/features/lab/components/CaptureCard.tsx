@@ -1,6 +1,7 @@
-export interface ModelItem { id: string; label: string; detail?: string; }
+export interface ModelItem { id: string; label: string; detail?: string; rawInfo?: any; }
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Pressable, Animated, PanResponder } from "react-native";
+import { useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { ACCENT, BG_CARD, PRIMARY_CONTAINER } from "../../../components/lab/shared/labColors";
 import { SPACING } from "../../../config/spacing";
@@ -9,6 +10,65 @@ import { ASL_LABELS } from "../../../ml/labels";
 import { API_BASE } from "../../../config/api";
 
 type Mode = "letters" | "words";
+
+
+export const DraggableBottomSheet = ({ visible, onClose, title, children }: any) => {
+  const panY = useRef(new Animated.Value(0)).current;
+
+  const resetPosition = Animated.timing(panY, {
+    toValue: 0,
+    duration: 300,
+    useNativeDriver: true,
+  });
+
+  const closeAnim = Animated.timing(panY, {
+    toValue: 1000,
+    duration: 300,
+    useNativeDriver: true,
+  });
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (e, gs) => Math.abs(gs.dy) > 10,
+      onPanResponderMove: (e, gs) => {
+        if (gs.dy > 0) {
+          panY.setValue(gs.dy);
+        }
+      },
+      onPanResponderRelease: (e, gs) => {
+        if (gs.dy > 150 || gs.vy > 1.5) {
+          closeAnim.start(() => {
+            onClose();
+            setTimeout(() => panY.setValue(0), 100);
+          });
+        } else {
+          resetPosition.start();
+        }
+      },
+    })
+  ).current;
+
+  useEffect(() => {
+    if (visible) {
+      panY.setValue(0);
+    }
+  }, [visible]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent={true}>
+      <View style={styles.modalOverlay}>
+        <Animated.View style={[styles.bottomSheet, { transform: [{ translateY: panY }] }]}>
+          <View {...panResponder.panHandlers} style={{ width: '100%', alignItems: 'center', paddingBottom: 16, paddingTop: 10 }}>
+            <View style={styles.sheetHandle} />
+          </View>
+          <Text style={styles.sheetTitle}>{title}</Text>
+          {children}
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
 
 export function CaptureCard() {
   const [mode, setMode] = useState<Mode>("letters");
@@ -131,93 +191,119 @@ const [selectedModelObj, setSelectedModelObj] = useState<ModelItem>({ id: "None"
           </View>
         </View>
 
-        {/* Target Selector Bottom Sheet */}
-        <Modal
-          visible={isSheetVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setSheetVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setSheetVisible(false)}>
-            <View style={styles.bottomSheet}>
-              <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>Select Target</Text>
+                        {/* Target Selector Bottom Sheet */}
+        <DraggableBottomSheet visible={isSheetVisible} onClose={() => setSheetVisible(false)} title="Select Target">
+          <ScrollView contentContainerStyle={styles.sheetList}>
+            {currentLabels.map((lbl: string) => {
+              const info = selectedModelObj.rawInfo || {};
+              const isActive = (info.active_static_letters || []).includes(lbl) || (info.active_static_word_labels || []).includes(lbl);
+              const isReady = (info.ready_static_letters || []).includes(lbl) || (info.ready_static_word_labels || []).includes(lbl);
+              const isUnready = (info.unready_static_letters || []).includes(lbl);
+              const count = info.training_sample_counts?.[lbl] || 0;
+              const deficits = info.deficits_by_label?.[lbl] || [];
 
-              <ScrollView contentContainerStyle={styles.sheetGrid}>
-                {currentLabels.map((lbl: string) => (
-                  <TouchableOpacity
-                    key={lbl}
-                    style={[
-                      styles.sheetItem,
-                      selectedLabel === lbl && styles.sheetItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedLabel(lbl);
-                      setSheetVisible(false);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.sheetItemText,
-                        selectedLabel === lbl && styles.sheetItemTextActive,
-                      ]}
-                    >
-                      {lbl}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Modal>
+              let statusText = "N/A";
+              let statusColor = "#737373";
 
-        {/* Model Selector Bottom Sheet */}
-        <Modal
-          visible={isModelSheetVisible}
-          animationType="slide"
-          transparent={true}
-          onRequestClose={() => setModelSheetVisible(false)}
-        >
-          <Pressable style={styles.modalOverlay} onPress={() => setModelSheetVisible(false)}>
-            <View style={styles.bottomSheet}>
-              <View style={styles.sheetHandle} />
-              <Text style={styles.sheetTitle}>Select Model</Text>
+              if (isActive) {
+                statusText = "Active (in model)";
+                statusColor = "#16A34A";
+              } else if (isReady) {
+                statusText = "Ready (pending model)";
+                statusColor = "#0284C7";
+              } else if (isUnready) {
+                statusText = "Unready (needs data)";
+                statusColor = "#DC2626";
+              } else if (count > 0) {
+                statusText = "Collecting data";
+                statusColor = "#D97706";
+              } else {
+                statusText = "No data";
+              }
 
-              <ScrollView contentContainerStyle={styles.sheetList}>
-                {availableModels.map((m: ModelItem) => (
-                  <TouchableOpacity
-                    key={m.id}
-                    style={[
-                      styles.sheetListItem,
-                      selectedModelObj.id === m.id && styles.sheetItemActive,
-                    ]}
-                    onPress={() => {
-                      setSelectedModelObj(m);
-                      setModelSheetVisible(false);
-                    }}
-                  >
-                    <View>
+              return (
+                <TouchableOpacity
+                  key={lbl}
+                  style={[
+                    styles.sheetListItem,
+                    selectedLabel === lbl && styles.sheetItemActive,
+                  ]}
+                  onPress={() => {
+                    setSelectedLabel(lbl);
+                    setSheetVisible(false);
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                       <Text
                         style={[
                           styles.sheetItemText,
-                          selectedModelObj.id === m.id && styles.sheetItemTextActive,
+                          selectedLabel === lbl && styles.sheetItemTextActive,
+                          { fontSize: 18 }
                         ]}
-                        numberOfLines={1}
                       >
-                        {m.label}
+                        {lbl}
                       </Text>
-                      {m.detail ? (
-                        <Text style={{ fontSize: 12, color: "#737373", marginTop: 4 }}>
-                          {m.detail}
-                        </Text>
-                      ) : null}
+                      <Text style={{ fontSize: 14, color: statusColor, fontWeight: "600" }}>
+                        {statusText}
+                      </Text>
                     </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </Pressable>
-        </Modal>
+                    {count !== undefined && count > 0 && (
+                      <Text style={{ fontSize: 13, color: "#737373", marginTop: 4 }}>
+                        Samples: {count}
+                      </Text>
+                    )}
+                    {deficits.length > 0 && (
+                      <View style={{ marginTop: 6, backgroundColor: "#FEE2E2", padding: 6, borderRadius: 6 }}>
+                        {deficits.map((d: string, idx: number) => (
+                          <Text key={idx} style={{ fontSize: 12, color: "#991B1B" }}>• {d}</Text>
+                        ))}
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </DraggableBottomSheet>
+
+        {/* Model Selector Bottom Sheet */}
+        <DraggableBottomSheet visible={isModelSheetVisible} onClose={() => setModelSheetVisible(false)} title="Select Model">
+          <ScrollView contentContainerStyle={styles.sheetList}>
+            {availableModels.map((m: ModelItem) => (
+              <TouchableOpacity
+                key={m.id}
+                style={[
+                  styles.sheetListItem,
+                  selectedModelObj.id === m.id && styles.sheetItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedModelObj(m);
+                  setModelSheetVisible(false);
+                }}
+              >
+                <View>
+                  <Text
+                    style={[
+                      styles.sheetItemText,
+                      selectedModelObj.id === m.id && styles.sheetItemTextActive,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {m.label}
+                  </Text>
+                  {m.detail ? (
+                    <Text style={{ fontSize: 12, color: "#737373", marginTop: 4 }}>
+                      {m.detail}
+                    </Text>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </DraggableBottomSheet>
+
+
       </View>
     </View>
   );
@@ -226,9 +312,9 @@ const [selectedModelObj, setSelectedModelObj] = useState<ModelItem>({ id: "None"
 const styles = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    bottom: 20,
-    left: SPACING.SPACE_MD,
-    right: SPACING.SPACE_MD,
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   captureBtnFloating: {
     alignSelf: "center",
@@ -246,7 +332,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.SPACE_LG,
   },
   cardContainer: {
-    borderRadius: 24,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     backgroundColor: BG_CARD,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
