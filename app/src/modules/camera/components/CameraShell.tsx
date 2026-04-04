@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import HandLandmarkOverlay from "../../../components/HandLandmarkOverlay";
@@ -13,12 +13,14 @@ const TEXT = "#191C1D";
 export function CameraShell({
   CameraComponent,
   cameraActive = true,
+  cameraRef,
   cameraLayout,
   cameraPosition,
   children,
   device,
   format,
   frameProcessor,
+  frozenBackdropUri,
   latestHandFrame,
   onBack,
   onCameraLayout,
@@ -37,12 +39,14 @@ export function CameraShell({
 }: {
   CameraComponent: typeof import("react-native-vision-camera").Camera;
   cameraActive?: boolean;
+  cameraRef?: React.RefObject<any> | null;
   cameraLayout: { width: number; height: number };
   cameraPosition: "back" | "front";
   children?: React.ReactNode;
   device: any;
   format: any;
   frameProcessor?: any;
+  frozenBackdropUri?: string | null;
   latestHandFrame: { hasHand?: boolean; landmarks?: any[]; timestampMs?: number } | null;
   onBack: () => void;
   onCameraLayout: (event: any) => void;
@@ -78,20 +82,29 @@ export function CameraShell({
   return (
     <View style={styles.container}>
       <View style={styles.cameraSurface} onLayout={onCameraLayout}>
-        <CameraComponent
-          style={StyleSheet.absoluteFill}
-          device={device}
-          format={format}
-          isActive={cameraActive}
-          photo={false}
-          video={false}
-          audio={false}
-          torch={torchEnabled ? "on" : "off"}
-          frameProcessor={frameProcessor}
-          isMirrored={cameraPosition === "front"}
-          resizeMode="cover"
-          pixelFormat="rgb"
-        />
+        {frozenBackdropUri && !cameraActive ? (
+          <Image
+            source={{ uri: frozenBackdropUri }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        ) : (
+          <CameraComponent
+            ref={cameraRef as any}
+            style={StyleSheet.absoluteFill}
+            device={device}
+            format={format}
+            isActive={cameraActive}
+            photo={true}
+            video={false}
+            audio={false}
+            torch={torchEnabled ? "on" : "off"}
+            frameProcessor={frameProcessor}
+            isMirrored={cameraPosition === "front"}
+            resizeMode="cover"
+            pixelFormat="rgb"
+          />
+        )}
 
         <HandLandmarkOverlay
           landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}

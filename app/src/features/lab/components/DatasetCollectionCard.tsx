@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import BottomSheet, {
   BottomSheetFlatList,
@@ -12,9 +12,7 @@ import {
 } from "../../../components/lab/shared/labColors";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
-import { API_BASE } from "../../../config/api";
 import { ASL_LABELS } from "../../../ml/labels";
-import type { PredictionViewModel } from "../../../shared/types/mobile";
 
 export interface ModelItem {
   id: string;
@@ -45,7 +43,6 @@ type TargetSheetItem = {
 type ModelSheetItem = {
   id: string;
   label: string;
-  detail?: string;
   selected: boolean;
   latest: boolean;
   model: ModelItem;
@@ -54,10 +51,7 @@ type ModelSheetItem = {
 const MODEL_ROW_HEIGHT = 72;
 const TARGET_ROW_HEIGHT = 72;
 
-function extractDeficitCount(
-  deficits: string[],
-  matcher: RegExp
-): number | null {
+function extractDeficitCount(deficits: string[], matcher: RegExp): number | null {
   const match = deficits.find((deficit) => matcher.test(deficit))?.match(/(\d+)\s*\/\s*\d+/);
   return match ? Number(match[1]) : null;
 }
@@ -72,22 +66,12 @@ const TargetRow = memo(function TargetRow({
   showExpandedDetails: boolean;
 }) {
   return (
-    <TouchableOpacity
-      style={styles.sheetListItem}
-      onPress={() => onPress(item.label)}
-    >
+    <TouchableOpacity style={styles.sheetListItem} onPress={() => onPress(item.label)}>
       <View style={styles.sheetItemContent}>
         <View style={styles.sheetRow}>
           <View style={styles.sheetMainRow}>
             <View style={styles.sheetTitleRow}>
-              <Text
-                style={[
-                  styles.sheetItemText,
-                  styles.sheetTargetText,
-                ]}
-              >
-                {item.label}
-              </Text>
+              <Text style={[styles.sheetItemText, styles.sheetTargetText]}>{item.label}</Text>
               {item.statusKind === "active" ? (
                 <View style={styles.inlineActiveBadge}>
                   <Ionicons name="sparkles" size={12} color="#16A34A" />
@@ -124,21 +108,15 @@ const TargetRow = memo(function TargetRow({
               </View>
               <View style={styles.unreadyStatsCell}>
                 <Text style={styles.unreadyStatsLabel}>Left Hand</Text>
-                <Text style={styles.unreadyStatsValue}>
-                  {item.unreadyStats.left ?? "—"}
-                </Text>
+                <Text style={styles.unreadyStatsValue}>{item.unreadyStats.left ?? "—"}</Text>
               </View>
               <View style={styles.unreadyStatsCell}>
                 <Text style={styles.unreadyStatsLabel}>Signers</Text>
-                <Text style={styles.unreadyStatsValue}>
-                  {item.unreadyStats.signers ?? "—"}
-                </Text>
+                <Text style={styles.unreadyStatsValue}>{item.unreadyStats.signers ?? "—"}</Text>
               </View>
               <View style={styles.unreadyStatsCell}>
                 <Text style={styles.unreadyStatsLabel}>Right Hand</Text>
-                <Text style={styles.unreadyStatsValue}>
-                  {item.unreadyStats.right ?? "—"}
-                </Text>
+                <Text style={styles.unreadyStatsValue}>{item.unreadyStats.right ?? "—"}</Text>
               </View>
             </View>
           </View>
@@ -167,20 +145,12 @@ const ModelRow = memo(function ModelRow({
   onPress: (model: ModelItem) => void;
 }) {
   return (
-    <TouchableOpacity
-      style={styles.sheetListItem}
-      onPress={() => onPress(item.model)}
-    >
+    <TouchableOpacity style={styles.sheetListItem} onPress={() => onPress(item.model)}>
       <View style={styles.sheetItemContent}>
         <View style={styles.sheetRow}>
           <View style={styles.sheetMainRow}>
-            {item.latest ? (
-              <Text style={styles.latestBadgeText}>Latest</Text>
-            ) : null}
-            <Text
-              style={styles.sheetItemText}
-              numberOfLines={1}
-            >
+            {item.latest ? <Text style={styles.latestBadgeText}>Latest</Text> : null}
+            <Text style={styles.sheetItemText} numberOfLines={1}>
               {item.label}
             </Text>
           </View>
@@ -196,37 +166,27 @@ const ModelRow = memo(function ModelRow({
   );
 });
 
-export function CaptureCard({
+export function DatasetCollectionCard({
   mode,
   onModeChange,
-  prediction,
-  activeModelLabel,
-  activationError,
-  isActivatingModel = false,
-  onActivateModel,
+  selectedLabel,
+  onSelectLabel,
+  availableModels,
+  selectedModel,
+  onSelectModel,
   bottomOffset = 0,
-  onRequestFrozenBackdrop,
   onSheetOpenChange,
 }: {
   mode: Mode;
   onModeChange: (mode: Mode) => void;
-  prediction: PredictionViewModel;
-  activeModelLabel?: string;
-  activationError?: string | null;
-  isActivatingModel?: boolean;
-  onActivateModel: (model: ModelItem) => Promise<boolean>;
+  selectedLabel: string;
+  onSelectLabel: (label: string) => void;
+  availableModels: ModelItem[];
+  selectedModel: ModelItem | null;
+  onSelectModel: (model: ModelItem) => Promise<boolean>;
   bottomOffset?: number;
-  onRequestFrozenBackdrop?: () => Promise<string | null> | void;
   onSheetOpenChange?: (isOpen: boolean) => void;
 }) {
-  const [selectedLabel, setSelectedLabel] = useState<string>("N/A");
-  const [availableModels, setAvailableModels] = useState<ModelItem[]>([
-    { id: "None", label: "None" },
-  ]);
-  const [selectedModelObj, setSelectedModelObj] = useState<ModelItem>({
-    id: "None",
-    label: "None",
-  });
   const [openSheet, setOpenSheet] = useState<"target" | "model" | null>(null);
   const [targetSheetSettled, setTargetSheetSettled] = useState(false);
   const [modelSheetSettled, setModelSheetSettled] = useState(false);
@@ -240,121 +200,47 @@ export function CaptureCard({
     overshootClamping: true,
   });
 
-  const letterLabels = [...ASL_LABELS];
-  const wordLabels = [
-    "HELLO",
-    "THANK_YOU",
-    "PLEASE",
-    "SORRY",
-    "YES",
-    "NO",
-    "HELP",
-    "I_LOVE_YOU",
-    "WHERE",
-    "GOODBYE",
-  ];
-  const currentLabels = mode === "letters" ? letterLabels : wordLabels;
-  const selectedModelInfo = selectedModelObj.rawInfo || {};
+  const currentLabels = useMemo(
+    () =>
+      mode === "letters"
+        ? [...ASL_LABELS]
+        : [
+            "HELLO",
+            "THANK_YOU",
+            "PLEASE",
+            "SORRY",
+            "YES",
+            "NO",
+            "HELP",
+            "I_LOVE_YOU",
+            "WHERE",
+            "GOODBYE",
+          ],
+    [mode]
+  );
+  const selectedModelInfo = selectedModel?.rawInfo || {};
 
   useEffect(() => {
     onSheetOpenChange?.(openSheet !== null);
   }, [onSheetOpenChange, openSheet]);
-
-  useEffect(() => {
-    async function fetchModels() {
-      try {
-        const res = await fetch(`${API_BASE}/models`);
-        const data = await res.json();
-        const rawModels = Array.isArray(data.models) ? data.models : [];
-        const registryInfo = rawModels.find(
-          (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
-        )?.info;
-        const activeVersionId =
-          typeof registryInfo?.active_version_id === "string"
-            ? registryInfo.active_version_id
-            : null;
-
-        let modelsList: ModelItem[] = [{ id: "None", label: "None" }];
-
-        if (rawModels.length > 0) {
-          const activeVersions = rawModels
-            .filter(
-              (m: any) =>
-                m.type === "json" &&
-                m.path.includes("landmark_versions/") &&
-                !m.path.includes("archived_models")
-            )
-            .map((m: any) => {
-              const info = m.info || {};
-              const label =
-                info.label || m.path.split("/").pop()?.replace(".json", "");
-              const dateObj = info.trained_at ? new Date(info.trained_at) : null;
-              const detail =
-                dateObj && !Number.isNaN(dateObj.getTime())
-                  ? dateObj.toLocaleDateString()
-                  : info.training_mode || "";
-
-              return {
-                id: m.path,
-                label,
-                detail,
-                rawInfo: info,
-                _tempDate:
-                  dateObj && !Number.isNaN(dateObj.getTime())
-                    ? dateObj.getTime()
-                    : 0,
-              };
-            })
-            .sort((a: any, b: any) => b._tempDate - a._tempDate);
-
-          if (activeVersions.length > 0) {
-            modelsList = [...modelsList, ...activeVersions];
-          }
-
-          const preferredModel =
-            activeVersions.find(
-              (model) => model.rawInfo?.version_id === activeVersionId
-            ) ?? activeVersions[0];
-
-          if (preferredModel) {
-            setSelectedModelObj(preferredModel);
-            if (!activeVersionId) {
-              void onActivateModel(preferredModel);
-            }
-          }
-        }
-
-        setAvailableModels(modelsList);
-        if (modelsList.length === 1) {
-          setSelectedModelObj(modelsList[0]);
-        }
-      } catch (err) {
-        console.log("Failed to fetch models", err);
-      }
-    }
-
-    fetchModels();
-  }, [onActivateModel]);
 
   const openTargetSheet = useCallback(() => {
     if (openSheet === "model") {
       modelSheetRef.current?.close();
     }
     setTargetSheetSettled(false);
-    void onRequestFrozenBackdrop?.();
     targetSheetRef.current?.snapToIndex(0);
     setOpenSheet("target");
-  }, [onRequestFrozenBackdrop, openSheet]);
+  }, [openSheet]);
 
   const openModelSheet = useCallback(() => {
     if (openSheet === "target") {
       targetSheetRef.current?.close();
     }
     setModelSheetSettled(false);
-    void onRequestFrozenBackdrop?.();
     modelSheetRef.current?.snapToIndex(0);
     setOpenSheet("model");
-  }, [onRequestFrozenBackdrop, openSheet]);
+  }, [openSheet]);
 
   const closeTargetSheet = useCallback(() => {
     targetSheetRef.current?.close();
@@ -364,11 +250,6 @@ export function CaptureCard({
     modelSheetRef.current?.close();
   }, []);
 
-  const handleModeChange = (newMode: Mode) => {
-    onModeChange(newMode);
-    setSelectedLabel("N/A");
-  };
-
   const targetSheetData = useMemo<TargetSheetItem[]>(() => {
     return currentLabels.map((label) => {
       const isActive =
@@ -377,8 +258,7 @@ export function CaptureCard({
       const isReady =
         (selectedModelInfo.ready_static_letters || []).includes(label) ||
         (selectedModelInfo.ready_static_word_labels || []).includes(label);
-      const isUnready =
-        (selectedModelInfo.unready_static_letters || []).includes(label);
+      const isUnready = (selectedModelInfo.unready_static_letters || []).includes(label);
       const count = selectedModelInfo.training_sample_counts?.[label] || 0;
       const deficits = selectedModelInfo.deficits_by_label?.[label] || [];
 
@@ -428,49 +308,43 @@ export function CaptureCard({
     });
   }, [currentLabels, selectedLabel, selectedModelInfo]);
 
-  const modelSheetData = useMemo<ModelSheetItem[]>(
-    () => {
-      const latestModelId =
-        availableModels.find((model) => model.id !== "None")?.id ?? null;
+  const modelSheetData = useMemo<ModelSheetItem[]>(() => {
+    const latestModelId = availableModels.find((model) => model.id !== "None")?.id ?? null;
 
-      return availableModels
+    return availableModels
       .filter((model) => model.id !== "None")
       .map((model) => ({
         id: model.id,
         label: model.label,
-        detail: model.detail,
-        selected: selectedModelObj.id === model.id,
+        selected: selectedModel?.id === model.id,
         latest: model.id !== "None" && model.id === latestModelId,
         model,
       }));
-    },
-    [availableModels, selectedModelObj.id]
-  );
+  }, [availableModels, selectedModel?.id]);
 
   const handleTargetSelect = useCallback(
     (label: string) => {
-      setSelectedLabel(label);
+      onSelectLabel(label);
       closeTargetSheet();
     },
-    [closeTargetSheet]
+    [closeTargetSheet, onSelectLabel]
   );
 
   const handleModelSelect = useCallback(
     async (model: ModelItem) => {
-      if (model.id === selectedModelObj.id) {
+      if (model.id === selectedModel?.id) {
         closeModelSheet();
         return;
       }
 
-      const activated = await onActivateModel(model);
+      const activated = await onSelectModel(model);
       if (!activated) {
         return;
       }
 
-      setSelectedModelObj(model);
       closeModelSheet();
     },
-    [closeModelSheet, onActivateModel, selectedModelObj.id]
+    [closeModelSheet, onSelectModel, selectedModel?.id]
   );
 
   const renderTargetItem = useCallback(
@@ -485,9 +359,7 @@ export function CaptureCard({
   );
 
   const renderModelItem = useCallback(
-    ({ item }: { item: ModelSheetItem }) => (
-      <ModelRow item={item} onPress={handleModelSelect} />
-    ),
+    ({ item }: { item: ModelSheetItem }) => <ModelRow item={item} onPress={handleModelSelect} />,
     [handleModelSelect]
   );
 
@@ -496,117 +368,36 @@ export function CaptureCard({
   return (
     <View style={styles.wrapper}>
       <View style={[styles.bottomStack, { paddingBottom: bottomOffset }]}>
-        <TouchableOpacity style={styles.captureBtnFloating}>
-          <Ionicons
-            name={mode === "letters" ? "camera" : "videocam"}
-            size={36}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
-
-            
-        {/* FIrst Section: Monitoring and Detection */}
         <View style={styles.cardContainer}>
-          <View style={styles.cardContent}>
-            <View style={styles.header}>
-              <Text style={styles.title}>Monitoring and Detection</Text>
-            </View>
-            <View style={styles.monitoringPanel}>
-              <View style={styles.monitoringMain}>
-                <Text style={styles.monitoringValue}>
-                  {prediction.hasHand ? prediction.label : "No hand"}
-                </Text>
-                <Text style={styles.monitoringConfidence}>
-                  {Math.round(prediction.confidence * 100)}% confidence
-                </Text>
-              </View>
-
-              <View style={styles.monitoringMetaRow}>
-                <View style={styles.monitoringChip}>
-                  <Text style={styles.monitoringChipLabel}>Mode</Text>
-                  <Text style={styles.monitoringChipValue}>
-                    {mode === "letters" ? "Letters" : "Words"}
-                  </Text>
-                </View>
-                <View style={styles.monitoringChip}>
-                  <Text style={styles.monitoringChipLabel}>Hand</Text>
-                  <Text style={styles.monitoringChipValue}>
-                    {prediction.handedness ?? "Unknown"}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.monitoringFooter}>
-                <Text style={styles.monitoringFooterText}>
-                  Model: {activeModelLabel || selectedModelObj.label}
-                </Text>
-                {isActivatingModel ? (
-                  <Text style={styles.monitoringFooterStatus}>Switching model…</Text>
-                ) : null}
-              </View>
-
-              {activationError ? (
-                <Text style={styles.monitoringErrorText}>{activationError}</Text>
-              ) : null}
-            </View>
-          </View>
-
-
-
-          {/* Second Section: Dataset Management */}
           <View style={styles.cardContent}>
             <View style={styles.header}>
               <Text style={styles.title}>Dataset Collection</Text>
               <View style={styles.modeToggle}>
                 <TouchableOpacity
-                  style={[
-                    styles.modeButton,
-                    mode === "letters" && styles.modeButtonActive,
-                  ]}
-                  onPress={() => handleModeChange("letters")}
+                  style={[styles.modeButton, mode === "letters" && styles.modeButtonActive]}
+                  onPress={() => onModeChange("letters")}
                 >
-                  <Text
-                    style={[
-                      styles.modeText,
-                      mode === "letters" && styles.modeTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.modeText, mode === "letters" && styles.modeTextActive]}>
                     Ltr
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.modeButton,
-                    mode === "words" && styles.modeButtonActive,
-                  ]}
-                  onPress={() => handleModeChange("words")}
+                  style={[styles.modeButton, mode === "words" && styles.modeButtonActive]}
+                  onPress={() => onModeChange("words")}
                 >
-                  <Text
-                    style={[
-                      styles.modeText,
-                      mode === "words" && styles.modeTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.modeText, mode === "words" && styles.modeTextActive]}>
                     Wrd
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
-            
 
             <View style={styles.selectorsRow}>
               <View style={styles.selectorGroup}>
                 <Text style={styles.selectorLabel}>Target</Text>
-                <TouchableOpacity
-                  style={styles.selectorButton}
-                  onPress={openTargetSheet}
-                >
+                <TouchableOpacity style={styles.selectorButton} onPress={openTargetSheet}>
                   <View style={styles.selectorTextContainer}>
-                    <Text
-                      style={styles.selectorValue}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                    >
+                    <Text style={styles.selectorValue} numberOfLines={1} adjustsFontSizeToFit>
                       {selectedLabel}
                     </Text>
                   </View>
@@ -616,17 +407,10 @@ export function CaptureCard({
 
               <View style={styles.selectorGroup}>
                 <Text style={styles.selectorLabel}>Model</Text>
-                <TouchableOpacity
-                  style={styles.selectorButton}
-                  onPress={openModelSheet}
-                >
+                <TouchableOpacity style={styles.selectorButton} onPress={openModelSheet}>
                   <View style={styles.selectorTextContainer}>
-                    <Text
-                      style={styles.selectorValue}
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                    >
-                      {selectedModelObj.label}
+                    <Text style={styles.selectorValue} numberOfLines={1} adjustsFontSizeToFit>
+                      {selectedModel?.label ?? "None"}
                     </Text>
                   </View>
                   <Ionicons name="chevron-down" size={18} color="#737373" />
@@ -727,21 +511,6 @@ const styles = StyleSheet.create({
   bottomStack: {
     pointerEvents: "box-none",
   },
-  captureBtnFloating: {
-    alignSelf: "center",
-    backgroundColor: ACCENT,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.22,
-    shadowRadius: 6,
-    elevation: 4,
-    marginBottom: SPACING.SPACE_LG,
-  },
   cardContainer: {
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
@@ -833,82 +602,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
     color: "#191C1D",
-  },
-  monitoringPanel: {
-    backgroundColor: "#F8F9FA",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    borderRadius: 16,
-    padding: SPACING.SPACE_MD,
-    gap: SPACING.SPACE_SM,
-  },
-  monitoringMain: {
-    gap: SPACING.SPACE_XXS,
-  },
-  monitoringLabel: {
-    fontSize: TYPOGRAPHY.TEXT_XS,
-    fontWeight: "700",
-    color: "#737373",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  },
-  monitoringValue: {
-    fontSize: TYPOGRAPHY.TEXT_3XL,
-    fontWeight: "900",
-    color: "#191C1D",
-  },
-  monitoringConfidence: {
-    fontSize: TYPOGRAPHY.TEXT_MD,
-    fontWeight: "700",
-    color: ACCENT,
-  },
-  monitoringMetaRow: {
-    flexDirection: "row",
-    gap: SPACING.SPACE_SM,
-  },
-  monitoringChip: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
-    paddingHorizontal: SPACING.SPACE_SM,
-    paddingVertical: SPACING.SPACE_XS,
-  },
-  monitoringChipLabel: {
-    fontSize: TYPOGRAPHY.TEXT_XXS,
-    fontWeight: "700",
-    color: "#737373",
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-    marginBottom: 2,
-  },
-  monitoringChipValue: {
-    fontSize: TYPOGRAPHY.TEXT_MD,
-    fontWeight: "800",
-    color: "#191C1D",
-  },
-  monitoringFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: SPACING.SPACE_SM,
-  },
-  monitoringFooterText: {
-    flex: 1,
-    fontSize: TYPOGRAPHY.TEXT_XS,
-    fontWeight: "700",
-    color: "#6B7280",
-  },
-  monitoringFooterStatus: {
-    fontSize: TYPOGRAPHY.TEXT_XS,
-    fontWeight: "700",
-    color: ACCENT,
-  },
-  monitoringErrorText: {
-    fontSize: TYPOGRAPHY.TEXT_XS,
-    fontWeight: "700",
-    color: "#DC2626",
   },
   bottomSheet: {
     backgroundColor: "#FFFFFF",
@@ -1016,7 +709,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#E8EAED",
     marginTop: SPACING.SPACE_XS,
-    marginHorizontal: 0,
   },
   deficitsWrap: {
     marginTop: 6,

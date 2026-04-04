@@ -1,17 +1,21 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Platform, StatusBar, useWindowDimensions, View, StyleSheet } from "react-native";
+import { Platform, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import { useAppSettings } from "../../../app/providers/AppSettingsProvider";
 import { API_BASE } from "../../../config/api";
+import { BG } from "../../../components/lab/shared/labColors";
+import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
 import { useRecognitionRuntime } from "../../../modules/camera/hooks/useRecognitionRuntime";
-import LabScreen from "../../../screens/LabScreen";
-import { CaptureCard, type Mode, type ModelItem } from "../components/CaptureCard";
-import { useLabCaptureStore } from "../state/useLabCaptureStore";
+import {
+  DatasetCollectionCard,
+  type Mode,
+  type ModelItem,
+} from "../components/DatasetCollectionCard";
 
 type LabTabParamList = {
   CaptureTab: undefined;
@@ -24,16 +28,19 @@ const Tab = createBottomTabNavigator<LabTabParamList>();
 
 function CaptureTabScreen({
   mode,
-  cameraPaused,
-  recognitionPaused,
+  bottomOffset,
+  selectedModel,
+  activeModelLabel,
+  selectedLabel,
 }: {
   mode: Mode;
-  cameraPaused: boolean;
-  recognitionPaused: boolean;
+  bottomOffset: number;
+  selectedModel: ModelItem | null;
+  activeModelLabel: string;
+  selectedLabel: string;
 }) {
   const navigation = useNavigation<any>();
   const { showHandOverlay } = useAppSettings();
-  const setPrediction = useLabCaptureStore((state) => state.setPrediction);
   const { width } = useWindowDimensions();
   const isSmall = width < 360;
   const isTablet = width >= 768;
@@ -42,8 +49,7 @@ function CaptureTabScreen({
     enabled:
       cameraRuntime.ready &&
       !!cameraRuntime.device &&
-      !!cameraRuntime.format &&
-      !recognitionPaused,
+      !!cameraRuntime.format,
     detectMode: mode === "letters" ? "LETTERS" : "WORDS",
   });
 
@@ -55,15 +61,14 @@ function CaptureTabScreen({
   const topMidHeight = 52;
   const topFadeHeight = topStrongHeight + topMidHeight + 14;
   const topBarTop = topStrongHeight + 2;
-
-  useEffect(() => {
-    setPrediction(recognitionRuntime.prediction);
-  }, [recognitionRuntime.prediction, setPrediction]);
+  const selectedModelLabel = activeModelLabel || selectedModel?.label || "None";
+  const resultCardTop = topBarTop + 56;
+  const actionButtonBottom = Math.max(2, bottomOffset - 110);
 
   return (
     <CameraShell
       CameraComponent={cameraRuntime.Camera}
-      cameraActive={!cameraPaused}
+      cameraRef={cameraRuntime.cameraRef}
       cameraLayout={cameraRuntime.cameraLayout}
       cameraPosition={cameraRuntime.cameraPosition}
       device={cameraRuntime.device}
@@ -88,20 +93,71 @@ function CaptureTabScreen({
           ? null
           : "Streaming hand tracking requires an Android development build with the native hand tracker module."
       }
-    />
+    >
+      <RecognitionOverlay
+        prediction={recognitionRuntime.prediction}
+        topOffset={resultCardTop}
+        collapsible
+        details={[
+          { label: "Target", value: selectedLabel === "N/A" ? "None" : selectedLabel },
+          { label: "Mode", value: mode === "letters" ? "Letters" : "Words" },
+          { label: "Model", value: selectedModelLabel },
+        ]}
+      />
+      <View style={[styles.captureActionWrap, { bottom: actionButtonBottom }]}>
+        <View style={styles.captureActionButton}>
+          <Ionicons
+            name={mode === "letters" ? "camera" : "videocam"}
+            size={24}
+            color="#FFFFFF"
+          />
+        </View>
+      </View>
+    </CameraShell>
   );
 }
 
-function LabTabContentScreen() {
-  const navigation = useNavigation<any>();
-  const { debugEnabled, showHandOverlay } = useAppSettings();
-
+function DatasetTabScreen({
+  mode,
+  onModeChange,
+  selectedLabel,
+  onSelectLabel,
+  availableModels,
+  selectedModel,
+  onSelectModel,
+  bottomOffset,
+}: {
+  mode: Mode;
+  onModeChange: (mode: Mode) => void;
+  selectedLabel: string;
+  onSelectLabel: (label: string) => void;
+  availableModels: ModelItem[];
+  selectedModel: ModelItem | null;
+  onSelectModel: (model: ModelItem) => Promise<boolean>;
+  bottomOffset: number;
+}) {
   return (
-    <LabScreen
-      onBack={() => navigation.goBack()}
-      debugEnabled={debugEnabled}
-      showHandOverlay={showHandOverlay}
-    />
+    <View style={styles.staticTabScreen}>
+      <View style={styles.staticTabTopBar} />
+      <DatasetCollectionCard
+        mode={mode}
+        onModeChange={onModeChange}
+        selectedLabel={selectedLabel}
+        onSelectLabel={onSelectLabel}
+        availableModels={availableModels}
+        selectedModel={selectedModel}
+        onSelectModel={onSelectModel}
+        bottomOffset={bottomOffset}
+      />
+    </View>
+  );
+}
+
+function StaticLabTabScreen() {
+  return (
+    <View style={styles.staticTabScreen}>
+      <View style={styles.staticTabTopBar} />
+    </View>
   );
 }
 
@@ -115,13 +171,90 @@ function getLabTabIcon(routeName: keyof LabTabParamList) {
 export default function LabDeveloperScreen() {
   const [activeTab, setActiveTab] = useState<keyof LabTabParamList>("CaptureTab");
   const [mode, setMode] = useState<Mode>("letters");
+  const [selectedLabel, setSelectedLabel] = useState("N/A");
+  const [availableModels, setAvailableModels] = useState<ModelItem[]>([
+    { id: "None", label: "None" },
+  ]);
+  const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState<string>("None");
   const [activationError, setActivationError] = useState<string | null>(null);
   const [isActivatingModel, setIsActivatingModel] = useState(false);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const prediction = useLabCaptureStore((state) => state.prediction);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
   const tabBarHeight = 72 + bottomNavPadding;
+
+  useEffect(() => {
+    async function fetchModels() {
+      try {
+        const res = await fetch(`${API_BASE}/models`);
+        const data = await res.json();
+        const rawModels = Array.isArray(data.models) ? data.models : [];
+        const registryInfo = rawModels.find(
+          (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
+        )?.info;
+        const activeVersionId =
+          typeof registryInfo?.active_version_id === "string"
+            ? registryInfo.active_version_id
+            : null;
+
+        let modelsList: ModelItem[] = [{ id: "None", label: "None" }];
+
+        if (rawModels.length > 0) {
+          const activeVersions = rawModels
+            .filter(
+              (m: any) =>
+                m.type === "json" &&
+                m.path.includes("landmark_versions/") &&
+                !m.path.includes("archived_models")
+            )
+            .map((m: any) => {
+              const info = m.info || {};
+              const label =
+                info.label || m.path.split("/").pop()?.replace(".json", "");
+              const dateObj = info.trained_at ? new Date(info.trained_at) : null;
+              const detail =
+                dateObj && !Number.isNaN(dateObj.getTime())
+                  ? dateObj.toLocaleDateString()
+                  : info.training_mode || "";
+
+              return {
+                id: m.path,
+                label,
+                detail,
+                rawInfo: info,
+                _tempDate:
+                  dateObj && !Number.isNaN(dateObj.getTime())
+                    ? dateObj.getTime()
+                    : 0,
+              };
+            })
+            .sort((a: any, b: any) => b._tempDate - a._tempDate);
+
+          if (activeVersions.length > 0) {
+            modelsList = [...modelsList, ...activeVersions];
+          }
+
+          const preferredModel =
+            activeVersions.find(
+              (model) => model.rawInfo?.version_id === activeVersionId
+            ) ?? activeVersions[0];
+
+          if (preferredModel) {
+            setSelectedModel(preferredModel);
+            setActiveModelLabel(preferredModel.label);
+          }
+        }
+
+        setAvailableModels(modelsList);
+        if (modelsList.length === 1) {
+          setSelectedModel(modelsList[0]);
+        }
+      } catch (err) {
+        console.log("Failed to fetch models", err);
+      }
+    }
+
+    void fetchModels();
+  }, []);
 
   const handleActivateModel = useCallback(async (model: ModelItem) => {
     const versionId = model.rawInfo?.version_id;
@@ -147,6 +280,7 @@ export default function LabDeveloperScreen() {
       }
 
       setActiveModelLabel(model.label);
+      setSelectedModel(model);
       return true;
     } catch (error: any) {
       setActivationError(error?.message ?? "Failed to activate model.");
@@ -189,45 +323,49 @@ export default function LabDeveloperScreen() {
           {() => (
             <CaptureTabScreen
               mode={mode}
-              cameraPaused={isSheetOpen}
-              recognitionPaused={isSheetOpen}
+              bottomOffset={tabBarHeight}
+              selectedModel={selectedModel}
+              activeModelLabel={activeModelLabel}
+              selectedLabel={selectedLabel}
             />
           )}
         </Tab.Screen>
         
         <Tab.Screen
           name="DatasetTab"
-          component={LabTabContentScreen}
           listeners={{ focus: () => setActiveTab("DatasetTab") }}
           options={{ title: "Dataset" }}
-        />
+        >
+          {() => (
+            <DatasetTabScreen
+              mode={mode}
+              onModeChange={(nextMode) => {
+                setMode(nextMode);
+                setSelectedLabel("N/A");
+              }}
+              selectedLabel={selectedLabel}
+              onSelectLabel={setSelectedLabel}
+              availableModels={availableModels}
+              selectedModel={selectedModel}
+              onSelectModel={handleActivateModel}
+              bottomOffset={tabBarHeight}
+            />
+          )}
+        </Tab.Screen>
         <Tab.Screen
           name="ModelsTab"
-          component={LabTabContentScreen}
+          component={StaticLabTabScreen}
           listeners={{ focus: () => setActiveTab("ModelsTab") }}
           options={{ title: "Models" }}
         />
         <Tab.Screen
           name="MetricsTab"
-          component={LabTabContentScreen}
+          component={StaticLabTabScreen}
           listeners={{ focus: () => setActiveTab("MetricsTab") }}
           options={{ title: "Metrics" }}
         />
       </Tab.Navigator>
 
-      {activeTab === "CaptureTab" ? (
-        <CaptureCard
-          mode={mode}
-          onModeChange={setMode}
-          prediction={prediction}
-          activeModelLabel={activeModelLabel}
-          activationError={activationError}
-          isActivatingModel={isActivatingModel}
-          onActivateModel={handleActivateModel}
-          bottomOffset={tabBarHeight}
-          onSheetOpenChange={setIsSheetOpen}
-        />
-      ) : null}
     </View>
   );
 }
@@ -235,5 +373,33 @@ export default function LabDeveloperScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  staticTabScreen: {
+    flex: 1,
+    backgroundColor: BG,
+  },
+  staticTabTopBar: {
+    height: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 56 : 56,
+  },
+  captureActionWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 16,
+    pointerEvents: "none",
+  },
+  captureActionButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#E66E19",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#E66E19",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 4,
   },
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { LayoutChangeEvent } from "react-native";
 import { StatusBar } from "react-native";
 import {
@@ -13,6 +13,7 @@ const TARGET_CAMERA_FPS = 30;
 const TARGET_VIDEO_FORMAT = { width: 640, height: 480 } as const;
 
 export function useCameraRuntime() {
+  const cameraRef = useRef<any>(null);
   const statusBarInset = StatusBar.currentHeight ?? 0;
   const { hasPermission, requestPermission } = useCameraPermission();
   const [ready, setReady] = useState(false);
@@ -80,6 +81,7 @@ export function useCameraRuntime() {
 
   return {
     Camera,
+    cameraRef,
     cameraLayout,
     cameraPosition,
     device,
