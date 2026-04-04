@@ -11,6 +11,7 @@ import { ASL_LABELS } from "../../../ml/labels";
 import { saveStreamingLandmarkSample } from "../../../ml/streamingRecognition";
 import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
+import { CameraTopBar } from "../../../modules/camera/components/CameraTopBar";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
 import { useRecognitionRuntime } from "../../../modules/camera/hooks/useRecognitionRuntime";
 import {
@@ -286,8 +287,11 @@ function CaptureTabScreen({
       overlayVisible={true}
       ready={cameraRuntime.ready}
       showHandOverlay={showHandOverlay}
+      showFlipCamera={false}
+      showTorch={false}
       title="SignSight"
       topBarTop={topBarTop}
+      topBarVariant="dark"
       topFadeHeight={topFadeHeight}
       topPadding={isTablet ? 24 : isSmall ? 14 : 18}
       torchEnabled={cameraRuntime.torchEnabled}
@@ -336,10 +340,27 @@ function CaptureTabScreen({
   );
 }
 
-function StaticLabTabScreen() {
+function StaticLabTabScreen({ title }: { title: string }) {
+  const navigation = useNavigation<any>();
+  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
+  const topBarTop = Math.max(10, statusBarInset + 4);
+  const topPadding = 18;
+
   return (
     <View style={styles.staticTabScreen}>
-      <View style={styles.staticTabTopBar} />
+      <CameraTopBar
+        canToggleTorch={false}
+        horizontalPadding={topPadding}
+        onBack={() => navigation.goBack()}
+        onFlipCamera={() => {}}
+        onToggleTorch={() => {}}
+        showFlipCamera={false}
+        showTorch={false}
+        title={title}
+        top={topBarTop}
+        torchEnabled={false}
+        variant="light"
+      />
     </View>
   );
 }
@@ -597,9 +618,10 @@ export default function LabDeveloperScreen() {
         
         <Tab.Screen
           name="DatasetTab"
-          component={StaticLabTabScreen}
           options={{ title: "Dataset" }}
-        />
+        >
+          {() => <StaticLabTabScreen title="Dataset" />}
+        </Tab.Screen>
         <Tab.Screen
           name="ModelsTab"
           options={{ title: "Models" }}
@@ -626,9 +648,10 @@ export default function LabDeveloperScreen() {
         </Tab.Screen>
         <Tab.Screen
           name="MetricsTab"
-          component={StaticLabTabScreen}
           options={{ title: "Metrics" }}
-        />
+        >
+          {() => <StaticLabTabScreen title="Metrics" />}
+        </Tab.Screen>
       </Tab.Navigator>
 
     </View>

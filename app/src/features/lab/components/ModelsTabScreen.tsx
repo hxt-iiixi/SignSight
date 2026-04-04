@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 
 import {
   ACCENT,
@@ -40,6 +43,7 @@ import {
 } from "../../../components/lab/shared/labColors";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
+import { CameraTopBar } from "../../../modules/camera/components/CameraTopBar";
 
 export type TrainingModeValue = "bootstrap" | "full_reviewed";
 
@@ -174,6 +178,7 @@ export function ModelsTabScreen({
   onArchiveModel: (modelId: string) => void;
   onRenameModel: (modelId: string, nextLabel: string) => void;
 }) {
+  const navigation = useNavigation<any>();
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [menuModelId, setMenuModelId] = useState<string | null>(null);
@@ -182,6 +187,9 @@ export function ModelsTabScreen({
   const activeModels = useMemo(() => models.filter((model) => !model.isArchived), [models]);
   const archivedModels = useMemo(() => models.filter((model) => model.isArchived), [models]);
   const readiness = readinessSummary(activeModel);
+  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
+  const topBarTop = Math.max(10, statusBarInset + 4);
+  const topPadding = 18;
   const hasReadinessInfo = useMemo(() => {
     if (!activeModel || !readiness.body?.trim()) {
       return false;
@@ -208,12 +216,27 @@ export function ModelsTabScreen({
   }, [hasReadinessInfo, showReadinessInfo]);
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.section}>
+    <View style={styles.screen}>
+      <CameraTopBar
+        canToggleTorch={false}
+        horizontalPadding={topPadding}
+        onBack={() => navigation.goBack()}
+        onFlipCamera={() => {}}
+        onToggleTorch={() => {}}
+        showFlipCamera={false}
+        showTorch={false}
+        title="Models"
+        top={topBarTop}
+        torchEnabled={false}
+        variant="light"
+      />
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="hardware-chip-outline" size={16} color={ACCENT} />
@@ -616,7 +639,8 @@ export function ModelsTabScreen({
           ) : null}
         </View>
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -625,9 +649,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     paddingHorizontal: SPACING.SPACE_MD,
-    paddingTop: SPACING.SPACE_3XL,
+    paddingTop: SPACING.SPACE_3XL + 44,
     paddingBottom: SPACING.SPACE_XL,
     gap: SPACING.SPACE_LG,
   },

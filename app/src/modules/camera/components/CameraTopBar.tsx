@@ -11,51 +11,68 @@ export function CameraTopBar({
   onBack,
   onFlipCamera,
   onToggleTorch,
+  showBack = true,
+  showFlipCamera = true,
+  showTorch = true,
   title,
   top,
   torchEnabled,
+  variant = "dark",
 }: {
   canToggleTorch: boolean;
   horizontalPadding: number;
   onBack: () => void;
   onFlipCamera: () => void;
   onToggleTorch: () => void;
+  showBack?: boolean;
+  showFlipCamera?: boolean;
+  showTorch?: boolean;
   title: string;
   top: number;
   torchEnabled: boolean;
+  variant?: "dark" | "light";
 }) {
+  const iconColor = variant === "dark" ? "#FFFFFF" : "#191C1D";
+  const titleColor = variant === "dark" ? "#FFFFFF" : "#191C1D";
+
   return (
     <View style={[styles.topBar, { top, paddingHorizontal: horizontalPadding }]}>
       <View style={styles.topBarContent}>
         <View style={styles.topBarSide}>
-          <Pressable onPress={onBack} style={styles.iconButton}>
-            <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
-          </Pressable>
-          <Pressable
-            onPress={onToggleTorch}
-            style={({ pressed }) => [
-              styles.iconButton,
-              !canToggleTorch && styles.iconButtonDisabled,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name={torchEnabled ? "flash" : "flash-off"}
-              size={24}
-              color={torchEnabled ? "#FDE68A" : "#FFFFFF"}
-            />
-          </Pressable>
+          {showBack ? (
+            <Pressable onPress={onBack} style={styles.iconButton}>
+              <Ionicons name="chevron-back" size={26} color={iconColor} />
+            </Pressable>
+          ) : null}
+          {showTorch ? (
+            <Pressable
+              onPress={onToggleTorch}
+              style={({ pressed }) => [
+                styles.iconButton,
+                !canToggleTorch && styles.iconButtonDisabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name={torchEnabled ? "flash" : "flash-off"}
+                size={24}
+                color={torchEnabled && variant === "dark" ? "#FDE68A" : iconColor}
+              />
+            </Pressable>
+          ) : null}
         </View>
 
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: titleColor }]}>{title}</Text>
 
         <View style={[styles.topBarSide, styles.topBarSideRight]}>
-          <Pressable
-            onPress={onFlipCamera}
-            style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="camera-reverse-outline" size={24} color="#FFFFFF" />
-          </Pressable>
+          {showFlipCamera ? (
+            <Pressable
+              onPress={onFlipCamera}
+              style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+            >
+              <Ionicons name="camera-reverse-outline" size={24} color={iconColor} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </View>

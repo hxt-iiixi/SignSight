@@ -31,8 +31,11 @@ export function CameraShell({
   overlayVisible = false,
   ready,
   showHandOverlay,
+  showFlipCamera = true,
+  showTorch = true,
   title,
   topBarTop,
+  topBarVariant = "dark",
   topFadeHeight,
   topPadding,
   torchEnabled,
@@ -57,8 +60,11 @@ export function CameraShell({
   overlayVisible?: boolean;
   ready: boolean;
   showHandOverlay: boolean;
+  showFlipCamera?: boolean;
+  showTorch?: boolean;
   title: string;
   topBarTop: number;
+  topBarVariant?: "dark" | "light";
   topFadeHeight: number;
   topPadding: number;
   torchEnabled: boolean;
@@ -144,8 +150,11 @@ export function CameraShell({
           onBack={onBack}
           onFlipCamera={onFlipCamera}
           onToggleTorch={onToggleTorch}
+          showFlipCamera={showFlipCamera}
+          showTorch={showTorch}
           top={topBarTop}
           torchEnabled={torchEnabled}
+          variant={topBarVariant}
         />
 
         {children}
