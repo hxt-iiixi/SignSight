@@ -39,6 +39,7 @@ type ModelSheetItem = {
   label: string;
   detail?: string;
   selected: boolean;
+  latest: boolean;
   model: ModelItem;
 };
 
@@ -121,15 +122,15 @@ const ModelRow = memo(function ModelRow({
       <View style={styles.sheetItemContent}>
         <View style={styles.sheetRow}>
           <View style={styles.sheetMainRow}>
+            {item.latest ? (
+              <Text style={styles.latestBadgeText}>Latest</Text>
+            ) : null}
             <Text
               style={styles.sheetItemText}
               numberOfLines={1}
             >
               {item.label}
             </Text>
-            {item.detail ? (
-              <Text style={styles.sheetItemMeta}>{item.detail}</Text>
-            ) : null}
           </View>
           {item.selected ? (
             <View style={styles.selectedIconBadge}>
@@ -312,14 +313,21 @@ export function CaptureCard() {
   }, [currentLabels, selectedLabel, selectedModelInfo]);
 
   const modelSheetData = useMemo<ModelSheetItem[]>(
-    () =>
-      availableModels.map((model) => ({
+    () => {
+      const latestModelId =
+        availableModels.find((model) => model.id !== "None")?.id ?? null;
+
+      return availableModels
+      .filter((model) => model.id !== "None")
+      .map((model) => ({
         id: model.id,
         label: model.label,
         detail: model.detail,
         selected: selectedModelObj.id === model.id,
+        latest: model.id !== "None" && model.id === latestModelId,
         model,
-      })),
+      }));
+    },
     [availableModels, selectedModelObj.id]
   );
 
@@ -720,11 +728,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
     flexShrink: 0,
   },
+  latestBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: ACCENT,
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 3,
+  },
   sheetDivider: {
     height: 1,
     backgroundColor: "#E8EAED",
     marginTop: SPACING.SPACE_XS,
-    marginHorizontal: SPACING.SPACE_XXS,
+    marginHorizontal: 0,
   },
   deficitsWrap: {
     marginTop: 6,
