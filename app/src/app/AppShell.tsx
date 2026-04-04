@@ -3,6 +3,8 @@ import { Platform } from "react-native";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as NavigationBar from "expo-navigation-bar";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 
 import AppNavigator from "./navigation/AppNavigator";
 import { AppSettingsProvider } from "./providers/AppSettingsProvider";
@@ -97,24 +99,28 @@ export default function AppShell() {
   };
 
   return (
-    <AppSettingsProvider>
-      <ExpoStatusBar
-        style={statusBarStyle}
-        backgroundColor={statusBarBackgroundColor}
-        translucent={statusBarTranslucent}
-      />
-      <AppNavigator
-        authenticated={authenticated}
-        authLoading={loading}
-        hasFace={hasFace}
-        hasFingerprint={hasFingerprint}
-        onAuthenticate={authenticate}
-        onPreferredChange={setPreferred}
-        onRouteChange={setCurrentRouteName}
-        onSplashFinish={() => setShowSplash(false)}
-        preferred={preferred}
-        showSplash={showSplash}
-      />
-    </AppSettingsProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <BottomSheetModalProvider>
+        <AppSettingsProvider>
+          <ExpoStatusBar
+            style={statusBarStyle}
+            backgroundColor={statusBarBackgroundColor}
+            translucent={statusBarTranslucent}
+          />
+          <AppNavigator
+            authenticated={authenticated}
+            authLoading={loading}
+            hasFace={hasFace}
+            hasFingerprint={hasFingerprint}
+            onAuthenticate={authenticate}
+            onPreferredChange={setPreferred}
+            onRouteChange={setCurrentRouteName}
+            onSplashFinish={() => setShowSplash(false)}
+            preferred={preferred}
+            showSplash={showSplash}
+          />
+        </AppSettingsProvider>
+      </BottomSheetModalProvider>
+    </GestureHandlerRootView>
   );
 }
