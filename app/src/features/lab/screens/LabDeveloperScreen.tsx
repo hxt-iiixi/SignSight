@@ -85,6 +85,7 @@ function CaptureTabScreen({
   const selectedModelLabel = activeModelLabel || selectedModel?.label || "None";
   const resultCardTop = topBarTop + 56;
   const actionButtonBottom = Math.max(2, bottomOffset - 110);
+  const normalizedTarget = selectedLabel === "N/A" ? "None" : selectedLabel;
   const currentTargets =
     mode === "letters"
       ? [...ASL_LABELS]
@@ -100,6 +101,17 @@ function CaptureTabScreen({
           "WHERE",
           "GOODBYE",
         ];
+  const selectedModelInfo = selectedModel?.rawInfo ?? {};
+  const sampleCount =
+    normalizedTarget !== "None"
+      ? Number(selectedModelInfo.training_sample_counts?.[normalizedTarget] ?? 0)
+      : 0;
+  const quotaTarget =
+    Number(selectedModelInfo.quotas_used?.min_approved_per_hand) ||
+    Number(selectedModelInfo.quotas_used?.min_approved_samples_per_label) ||
+    0;
+  const quotaLabel =
+    normalizedTarget === "None" || quotaTarget <= 0 ? "—" : `${sampleCount}/${quotaTarget}`;
 
   return (
     <CameraShell
@@ -134,7 +146,7 @@ function CaptureTabScreen({
         prediction={recognitionRuntime.prediction}
         topOffset={resultCardTop}
         collapsible
-        targetLabel={selectedLabel === "N/A" ? "None" : selectedLabel}
+        targetLabel={normalizedTarget}
         targetOptions={currentTargets}
         onTargetSelect={onSelectLabel}
         modeValue={mode}
@@ -142,6 +154,7 @@ function CaptureTabScreen({
         modelLabel={selectedModelLabel}
         modelOptions={availableModels}
         onModelSelect={onSelectModel}
+        quotaLabel={quotaLabel}
         signerId={signerId}
         onSignerIdChange={onSignerIdChange}
         variantTag={variantTag}

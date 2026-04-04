@@ -27,6 +27,7 @@ export function RecognitionOverlay({
   modelLabel,
   modelOptions,
   onModelSelect,
+  quotaLabel,
   signerId,
   onSignerIdChange,
   variantTag,
@@ -45,6 +46,7 @@ export function RecognitionOverlay({
   modelLabel?: string;
   modelOptions?: Array<{ id: string; label: string }>;
   onModelSelect?: (id: string) => void;
+  quotaLabel?: string;
   signerId?: string;
   onSignerIdChange?: (value: string) => void;
   variantTag?: string;
@@ -55,6 +57,9 @@ export function RecognitionOverlay({
   const showDetails = !collapsible || expanded;
   const showMetadataInputs =
     (!collapsible || expanded) && (onSignerIdChange != null || onVariantTagChange != null);
+  const compactTarget = targetLabel ?? "None";
+  const compactHand = prediction.hasHand ? prediction.handedness ?? "Unknown" : "No hand";
+  const compactMeta = `${Math.round(prediction.confidence * 100)}% | ${compactTarget} | ${compactHand} | ${quotaLabel ?? "—"}`;
 
   return (
     <Pressable
@@ -67,9 +72,7 @@ export function RecognitionOverlay({
       <View style={styles.headerRow}>
         <View style={styles.headerText}>
           <Text style={styles.label}>{prediction.hasHand ? prediction.label : "No hand"}</Text>
-          <Text style={styles.meta}>
-            {Math.round(prediction.confidence * 100)}% confidence
-          </Text>
+          <Text style={styles.meta}>{quotaLabel ? compactMeta : `${Math.round(prediction.confidence * 100)}% confidence`}</Text>
         </View>
         {collapsible ? (
           <View style={styles.chevronBadge}>
