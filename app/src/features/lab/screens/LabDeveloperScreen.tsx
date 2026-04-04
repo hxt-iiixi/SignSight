@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Platform, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -7,15 +7,20 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useAppSettings } from "../../../app/providers/AppSettingsProvider";
 import { API_BASE } from "../../../config/api";
 import { BG } from "../../../components/lab/shared/labColors";
+import { ASL_LABELS } from "../../../ml/labels";
 import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
 import { useRecognitionRuntime } from "../../../modules/camera/hooks/useRecognitionRuntime";
-import {
-  DatasetCollectionCard,
-  type Mode,
-  type ModelItem,
-} from "../components/DatasetCollectionCard";
+
+type Mode = "letters" | "words";
+
+type ModelItem = {
+  id: string;
+  label: string;
+  detail?: string;
+  rawInfo?: any;
+};
 
 type LabTabParamList = {
   CaptureTab: undefined;
@@ -29,15 +34,31 @@ const Tab = createBottomTabNavigator<LabTabParamList>();
 function CaptureTabScreen({
   mode,
   bottomOffset,
+  availableModels,
   selectedModel,
   activeModelLabel,
   selectedLabel,
+  onSelectLabel,
+  onModeChange,
+  onSelectModel,
+  signerId,
+  onSignerIdChange,
+  variantTag,
+  onVariantTagChange,
 }: {
   mode: Mode;
   bottomOffset: number;
+  availableModels: ModelItem[];
   selectedModel: ModelItem | null;
   activeModelLabel: string;
   selectedLabel: string;
+  onSelectLabel: (value: string) => void;
+  onModeChange: (value: Mode) => void;
+  onSelectModel: (modelId: string) => void;
+  signerId: string;
+  onSignerIdChange: (value: string) => void;
+  variantTag: string;
+  onVariantTagChange: (value: string) => void;
 }) {
   const navigation = useNavigation<any>();
   const { showHandOverlay } = useAppSettings();
@@ -64,6 +85,21 @@ function CaptureTabScreen({
   const selectedModelLabel = activeModelLabel || selectedModel?.label || "None";
   const resultCardTop = topBarTop + 56;
   const actionButtonBottom = Math.max(2, bottomOffset - 110);
+  const currentTargets =
+    mode === "letters"
+      ? [...ASL_LABELS]
+      : [
+          "HELLO",
+          "THANK_YOU",
+          "PLEASE",
+          "SORRY",
+          "YES",
+          "NO",
+          "HELP",
+          "I_LOVE_YOU",
+          "WHERE",
+          "GOODBYE",
+        ];
 
   return (
     <CameraShell
@@ -98,11 +134,18 @@ function CaptureTabScreen({
         prediction={recognitionRuntime.prediction}
         topOffset={resultCardTop}
         collapsible
-        details={[
-          { label: "Target", value: selectedLabel === "N/A" ? "None" : selectedLabel },
-          { label: "Mode", value: mode === "letters" ? "Letters" : "Words" },
-          { label: "Model", value: selectedModelLabel },
-        ]}
+        targetLabel={selectedLabel === "N/A" ? "None" : selectedLabel}
+        targetOptions={currentTargets}
+        onTargetSelect={onSelectLabel}
+        modeValue={mode}
+        onModeChange={onModeChange}
+        modelLabel={selectedModelLabel}
+        modelOptions={availableModels}
+        onModelSelect={onSelectModel}
+        signerId={signerId}
+        onSignerIdChange={onSignerIdChange}
+        variantTag={variantTag}
+        onVariantTagChange={onVariantTagChange}
       />
       <View style={[styles.captureActionWrap, { bottom: actionButtonBottom }]}>
         <View style={styles.captureActionButton}>
@@ -114,42 +157,6 @@ function CaptureTabScreen({
         </View>
       </View>
     </CameraShell>
-  );
-}
-
-function DatasetTabScreen({
-  mode,
-  onModeChange,
-  selectedLabel,
-  onSelectLabel,
-  availableModels,
-  selectedModel,
-  onSelectModel,
-  bottomOffset,
-}: {
-  mode: Mode;
-  onModeChange: (mode: Mode) => void;
-  selectedLabel: string;
-  onSelectLabel: (label: string) => void;
-  availableModels: ModelItem[];
-  selectedModel: ModelItem | null;
-  onSelectModel: (model: ModelItem) => Promise<boolean>;
-  bottomOffset: number;
-}) {
-  return (
-    <View style={styles.staticTabScreen}>
-      <View style={styles.staticTabTopBar} />
-      <DatasetCollectionCard
-        mode={mode}
-        onModeChange={onModeChange}
-        selectedLabel={selectedLabel}
-        onSelectLabel={onSelectLabel}
-        availableModels={availableModels}
-        selectedModel={selectedModel}
-        onSelectModel={onSelectModel}
-        bottomOffset={bottomOffset}
-      />
-    </View>
   );
 }
 
@@ -169,16 +176,13 @@ function getLabTabIcon(routeName: keyof LabTabParamList) {
 }
 
 export default function LabDeveloperScreen() {
-  const [activeTab, setActiveTab] = useState<keyof LabTabParamList>("CaptureTab");
   const [mode, setMode] = useState<Mode>("letters");
   const [selectedLabel, setSelectedLabel] = useState("N/A");
-  const [availableModels, setAvailableModels] = useState<ModelItem[]>([
-    { id: "None", label: "None" },
-  ]);
+  const [signerId, setSignerId] = useState("person_01");
+  const [variantTag, setVariantTag] = useState("neutral");
+  const [availableModels, setAvailableModels] = useState<ModelItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState<string>("None");
-  const [activationError, setActivationError] = useState<string | null>(null);
-  const [isActivatingModel, setIsActivatingModel] = useState(false);
   const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
   const tabBarHeight = 72 + bottomNavPadding;
 
@@ -195,8 +199,6 @@ export default function LabDeveloperScreen() {
           typeof registryInfo?.active_version_id === "string"
             ? registryInfo.active_version_id
             : null;
-
-        let modelsList: ModelItem[] = [{ id: "None", label: "None" }];
 
         if (rawModels.length > 0) {
           const activeVersions = rawModels
@@ -229,14 +231,12 @@ export default function LabDeveloperScreen() {
             })
             .sort((a: any, b: any) => b._tempDate - a._tempDate);
 
-          if (activeVersions.length > 0) {
-            modelsList = [...modelsList, ...activeVersions];
-          }
-
           const preferredModel =
             activeVersions.find(
               (model) => model.rawInfo?.version_id === activeVersionId
             ) ?? activeVersions[0];
+
+          setAvailableModels(activeVersions);
 
           if (preferredModel) {
             setSelectedModel(preferredModel);
@@ -244,10 +244,6 @@ export default function LabDeveloperScreen() {
           }
         }
 
-        setAvailableModels(modelsList);
-        if (modelsList.length === 1) {
-          setSelectedModel(modelsList[0]);
-        }
       } catch (err) {
         console.log("Failed to fetch models", err);
       }
@@ -256,17 +252,18 @@ export default function LabDeveloperScreen() {
     void fetchModels();
   }, []);
 
-  const handleActivateModel = useCallback(async (model: ModelItem) => {
+  async function handleActivateModel(modelId: string) {
+    const model = availableModels.find((item) => item.id === modelId);
+    if (!model || model.id === selectedModel?.id) {
+      return;
+    }
+
     const versionId = model.rawInfo?.version_id;
     if (!versionId) {
-      setActivationError("The selected model is missing a version id.");
-      return false;
+      return;
     }
 
     try {
-      setIsActivatingModel(true);
-      setActivationError(null);
-
       const response = await fetch(`${API_BASE}/activate_landmark_model`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,20 +272,15 @@ export default function LabDeveloperScreen() {
       const payload = await response.json().catch(() => null);
 
       if (!response.ok || payload?.ok === false) {
-        setActivationError(payload?.error ?? `Failed to activate model (${response.status}).`);
-        return false;
+        return;
       }
 
-      setActiveModelLabel(model.label);
       setSelectedModel(model);
-      return true;
-    } catch (error: any) {
-      setActivationError(error?.message ?? "Failed to activate model.");
-      return false;
-    } finally {
-      setIsActivatingModel(false);
+      setActiveModelLabel(model.label);
+    } catch (error) {
+      console.log("Failed to activate model", error);
     }
-  }, []);
+  }
 
   return (
     <View style={styles.container}>
@@ -317,51 +309,43 @@ export default function LabDeveloperScreen() {
       >
         <Tab.Screen
           name="CaptureTab"
-          listeners={{ focus: () => setActiveTab("CaptureTab") }}
           options={{ title: "Capture" }}
         >
           {() => (
             <CaptureTabScreen
               mode={mode}
               bottomOffset={tabBarHeight}
+              availableModels={availableModels}
               selectedModel={selectedModel}
               activeModelLabel={activeModelLabel}
               selectedLabel={selectedLabel}
+              onSelectLabel={setSelectedLabel}
+              onModeChange={(nextMode) => {
+                setMode(nextMode);
+                setSelectedLabel("N/A");
+              }}
+              onSelectModel={handleActivateModel}
+              signerId={signerId}
+              onSignerIdChange={setSignerId}
+              variantTag={variantTag}
+              onVariantTagChange={setVariantTag}
             />
           )}
         </Tab.Screen>
         
         <Tab.Screen
           name="DatasetTab"
-          listeners={{ focus: () => setActiveTab("DatasetTab") }}
+          component={StaticLabTabScreen}
           options={{ title: "Dataset" }}
-        >
-          {() => (
-            <DatasetTabScreen
-              mode={mode}
-              onModeChange={(nextMode) => {
-                setMode(nextMode);
-                setSelectedLabel("N/A");
-              }}
-              selectedLabel={selectedLabel}
-              onSelectLabel={setSelectedLabel}
-              availableModels={availableModels}
-              selectedModel={selectedModel}
-              onSelectModel={handleActivateModel}
-              bottomOffset={tabBarHeight}
-            />
-          )}
-        </Tab.Screen>
+        />
         <Tab.Screen
           name="ModelsTab"
           component={StaticLabTabScreen}
-          listeners={{ focus: () => setActiveTab("ModelsTab") }}
           options={{ title: "Models" }}
         />
         <Tab.Screen
           name="MetricsTab"
           component={StaticLabTabScreen}
-          listeners={{ focus: () => setActiveTab("MetricsTab") }}
           options={{ title: "Metrics" }}
         />
       </Tab.Navigator>
