@@ -43,7 +43,7 @@ import {
 } from "../../../components/lab/shared/labColors";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
-import { CameraTopBar } from "../../../modules/camera/components/CameraTopBar";
+import { LabPageHeader } from "./LabPageHeader";
 
 export type TrainingModeValue = "bootstrap" | "full_reviewed";
 
@@ -187,9 +187,6 @@ export function ModelsTabScreen({
   const activeModels = useMemo(() => models.filter((model) => !model.isArchived), [models]);
   const archivedModels = useMemo(() => models.filter((model) => model.isArchived), [models]);
   const readiness = readinessSummary(activeModel);
-  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const topBarTop = Math.max(10, statusBarInset + 4);
-  const topPadding = 18;
   const hasReadinessInfo = useMemo(() => {
     if (!activeModel || !readiness.body?.trim()) {
       return false;
@@ -217,19 +214,13 @@ export function ModelsTabScreen({
 
   return (
     <View style={styles.screen}>
-      <CameraTopBar
-        canToggleTorch={false}
-        horizontalPadding={topPadding}
-        onBack={() => navigation.goBack()}
-        onFlipCamera={() => {}}
-        onToggleTorch={() => {}}
-        showFlipCamera={false}
-        showTorch={false}
-        title="Models"
-        top={topBarTop}
-        torchEnabled={false}
-        variant="light"
-      />
+      <View style={styles.pageHeaderWrap}>
+        <LabPageHeader
+          title="Models"
+          onBack={() => navigation.goBack()}
+          horizontalPadding={19}
+        />
+      </View>
 
       <ScrollView
         style={styles.scroll}
@@ -649,12 +640,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
+  pageHeaderWrap: {
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 1 : 6,
+    paddingHorizontal: 19,
+  },
   scroll: {
     flex: 1,
   },
   content: {
     paddingHorizontal: SPACING.SPACE_MD,
-    paddingTop: SPACING.SPACE_3XL + 44,
+    paddingTop: SPACING.SPACE_LG,
     paddingBottom: SPACING.SPACE_XL,
     gap: SPACING.SPACE_LG,
   },

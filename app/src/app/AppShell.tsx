@@ -27,17 +27,27 @@ export default function AppShell() {
   );
 
   const isCameraLikeRoute =
-    currentRouteName === "Translator" || currentRouteName === "Lab";
+    currentRouteName === "Translator" ||
+    currentRouteName === "Lab" ||
+    currentRouteName === "CaptureTab";
+  const isLightLabRoute =
+    currentRouteName === "DatasetTab" ||
+    currentRouteName === "ModelsTab" ||
+    currentRouteName === "MetricsTab";
   const statusBarStyle =
     showSplash || loading || !authenticated || isCameraLikeRoute
       ? "light"
-      : "dark";
+      : isLightLabRoute
+        ? "dark"
+        : "dark";
   const statusBarBackgroundColor =
     showSplash || loading || !authenticated
       ? "#000000"
       : isCameraLikeRoute
         ? "transparent"
-        : "#FFFFFF";
+        : isLightLabRoute
+          ? "#FFFFFF"
+          : "#FFFFFF";
   const statusBarTranslucent = isCameraLikeRoute;
 
   useEffect(() => {

@@ -11,7 +11,6 @@ import { ASL_LABELS } from "../../../ml/labels";
 import { saveStreamingLandmarkSample } from "../../../ml/streamingRecognition";
 import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
-import { CameraTopBar } from "../../../modules/camera/components/CameraTopBar";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
 import { useRecognitionRuntime } from "../../../modules/camera/hooks/useRecognitionRuntime";
 import {
@@ -19,6 +18,7 @@ import {
   type ModelManagementItem,
   type TrainingModeValue,
 } from "../components/ModelsTabScreen";
+import { LabPageHeader } from "../components/LabPageHeader";
 
 type Mode = "letters" | "words";
 type ModelItem = ModelManagementItem;
@@ -342,25 +342,16 @@ function CaptureTabScreen({
 
 function StaticLabTabScreen({ title }: { title: string }) {
   const navigation = useNavigation<any>();
-  const statusBarInset = Platform.OS === "android" ? StatusBar.currentHeight ?? 0 : 0;
-  const topBarTop = Math.max(10, statusBarInset + 4);
-  const topPadding = 18;
 
   return (
     <View style={styles.staticTabScreen}>
-      <CameraTopBar
-        canToggleTorch={false}
-        horizontalPadding={topPadding}
-        onBack={() => navigation.goBack()}
-        onFlipCamera={() => {}}
-        onToggleTorch={() => {}}
-        showFlipCamera={false}
-        showTorch={false}
-        title={title}
-        top={topBarTop}
-        torchEnabled={false}
-        variant="light"
-      />
+      <View style={styles.staticTabHeaderWrap}>
+        <LabPageHeader
+          title={title}
+          onBack={() => navigation.goBack()}
+          horizontalPadding={19}
+        />
+      </View>
     </View>
   );
 }
@@ -666,8 +657,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BG,
   },
-  staticTabTopBar: {
-    height: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 56 : 56,
+  staticTabHeaderWrap: {
+    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 1 : 6,
+    paddingHorizontal: 19,
   },
   captureActionWrap: {
     position: "absolute",
