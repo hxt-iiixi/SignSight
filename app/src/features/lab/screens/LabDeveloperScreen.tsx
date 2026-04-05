@@ -20,7 +20,6 @@ import {
   type TrainingModeValue,
 } from "../components/ModelsTabScreen";
 import { DatasetTabScreen } from "../components/DatasetTabScreen";
-import { LabPageHeader } from "../components/LabPageHeader";
 
 type Mode = "letters" | "words";
 type ModelItem = ModelManagementItem;
@@ -34,7 +33,6 @@ type LabTabParamList = {
   CaptureTab: undefined;
   DatasetTab: undefined;
   ModelsTab: undefined;
-  MetricsTab: undefined;
 };
 
 type SaveState = "idle" | "saving" | "success" | "error" | "info";
@@ -484,30 +482,10 @@ function CaptureTabScreen({
   );
 }
 
-function StaticLabTabScreen({ title }: { title: string }) {
-  const navigation = useNavigation<any>();
-  const handleBack = () => {
-    navigation.getParent()?.goBack?.();
-  };
-
-  return (
-    <View style={styles.staticTabScreen}>
-      <View style={styles.staticTabHeaderWrap}>
-        <LabPageHeader
-          title={title}
-          onBack={handleBack}
-          horizontalPadding={19}
-        />
-      </View>
-    </View>
-  );
-}
-
 function getLabTabIcon(routeName: keyof LabTabParamList) {
   if (routeName === "CaptureTab") return "camera-outline" as const;
   if (routeName === "DatasetTab") return "albums-outline" as const;
-  if (routeName === "ModelsTab") return "cube-outline" as const;
-  return "stats-chart-outline" as const;
+  return "cube-outline" as const;
 }
 
 export default function LabDeveloperScreen() {
@@ -827,12 +805,6 @@ export default function LabDeveloperScreen() {
             />
           )}
         </Tab.Screen>
-        <Tab.Screen
-          name="MetricsTab"
-          options={{ title: "Metrics" }}
-        >
-          {() => <StaticLabTabScreen title="Metrics" />}
-        </Tab.Screen>
       </Tab.Navigator>
 
     </View>
@@ -842,14 +814,6 @@ export default function LabDeveloperScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  staticTabScreen: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  staticTabHeaderWrap: {
-    paddingTop: Platform.OS === "android" ? (StatusBar.currentHeight ?? 0) + 1 : 6,
-    paddingHorizontal: 19,
   },
   captureActionWrap: {
     position: "absolute",

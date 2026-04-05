@@ -26,7 +26,7 @@ export default function AppShell() {
     [supportedTypes]
   );
 
-  const LIGHT_STATUS_ROUTES = new Set(["DatasetTab", "ModelsTab", "MetricsTab"]);
+  const LIGHT_STATUS_ROUTES = new Set(["DatasetTab", "ModelsTab"]);
   const CAMERA_STATUS_ROUTES = new Set(["Translator", "Lab", "CaptureTab"]);
   const isCameraLikeRoute = CAMERA_STATUS_ROUTES.has(currentRouteName);
   const usesLightPageStatus = LIGHT_STATUS_ROUTES.has(currentRouteName);
