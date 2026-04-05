@@ -227,19 +227,34 @@ export function RecognitionOverlay({
                   return (
                     <Pressable
                       key={option.id}
-                      style={[styles.modelOption, selected && styles.modelOptionSelected]}
+                      style={styles.modelOption}
                       onPress={(event) => {
                         event.stopPropagation();
                         onModelSelect?.(option.id);
                         setOpenPicker(null);
                       }}
                     >
-                      <Text
-                        style={[styles.modelOptionText, selected && styles.optionTextSelected]}
-                        numberOfLines={1}
-                      >
-                        {option.label}
-                      </Text>
+                      <View style={styles.modelOptionRow}>
+                        <View style={styles.modelTextGroup}>
+                          <Text
+                            style={[styles.modelOptionText, selected && styles.optionTextSelected]}
+                            numberOfLines={1}
+                          >
+                            {option.label}
+                          </Text>
+                          {option.id === modelOptions[0]?.id ? (
+                            <Text style={styles.latestText}>Latest</Text>
+                          ) : null}
+                        </View>
+                        {selected ? (
+                          <Ionicons
+                            name="checkmark-sharp"
+                            size={16}
+                            color="#FFFFFF"
+                            style={styles.modelActiveIcon}
+                          />
+                        ) : null}
+                      </View>
                     </Pressable>
                   );
                 })}
@@ -434,13 +449,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.SPACE_SM,
     paddingVertical: SPACING.SPACE_SM,
   },
-  modelOptionSelected: {
-    backgroundColor: "rgba(255,255,255,0.08)",
+  modelOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.SPACE_SM,
+  },
+  modelTextGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
   },
   modelOptionText: {
     color: "#FFFFFF",
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
+    flexShrink: 1,
+  },
+  modelActiveIcon: {
+    marginLeft: "auto",
+  },
+  latestText: {
+    color: "rgba(255,255,255,0.58)",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   metadataRow: {
     marginTop: SPACING.SPACE_SM,
