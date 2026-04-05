@@ -97,12 +97,6 @@ function formatModeLabel(mode?: string) {
   return mode === "full_reviewed" ? "Full Reviewed" : "Bootstrap";
 }
 
-function toneForReadiness(readyCount: number, unreadyCount: number) {
-  if (readyCount > 0 && unreadyCount === 0) return "strong";
-  if (readyCount > 0) return "partial";
-  return "limited";
-}
-
 function formatBalanceLabel(left: number, right: number) {
   const total = left + right;
   if (total <= 0) return "No approved data yet";
@@ -262,21 +256,6 @@ export function DatasetTabScreen({
     };
   }, [health]);
 
-  const readiness = useMemo(() => {
-    const readyCount = (health?.ready_static_letters || []).length;
-    const unreadyCount = (health?.unready_static_letters || []).length;
-    const topDeficits = Object.entries(health?.deficits_by_label || {})
-      .filter(([, deficits]) => Array.isArray(deficits) && deficits.length > 0)
-      .sort((a, b) => b[1].length - a[1].length)
-      .slice(0, 4);
-    return {
-      readyCount,
-      unreadyCount,
-      tone: toneForReadiness(readyCount, unreadyCount),
-      topDeficits,
-    };
-  }, [health]);
-
   async function ensureLabelSummary(label: string) {
     if (labelSummaries[label]) return;
     try {
@@ -311,13 +290,6 @@ export function DatasetTabScreen({
     setExpandedLabel(label);
     void ensureLabelSummary(label);
   }
-
-  const readinessToneStyle =
-    readiness.tone === "strong"
-      ? styles.readinessStrong
-      : readiness.tone === "partial"
-        ? styles.readinessPartial
-        : styles.readinessLimited;
 
   return (
     <View style={styles.screen}>
@@ -393,41 +365,6 @@ export function DatasetTabScreen({
                   </View>
                   <Text style={styles.balanceValue}>{formatHandSplit(wordByHand)}</Text>
                 </View>
-              </View>
-            </View>
-
-            <InsetDivider />
-
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Ionicons name="pulse-outline" size={16} color={ACCENT} />
-                <Text style={styles.sectionTitle}>Readiness</Text>
-              </View>
-              <View style={styles.sectionBody}>
-                <View style={[styles.readinessBanner, readinessToneStyle]}>
-                  <Text style={styles.readinessTitle}>
-                    {readiness.tone === "strong"
-                      ? "Dataset readiness is strong"
-                      : readiness.tone === "partial"
-                        ? "Dataset readiness is partial"
-                        : "Dataset readiness is limited"}
-                  </Text>
-                  <Text style={styles.readinessBody}>
-                    {readiness.readyCount} ready labels · {readiness.unreadyCount} below quota
-                  </Text>
-                </View>
-                {readiness.topDeficits.length ? (
-                  <View style={styles.deficitList}>
-                    {readiness.topDeficits.map(([label, deficits]) => (
-                      <View key={label} style={styles.deficitRow}>
-                        <Text style={styles.deficitLabel}>{label}</Text>
-                        <Text style={styles.deficitValue}>{deficits.join(", ")}</Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={styles.emptyHint}>No current quota deficits detected.</Text>
-                )}
               </View>
             </View>
 
@@ -621,31 +558,6 @@ const styles = StyleSheet.create({
     color: TEXT,
     fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
-  },
-  readinessBanner: {
-    borderRadius: 18,
-    paddingHorizontal: SPACING.SPACE_MD,
-    paddingVertical: SPACING.SPACE_MD,
-    gap: 4,
-  },
-  readinessStrong: {
-    backgroundColor: SUCCESS_LIGHT,
-  },
-  readinessPartial: {
-    backgroundColor: INFO_LIGHT,
-  },
-  readinessLimited: {
-    backgroundColor: WARNING_LIGHT,
-  },
-  readinessTitle: {
-    color: TEXT,
-    fontSize: TYPOGRAPHY.TEXT_MD,
-    fontWeight: "900",
-  },
-  readinessBody: {
-    color: TEXT_SECONDARY,
-    fontSize: TYPOGRAPHY.TEXT_MD,
-    fontWeight: "600",
   },
   deficitList: {
     gap: SPACING.SPACE_XS,
