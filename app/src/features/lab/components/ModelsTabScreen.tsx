@@ -252,7 +252,7 @@ export function ModelsTabScreen({
         <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="hardware-chip-outline" size={16} color={ACCENT} />
+            <Ionicons name="hardware-chip-outline" size={15} color={ACCENT} />
             <Text style={styles.sectionTitle}>Training Center</Text>
           </View>
           <View style={styles.headerUtilities}>
@@ -414,7 +414,7 @@ export function ModelsTabScreen({
       <View style={styles.section}>
         <View style={[styles.sectionHeader, styles.sectionHeaderStack]}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="layers-outline" size={16} color={ACCENT} />
+            <Ionicons name="layers-outline" size={15} color={ACCENT} />
             <Text style={styles.sectionTitle}>Model Versions</Text>
           </View>
           <Pressable style={styles.archivedToggleInline} onPress={onToggleArchived}>
@@ -784,9 +784,9 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: TEXT,
-    fontSize: TYPOGRAPHY.TEXT_XL,
+    fontSize: TYPOGRAPHY.TEXT_LG,
     fontWeight: "900",
-    letterSpacing: -0.4,
+    letterSpacing: -0.2,
   },
   sectionBody: {
     gap: SPACING.SPACE_SM,
@@ -820,7 +820,7 @@ const styles = StyleSheet.create({
   },
   segmentedTitle: {
     color: TEXT,
-    fontSize: TYPOGRAPHY.TEXT_MD,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "800",
   },
   segmentedCaption: {

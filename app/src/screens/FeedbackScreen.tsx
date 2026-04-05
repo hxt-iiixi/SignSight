@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING.SPACE_MD,
     paddingTop: SPACING.SPACE_2XL,
-    paddingBottom: 110,
+    paddingBottom: SPACING.SPACE_LG,
   },
 
   headBlock: {

@@ -19,6 +19,7 @@ import {
   type ModelManagementItem,
   type TrainingModeValue,
 } from "../components/ModelsTabScreen";
+import { DatasetTabScreen } from "../components/DatasetTabScreen";
 import { LabPageHeader } from "../components/LabPageHeader";
 
 type Mode = "letters" | "words";
@@ -819,7 +820,12 @@ export default function LabDeveloperScreen() {
           name="DatasetTab"
           options={{ title: "Dataset" }}
         >
-          {() => <StaticLabTabScreen title="Dataset" />}
+          {() => (
+            <DatasetTabScreen
+              captureSessionId={captureSessionId}
+              signerId={signerId}
+            />
+          )}
         </Tab.Screen>
         <Tab.Screen
           name="MetricsTab"

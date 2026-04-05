@@ -1590,8 +1590,13 @@ def health_summary() -> dict:
     counts_by_label = {}
     static_word_counts_by_label = {}
     total = 0
+    all_signer_ids: set[str] = set()
+    landmark_signer_ids: set[str] = set()
+    static_word_signer_ids: set[str] = set()
     for label, stats in dataset["labels"].items():
         signer_count = len(stats["signer_ids"])
+        landmark_signer_ids.update(stats["signer_ids"])
+        all_signer_ids.update(stats["signer_ids"])
         counts_by_label[label] = {
             "approved": stats["approved"],
             "pending": stats["pending"],
@@ -1602,6 +1607,8 @@ def health_summary() -> dict:
         }
         total += stats["approved"] + stats["pending"] + stats["rejected"] + stats["legacy"]
     for label, stats in dataset["static_word_labels"].items():
+        static_word_signer_ids.update(stats["signer_ids"])
+        all_signer_ids.update(stats["signer_ids"])
         static_word_counts_by_label[label] = {
             "approved": stats["approved"],
             "pending": stats["pending"],
@@ -1615,6 +1622,9 @@ def health_summary() -> dict:
         "trained_landmarks": bool(active_version_id or LANDMARKS_MODEL_PATH.exists()),
         "landmark_total": total,
         "landmark_counts": counts_by_label,
+        "landmark_unique_signers": len(landmark_signer_ids),
+        "static_word_unique_signers": len(static_word_signer_ids),
+        "dataset_unique_signers": len(all_signer_ids),
         "landmarks_dir": str(LANDMARKS_DIR),
         "static_landmark_labels": LABELS,
         "current_landmark_training_mode": current_mode,

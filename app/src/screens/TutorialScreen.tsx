@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
 
   grid: {
     paddingHorizontal: SPACING.SPACE_MD,
-    paddingBottom: 110,
+    paddingBottom: SPACING.SPACE_LG,
   },
 
   columnWrap: {

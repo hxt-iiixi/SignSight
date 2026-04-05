@@ -33,8 +33,7 @@ export default function DashboardScreen({
   const isTablet = width >= 768;
 
   const P = isTablet ? 28 : isSmall ? 14 : 18;
-  const bottomNavPadding = Platform.OS === "android" ? 44 : 22;
-  const scrollBottomPadding = bottomNavPadding + 110;
+  const scrollBottomPadding = SPACING.SPACE_LG;
 
   return (
     <SafeAreaView style={styles.safe}>
