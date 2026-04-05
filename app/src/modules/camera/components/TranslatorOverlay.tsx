@@ -28,17 +28,12 @@ export function TranslatorOverlay({
   mode: TranslatorMode;
   onModeChange: (value: TranslatorMode) => void;
   modelLabel: string;
-  modelOptions: Array<{ id: string; label: string }>;
+  modelOptions: Array<{ id: string; label: string; isLatest?: boolean }>;
   onModelSelect: (id: string) => void;
   modelStatusMessage?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
-  const helperText = prediction.hasHand
-    ? null
-    : mode === "letters"
-      ? "No hand detected."
-      : "No hand detected.";
 
   return (
     <View style={styles.container}>
@@ -58,8 +53,6 @@ export function TranslatorOverlay({
             />
           </View>
         </View>
-
-        {helperText ? <Text style={styles.helperText}>{helperText}</Text> : null}
 
         {modelStatusMessage ? (
           <Text style={styles.statusText}>{modelStatusMessage}</Text>
@@ -96,56 +89,73 @@ export function TranslatorOverlay({
               </Pressable>
             </View>
 
-            <Pressable
-              style={styles.modelSurface}
-              onPress={(event) => {
-                event.stopPropagation();
-                setModelPickerOpen((current) => !current);
-              }}
-            >
-              <View style={styles.modelHeader}>
-                <View style={styles.modelHeaderText}>
-                  <Text style={styles.modelLabel}>Model</Text>
-                  <Text style={styles.modelValue} numberOfLines={1}>
-                    {modelLabel || "None"}
-                  </Text>
+            <View style={styles.modelGroup}>
+              <Text style={styles.modelLabel}>Model</Text>
+              <Pressable
+                style={styles.modelSurface}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  setModelPickerOpen((current) => !current);
+                }}
+              >
+                <View style={styles.modelHeader}>
+                  <View style={styles.modelHeaderText}>
+                    <Text style={styles.modelValue} numberOfLines={1}>
+                      {modelLabel || "None"}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name={modelPickerOpen ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color={TEXT_SECONDARY}
+                  />
                 </View>
-                <Ionicons
-                  name={modelPickerOpen ? "chevron-up" : "chevron-down"}
-                  size={18}
-                  color={TEXT_SECONDARY}
-                />
-              </View>
 
-              {modelPickerOpen && modelOptions.length ? (
-                <ScrollView
-                  style={styles.modelList}
-                  nestedScrollEnabled
-                  showsVerticalScrollIndicator={false}
-                >
-                  {modelOptions.map((option) => {
-                    const selected = option.label === modelLabel;
-                    return (
-                      <Pressable
-                        key={option.id}
-                        style={[styles.modelOption, selected && styles.modelOptionSelected]}
-                        onPress={() => {
-                          onModelSelect(option.id);
-                          setModelPickerOpen(false);
-                        }}
-                      >
-                        <Text
-                          style={[styles.modelOptionText, selected && styles.modelOptionTextSelected]}
-                          numberOfLines={1}
+                {modelPickerOpen && modelOptions.length ? (
+                  <ScrollView
+                    style={styles.modelList}
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator={false}
+                  >
+                    {modelOptions.map((option) => {
+                      const selected = option.label === modelLabel;
+                      return (
+                        <Pressable
+                          key={option.id}
+                          style={styles.modelOption}
+                          onPress={() => {
+                            onModelSelect(option.id);
+                            setModelPickerOpen(false);
+                          }}
                         >
-                          {option.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </ScrollView>
-              ) : null}
-            </Pressable>
+                          <View style={styles.modelOptionRow}>
+                            <View style={styles.modelTextGroup}>
+                              <Text
+                                style={[styles.modelOptionText, selected && styles.modelOptionTextSelected]}
+                                numberOfLines={1}
+                              >
+                                {option.label}
+                              </Text>
+                              {option.isLatest ? (
+                                <Text style={styles.latestText}>Latest</Text>
+                              ) : null}
+                            </View>
+                            {selected ? (
+                              <Ionicons
+                                name="checkmark-sharp"
+                                size={16}
+                                color="#FFFFFF"
+                                style={styles.modelActiveIcon}
+                              />
+                            ) : null}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </ScrollView>
+                ) : null}
+              </Pressable>
+            </View>
           </>
         ) : null}
       </Pressable>
@@ -232,6 +242,9 @@ const styles = StyleSheet.create({
   modeButtonTextActive: {
     color: "#FFFFFF",
   },
+  modelGroup: {
+    gap: 6,
+  },
   modelSurface: {
     borderRadius: RADIUS_MD,
     backgroundColor: "rgba(255,255,255,0.08)",
@@ -272,17 +285,37 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: "transparent",
   },
-  modelOptionSelected: {
-    backgroundColor: "rgba(255,255,255,0.10)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.06)",
+  modelOptionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: SPACING.SPACE_SM,
+  },
+  modelTextGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    minWidth: 0,
   },
   modelOptionText: {
     color: "rgba(255,255,255,0.86)",
     fontSize: TYPOGRAPHY.TEXT_LG,
     fontWeight: "800",
+    flexShrink: 1,
   },
   modelOptionTextSelected: {
     color: "#FFFFFF",
+  },
+  modelActiveIcon: {
+    marginLeft: "auto",
+  },
+  latestText: {
+    color: "rgba(255,255,255,0.58)",
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginLeft: 2,
   },
 });

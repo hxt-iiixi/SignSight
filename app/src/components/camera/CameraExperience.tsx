@@ -185,7 +185,11 @@ export default function CameraExperience({
         mode={mode}
         onModeChange={setMode}
         modelLabel={selectedModelLabel}
-        modelOptions={availableModels}
+        modelOptions={availableModels.map((model, index) => ({
+          id: model.id,
+          label: model.label,
+          isLatest: index === 0,
+        }))}
         onModelSelect={handleSelectModel}
         modelStatusMessage={modelStatusMessage}
       />
