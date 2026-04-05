@@ -429,19 +429,22 @@ export function ModelsTabScreen({
         <View style={styles.sectionBody}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-          {activeModels.map((model) => {
+          {activeModels.map((model, index) => {
           const expanded = expandedModelId === model.id;
           const renameValue = renameDrafts[model.id] ?? model.label;
           const archiveBusy = archivingModelId === model.id;
           const renameBusy = renamingModelId === model.id;
           const menuOpen = menuModelId === model.id;
           const renameOpen = inlineRenameModelId === model.id;
-          const statusLabel = model.isActive ? "Active" : "Candidate";
+          const statusLabel = "Candidate";
+          const isLatestModel = index === 0;
+          const menuOpenUpward = index >= Math.max(0, activeModels.length - 2);
 
             return (
             <View key={model.id} style={styles.versionCard}>
               <View style={styles.versionTopRow}>
                 <View style={styles.versionTitleWrap}>
+                  <View style={styles.versionTitleRow}>
                   {renameOpen ? (
                     <View style={styles.inlineRenameTitleRow}>
                       <TextInput
@@ -450,7 +453,12 @@ export function ModelsTabScreen({
                           setRenameDrafts((current) => ({ ...current, [model.id]: value }))
                         }
                         placeholder="Model label"
-                        style={styles.inlineRenameTitleInput}
+                        style={[
+                          styles.inlineRenameTitleInput,
+                          {
+                            width: Math.max(84, Math.min(220, renameValue.length * 11)),
+                          },
+                        ]}
                         placeholderTextColor={TEXT_TERTIARY}
                       />
                       <Pressable
@@ -475,6 +483,10 @@ export function ModelsTabScreen({
                   ) : (
                     <Text style={styles.versionTitle}>{model.label}</Text>
                   )}
+                  {isLatestModel ? (
+                    <Text style={styles.latestTagText}>Latest</Text>
+                  ) : null}
+                  </View>
                   <Text style={styles.versionSubtitle}>
                     {formatModeLabel(model.trainingMode)} · {statusLabel}
                   </Text>
@@ -488,7 +500,7 @@ export function ModelsTabScreen({
                   </Pressable>
 
                       {menuOpen ? (
-                        <View style={styles.menuPanel}>
+                        <View style={[styles.menuPanel, menuOpenUpward && styles.menuPanelUpward]}>
                           <Pressable
                             style={styles.menuItem}
                             onPress={() => {
@@ -631,9 +643,10 @@ export function ModelsTabScreen({
             <View style={styles.archivedSection}>
               <InsetDivider />
               <Text style={styles.archivedTitle}>Archived Models</Text>
-              {archivedModels.map((model) => {
+              {archivedModels.map((model, index) => {
               const expanded = expandedModelId === model.id;
               const menuOpen = menuModelId === model.id;
+              const menuOpenUpward = index >= Math.max(0, archivedModels.length - 2);
                 return (
                 <View key={model.id} style={[styles.versionCard, styles.archivedCard]}>
                   <View style={styles.versionTopRow}>
@@ -652,7 +665,7 @@ export function ModelsTabScreen({
                       </Pressable>
 
                       {menuOpen ? (
-                        <View style={styles.menuPanel}>
+                        <View style={[styles.menuPanel, menuOpenUpward && styles.menuPanelUpward]}>
                           <Pressable
                             style={styles.menuItem}
                             onPress={() => {
@@ -980,10 +993,23 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 3,
   },
+  versionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  },
   versionTitle: {
     color: TEXT,
     fontSize: 15,
     fontWeight: "900",
+  },
+  latestTagText: {
+    color: ACCENT,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   versionSubtitle: {
     color: TEXT_SECONDARY,
@@ -1016,6 +1042,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     elevation: 4,
+  },
+  menuPanelUpward: {
+    top: undefined,
+    bottom: 34,
   },
   menuItem: {
     paddingHorizontal: SPACING.SPACE_SM,
@@ -1067,7 +1097,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   inlineRenameTitleInput: {
-    flex: 1,
+    flex: 0,
     minHeight: 32,
     paddingHorizontal: 0,
     paddingVertical: 0,
