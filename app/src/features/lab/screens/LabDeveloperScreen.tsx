@@ -485,13 +485,16 @@ function CaptureTabScreen({
 
 function StaticLabTabScreen({ title }: { title: string }) {
   const navigation = useNavigation<any>();
+  const handleBack = () => {
+    navigation.getParent()?.goBack?.();
+  };
 
   return (
     <View style={styles.staticTabScreen}>
       <View style={styles.staticTabHeaderWrap}>
         <LabPageHeader
           title={title}
-          onBack={() => navigation.goBack()}
+          onBack={handleBack}
           horizontalPadding={19}
         />
       </View>
@@ -785,12 +788,6 @@ export default function LabDeveloperScreen() {
         </Tab.Screen>
         
         <Tab.Screen
-          name="DatasetTab"
-          options={{ title: "Dataset" }}
-        >
-          {() => <StaticLabTabScreen title="Dataset" />}
-        </Tab.Screen>
-        <Tab.Screen
           name="ModelsTab"
           options={{ title: "Models" }}
         >
@@ -817,6 +814,12 @@ export default function LabDeveloperScreen() {
               onRenameModel={handleRenameModel}
             />
           )}
+        </Tab.Screen>
+        <Tab.Screen
+          name="DatasetTab"
+          options={{ title: "Dataset" }}
+        >
+          {() => <StaticLabTabScreen title="Dataset" />}
         </Tab.Screen>
         <Tab.Screen
           name="MetricsTab"

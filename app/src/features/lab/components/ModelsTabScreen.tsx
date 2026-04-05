@@ -197,6 +197,9 @@ export function ModelsTabScreen({
   onRenameModel: (modelId: string, nextLabel: string) => void;
 }) {
   const navigation = useNavigation<any>();
+  const handleBack = () => {
+    navigation.getParent()?.goBack?.();
+  };
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [menuModelId, setMenuModelId] = useState<string | null>(null);
@@ -236,7 +239,7 @@ export function ModelsTabScreen({
       <View style={styles.pageHeaderWrap}>
         <LabPageHeader
           title="Models"
-          onBack={() => navigation.goBack()}
+          onBack={handleBack}
           horizontalPadding={19}
         />
       </View>
