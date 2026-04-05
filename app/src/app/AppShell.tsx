@@ -26,26 +26,19 @@ export default function AppShell() {
     [supportedTypes]
   );
 
-  const isCameraLikeRoute =
-    currentRouteName === "Translator" ||
-    currentRouteName === "Lab" ||
-    currentRouteName === "CaptureTab";
-  const isLightLabRoute =
-    currentRouteName === "DatasetTab" ||
-    currentRouteName === "ModelsTab" ||
-    currentRouteName === "MetricsTab";
-  const statusBarStyle =
-    showSplash || loading || !authenticated || isCameraLikeRoute
-      ? "light"
-      : isLightLabRoute
-        ? "dark"
-        : "dark";
+  const LIGHT_STATUS_ROUTES = new Set(["DatasetTab", "ModelsTab", "MetricsTab"]);
+  const CAMERA_STATUS_ROUTES = new Set(["Translator", "Lab", "CaptureTab"]);
+  const isCameraLikeRoute = CAMERA_STATUS_ROUTES.has(currentRouteName);
+  const usesLightPageStatus = LIGHT_STATUS_ROUTES.has(currentRouteName);
+  const shouldUseLightStatusContent =
+    showSplash || loading || !authenticated || isCameraLikeRoute;
+  const statusBarStyle = shouldUseLightStatusContent ? "light" : "dark";
   const statusBarBackgroundColor =
     showSplash || loading || !authenticated
       ? "#000000"
       : isCameraLikeRoute
         ? "transparent"
-        : isLightLabRoute
+        : usesLightPageStatus
           ? "#FFFFFF"
           : "#FFFFFF";
   const statusBarTranslucent = isCameraLikeRoute;

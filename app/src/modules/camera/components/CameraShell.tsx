@@ -18,6 +18,7 @@ export function CameraShell({
   cameraLayout,
   cameraPosition,
   children,
+  debugMenuItems,
   device,
   format,
   frameProcessor,
@@ -47,6 +48,12 @@ export function CameraShell({
   cameraLayout: { width: number; height: number };
   cameraPosition: "back" | "front";
   children?: React.ReactNode;
+  debugMenuItems?: Array<{
+    id: string;
+    icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap;
+    active?: boolean;
+    onPress: () => void;
+  }>;
   device: any;
   format: any;
   frameProcessor?: any;
@@ -146,6 +153,7 @@ export function CameraShell({
         <CameraTopBar
           title={title}
           canToggleTorch={!!device?.hasTorch}
+          debugMenuItems={debugMenuItems}
           horizontalPadding={topPadding}
           onBack={onBack}
           onFlipCamera={onFlipCamera}

@@ -21,6 +21,7 @@ export type StreamingHandTrackingDebugState = {
   lastTimestampMs: number | null;
   lastValidTimestampMs: number | null;
   handLossGraceMs: number;
+  approxFps: number | null;
 };
 
 export function useStreamingHandTracking({
@@ -36,6 +37,7 @@ export function useStreamingHandTracking({
       lastTimestampMs: null,
       lastValidTimestampMs: null,
       handLossGraceMs: HAND_PRESENCE_GRACE_MS,
+      approxFps: null,
     }
   );
   const lastTimestampRef = useRef<number>(-1);
@@ -60,6 +62,12 @@ export function useStreamingHandTracking({
           return;
         }
 
+        const previousTimestamp = lastTimestampRef.current;
+        const approxFps =
+          previousTimestamp > 0 && result.timestampMs > previousTimestamp
+            ? Math.round(1000 / (result.timestampMs - previousTimestamp))
+            : null;
+
         const landmarkCount = result.landmarks?.length ?? 0;
         const hasUsableHand = result.hasHand && landmarkCount === 21;
         const lastValidHand = lastValidHandRef.current;
@@ -74,6 +82,7 @@ export function useStreamingHandTracking({
             lastTimestampMs: result.timestampMs,
             lastValidTimestampMs: result.timestampMs,
             handLossGraceMs: HAND_PRESENCE_GRACE_MS,
+            approxFps,
           });
           return;
         }
@@ -89,6 +98,7 @@ export function useStreamingHandTracking({
             lastTimestampMs: result.timestampMs,
             lastValidTimestampMs: lastValidHand.timestampMs,
             handLossGraceMs: HAND_PRESENCE_GRACE_MS,
+            approxFps,
           });
           return;
         }
@@ -102,6 +112,7 @@ export function useStreamingHandTracking({
           lastTimestampMs: result.timestampMs,
           lastValidTimestampMs: null,
           handLossGraceMs: HAND_PRESENCE_GRACE_MS,
+          approxFps,
         });
       }),
     [latestHandFrame?.hasHand]
@@ -121,6 +132,7 @@ export function useStreamingHandTracking({
       lastTimestampMs: null,
       lastValidTimestampMs: null,
       handLossGraceMs: HAND_PRESENCE_GRACE_MS,
+      approxFps: null,
     });
   }, [enabled]);
 

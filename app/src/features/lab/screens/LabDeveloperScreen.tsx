@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Platform, Pressable, StatusBar, useWindowDimensions, View, StyleSheet } from "react-native";
+import { Platform, Pressable, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -22,6 +22,11 @@ import { LabPageHeader } from "../components/LabPageHeader";
 
 type Mode = "letters" | "words";
 type ModelItem = ModelManagementItem;
+type DebugEntry = {
+  key: string;
+  label: string;
+  value: string;
+};
 
 type LabTabParamList = {
   CaptureTab: undefined;
@@ -223,6 +228,118 @@ function CaptureTabScreen({
     (recognitionRuntime.latestHandFrame?.landmarks?.length ?? 0) === 21 &&
     !!signerId.trim() &&
     !!captureSessionId;
+  const [showDebugFps, setShowDebugFps] = useState(false);
+  const [showDebugQuality, setShowDebugQuality] = useState(false);
+  const [showDebugTracking, setShowDebugTracking] = useState(false);
+  const [showDebugSession, setShowDebugSession] = useState(false);
+  const debugMenuItems = useMemo(
+    () => [
+      {
+        id: "fps",
+        icon: "speedometer-outline" as const,
+        active: showDebugFps,
+        onPress: () => setShowDebugFps((current) => !current),
+      },
+      {
+        id: "quality",
+        icon: "scan-outline" as const,
+        active: showDebugQuality,
+        onPress: () => setShowDebugQuality((current) => !current),
+      },
+      {
+        id: "tracking",
+        icon: "analytics-outline" as const,
+        active: showDebugTracking,
+        onPress: () => setShowDebugTracking((current) => !current),
+      },
+      {
+        id: "session",
+        icon: "construct-outline" as const,
+        active: showDebugSession,
+        onPress: () => setShowDebugSession((current) => !current),
+      },
+    ],
+    [
+      showDebugFps,
+      showDebugQuality,
+      showDebugSession,
+      showDebugTracking,
+    ]
+  );
+  const debugEntries = useMemo(() => {
+    const entries: DebugEntry[] = [];
+    const pushEntry = (key: string, label: string, value: string | number | null | undefined) => {
+      entries.push({
+        key,
+        label,
+        value: value == null || value === "" ? "—" : String(value),
+      });
+    };
+
+    if (showDebugFps) {
+      pushEntry("fps-stream", "Stream FPS", recognitionRuntime.debugState.approxFps);
+      pushEntry(
+        "fps-camera",
+        "Camera FPS",
+        cameraRuntime.format?.minFps && cameraRuntime.format?.maxFps
+          ? `${cameraRuntime.format.minFps}-${cameraRuntime.format.maxFps}`
+          : cameraRuntime.format?.maxFps ?? null
+      );
+    }
+    if (showDebugQuality) {
+      const format = cameraRuntime.format;
+      pushEntry(
+        "quality-resolution",
+        "Resolution",
+        `${format?.videoWidth ?? "?"}x${format?.videoHeight ?? "?"}`
+      );
+      pushEntry(
+        "quality-preview",
+        "Preview",
+        cameraRuntime.cameraLayout.width && cameraRuntime.cameraLayout.height
+          ? `${Math.round(cameraRuntime.cameraLayout.width)}x${Math.round(cameraRuntime.cameraLayout.height)}`
+          : null
+      );
+      pushEntry("quality-device", "Device", cameraRuntime.device?.name ?? cameraRuntime.device?.id ?? null);
+      pushEntry("quality-camera", "Camera", cameraRuntime.cameraPosition);
+    }
+    if (showDebugTracking) {
+      pushEntry("tracking-landmarks", "Landmarks", recognitionRuntime.debugState.landmarkCount);
+      pushEntry("tracking-ts", "Timestamp", recognitionRuntime.debugState.lastTimestampMs);
+      pushEntry("tracking-valid-ts", "Last valid", recognitionRuntime.debugState.lastValidTimestampMs);
+      pushEntry("tracking-grace", "Grace ms", recognitionRuntime.debugState.handLossGraceMs);
+    }
+    if (showDebugSession) {
+      pushEntry("session-target", "Target", normalizedTarget);
+      pushEntry("session-model", "Model", selectedModelLabel);
+      pushEntry("session-signer", "Signer", signerId.trim() || null);
+      pushEntry("session-variant", "Variant", variantTag.trim() || null);
+      pushEntry("session-id", "Session", captureSessionId);
+      pushEntry("session-save", "Save ready", canSaveLetterSample ? "Yes" : "No");
+    }
+    return entries;
+  }, [
+    cameraRuntime.cameraLayout.height,
+    cameraRuntime.cameraLayout.width,
+    cameraRuntime.cameraPosition,
+    cameraRuntime.device,
+    cameraRuntime.format,
+    canSaveLetterSample,
+    captureSessionId,
+    recognitionRuntime.debugState.approxFps,
+    recognitionRuntime.debugState.handLossGraceMs,
+    recognitionRuntime.debugState.landmarkCount,
+    recognitionRuntime.debugState.lastValidTimestampMs,
+    recognitionRuntime.debugState.lastTimestampMs,
+    showDebugFps,
+    showDebugQuality,
+    showDebugSession,
+    showDebugTracking,
+    normalizedTarget,
+    selectedModelLabel,
+    signerId,
+    variantTag,
+  ]);
 
   async function handleCapturePress() {
     if (mode === "words") {
@@ -275,6 +392,7 @@ function CaptureTabScreen({
       cameraRef={cameraRuntime.cameraRef}
       cameraLayout={cameraRuntime.cameraLayout}
       cameraPosition={cameraRuntime.cameraPosition}
+      debugMenuItems={debugMenuItems}
       device={cameraRuntime.device}
       format={cameraRuntime.format}
       frameProcessor={recognitionRuntime.frameProcessor}
@@ -287,8 +405,8 @@ function CaptureTabScreen({
       overlayVisible={true}
       ready={cameraRuntime.ready}
       showHandOverlay={showHandOverlay}
-      showFlipCamera={false}
-      showTorch={false}
+      showFlipCamera={true}
+      showTorch={true}
       title="SignSight"
       topBarTop={topBarTop}
       topBarVariant="dark"
@@ -301,6 +419,18 @@ function CaptureTabScreen({
           : "Streaming hand tracking requires an Android development build with the native hand tracker module."
       }
     >
+      {debugEntries.length ? (
+        <View style={[styles.debugOverlay, { top: resultCardTop + 92 }]}>
+          {debugEntries.map((entry) => (
+            <View key={entry.key} style={styles.debugOverlayItem}>
+              <Text style={styles.debugOverlayLabel}>{entry.label}</Text>
+              <Text style={styles.debugOverlayValue} numberOfLines={1}>
+                {entry.value}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
       <RecognitionOverlay
         prediction={recognitionRuntime.prediction}
         topOffset={resultCardTop}
@@ -684,5 +814,36 @@ const styles = StyleSheet.create({
   },
   captureActionButtonDisabled: {
     opacity: 0.55,
+  },
+  debugOverlay: {
+    position: "absolute",
+    left: 18,
+    right: 18,
+    zIndex: 18,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    rowGap: 6,
+    columnGap: 14,
+  },
+  debugOverlayItem: {
+    width: "47%",
+  },
+  debugOverlayLabel: {
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+    textShadowColor: "rgba(0,0,0,0.45)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  debugOverlayValue: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
 });
