@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Platform, Pressable, StatusBar, useWindowDimensions, View, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 
 import { useAppSettings } from "../../../app/providers/AppSettingsProvider";
+import { PRIMARY_CONTAINER, PRIMARY_CONTAINER_CAPTURE_ICON } from "../../../components/lab/shared/labColors";
 import { API_BASE } from "../../../config/api";
 import { BG } from "../../../components/lab/shared/labColors";
 import { ASL_LABELS } from "../../../ml/labels";
@@ -171,6 +172,7 @@ function CaptureTabScreen({
   setSaveFeedback: (state: SaveState, message: string | null) => void;
 }) {
   const navigation = useNavigation<any>();
+  const isFocused = useIsFocused();
   const { showHandOverlay, setShowHandOverlay } = useAppSettings();
   const { width } = useWindowDimensions();
   const isSmall = width < 360;
@@ -178,6 +180,7 @@ function CaptureTabScreen({
   const cameraRuntime = useCameraRuntime();
   const recognitionRuntime = useRecognitionRuntime({
     enabled:
+      isFocused &&
       cameraRuntime.ready &&
       !!cameraRuntime.device &&
       !!cameraRuntime.format,
@@ -398,6 +401,7 @@ function CaptureTabScreen({
   return (
     <CameraShell
       CameraComponent={cameraRuntime.Camera}
+      cameraActive={isFocused}
       cameraRef={cameraRuntime.cameraRef}
       cameraLayout={cameraRuntime.cameraLayout}
       cameraPosition={cameraRuntime.cameraPosition}
@@ -850,17 +854,18 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#E66E19",
+    backgroundColor: PRIMARY_CONTAINER_CAPTURE_ICON,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#E66E19",
+    shadowColor: PRIMARY_CONTAINER,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.22,
     shadowRadius: 6,
     elevation: 4,
   },
   captureActionButtonDisabled: {
-    opacity: 0.55,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   debugOverlay: {
     position: "absolute",

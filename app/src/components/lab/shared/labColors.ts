@@ -12,6 +12,7 @@ import { SPACING } from "../../../config/spacing";
 // ── Brand / accent ──────────────────────────────────────────────
 export const ACCENT = "#E66E19";
 export const PRIMARY_CONTAINER = "#F47A22";
+export const PRIMARY_CONTAINER_CAPTURE_ICON = "#f47922d8";
 export const ACCENT_LIGHT = "#FFF3E0";
 export const ACCENT_BORDER = "rgba(230,126,34,0.30)";
 

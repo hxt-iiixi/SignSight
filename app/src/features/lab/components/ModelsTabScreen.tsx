@@ -146,6 +146,15 @@ function InsetDivider() {
   return <View style={styles.insetDivider} />;
 }
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.inspectRow}>
+      <Text style={styles.inspectLabel}>{label}</Text>
+      <Text style={styles.inspectValue}>{value}</Text>
+    </View>
+  );
+}
+
 export function ModelsTabScreen({
   models,
   activeModel,
@@ -191,6 +200,7 @@ export function ModelsTabScreen({
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
   const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
   const [menuModelId, setMenuModelId] = useState<string | null>(null);
+  const [inlineRenameModelId, setInlineRenameModelId] = useState<string | null>(null);
   const [showReadinessInfo, setShowReadinessInfo] = useState(false);
 
   const activeModels = useMemo(() => models.filter((model) => !model.isArchived), [models]);
@@ -331,14 +341,16 @@ export function ModelsTabScreen({
 
           <View style={styles.trainingFields}>
             <View style={styles.trainingInputGroup}>
-              <Text style={styles.trainingInputLabel}>Model label *</Text>
+              <Text style={styles.trainingInputLabel}>
+                Model label <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
               <TextInput
                 value={trainingLabel}
                 onChangeText={onTrainingLabelChange}
                 placeholder={
                   trainingMode === "bootstrap"
-                    ? "Bootstrap SV1"
-                    : "SignSight FV1"
+                    ? "Bootstrap model label"
+                    : "Full model label"
                 }
                 placeholderTextColor={TEXT_TERTIARY}
                 style={styles.trainingInput}
@@ -346,7 +358,9 @@ export function ModelsTabScreen({
             </View>
 
             <View style={styles.trainingInputGroup}>
-              <Text style={styles.trainingInputLabel}>Model note *</Text>
+              <Text style={styles.trainingInputLabel}>
+                Model note <Text style={styles.requiredAsterisk}>*</Text>
+              </Text>
               <TextInput
                 value={trainingNote}
                 onChangeText={onTrainingNoteChange}
@@ -421,13 +435,46 @@ export function ModelsTabScreen({
           const archiveBusy = archivingModelId === model.id;
           const renameBusy = renamingModelId === model.id;
           const menuOpen = menuModelId === model.id;
+          const renameOpen = inlineRenameModelId === model.id;
           const statusLabel = model.isActive ? "Active" : "Candidate";
 
             return (
             <View key={model.id} style={styles.versionCard}>
               <View style={styles.versionTopRow}>
                 <View style={styles.versionTitleWrap}>
-                  <Text style={styles.versionTitle}>{model.label}</Text>
+                  {renameOpen ? (
+                    <View style={styles.inlineRenameTitleRow}>
+                      <TextInput
+                        value={renameValue}
+                        onChangeText={(value) =>
+                          setRenameDrafts((current) => ({ ...current, [model.id]: value }))
+                        }
+                        placeholder="Model label"
+                        style={styles.inlineRenameTitleInput}
+                        placeholderTextColor={TEXT_TERTIARY}
+                      />
+                      <Pressable
+                        style={styles.inlineRenameConfirm}
+                        disabled={
+                          renameBusy ||
+                          !renameValue.trim() ||
+                          renameValue.trim() === model.label
+                        }
+                        onPress={() => {
+                          void onRenameModel(model.id, renameValue.trim());
+                          setInlineRenameModelId(null);
+                        }}
+                      >
+                        <Ionicons
+                          name={renameBusy ? "hourglass-outline" : "checkmark-sharp"}
+                          size={22}
+                          color={ACCENT}
+                        />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Text style={styles.versionTitle}>{model.label}</Text>
+                  )}
                   <Text style={styles.versionSubtitle}>
                     {formatModeLabel(model.trainingMode)} · {statusLabel}
                   </Text>
@@ -457,6 +504,20 @@ export function ModelsTabScreen({
                             </View>
                           </Pressable>
                           <Pressable
+                            style={[styles.menuItem, styles.menuItemDivider]}
+                            onPress={() => {
+                              setInlineRenameModelId(renameOpen ? null : model.id);
+                              setMenuModelId(null);
+                            }}
+                          >
+                            <View style={styles.menuItemRow}>
+                              <Ionicons name="pencil-outline" size={16} color={TEXT} />
+                              <Text style={styles.menuItemText}>
+                                {renameOpen ? "Cancel rename" : "Rename"}
+                              </Text>
+                            </View>
+                          </Pressable>
+                          <Pressable
                             style={[styles.menuItem, styles.menuItemDanger]}
                             disabled={archiveBusy}
                             onPress={() => {
@@ -478,108 +539,87 @@ export function ModelsTabScreen({
 
               {expanded ? (
                 <View style={styles.inspectPanel}>
-                  <View style={styles.inspectGrid}>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Version ID</Text>
-                      <Text style={styles.inspectValue}>{model.versionId}</Text>
-                    </View>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Accuracy</Text>
-                      <Text style={styles.inspectValue}>{formatAccuracy(model.accuracy)}</Text>
-                    </View>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Trained</Text>
-                      <Text style={styles.inspectValue}>{formatDate(model.trainedAt)}</Text>
-                    </View>
+                  <View style={styles.inspectSection}>
+                    <DetailRow label="Version ID" value={model.versionId} />
+                    <InsetDivider />
+                    <DetailRow label="Accuracy" value={formatAccuracy(model.accuracy)} />
+                    <InsetDivider />
+                    <DetailRow label="Trained" value={formatDate(model.trainedAt)} />
                   </View>
 
-                  {model.note ? (
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Note</Text>
-                      <Text style={styles.inspectValue}>{model.note}</Text>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.renameRow}>
-                    <TextInput
-                      value={renameValue}
-                      onChangeText={(value) =>
-                        setRenameDrafts((current) => ({ ...current, [model.id]: value }))
-                      }
-                      placeholder="Model label"
-                      style={styles.renameInput}
-                      placeholderTextColor={TEXT_TERTIARY}
-                    />
-                    <Pressable
-                      style={[styles.renameButton, renameBusy && styles.renameButtonDisabled]}
-                      disabled={renameBusy || !renameValue.trim() || renameValue.trim() === model.label}
-                      onPress={() => onRenameModel(model.id, renameValue.trim())}
-                    >
-                      <Text style={styles.renameButtonText}>
-                        {renameBusy ? "Saving..." : "Rename"}
-                      </Text>
-                    </Pressable>
+                  <InsetDivider />
+                  <View style={styles.inspectSection}>
+                    <Text style={styles.inspectLabel}>Note</Text>
+                    <Text style={styles.inspectValue}>{model.note?.trim() || "N/A"}</Text>
                   </View>
 
-                  <View style={styles.inspectGrid}>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Ready letters</Text>
-                      <Text style={styles.inspectValue}>
-                        {model.readyStaticLetters.length
+                  <InsetDivider />
+                  <View style={styles.inspectSection}>
+                    <DetailRow
+                      label="Ready letters"
+                      value={
+                        model.readyStaticLetters.length
                           ? model.readyStaticLetters.join(", ")
-                          : "None"}
-                      </Text>
-                    </View>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Unready letters</Text>
-                      <Text style={styles.inspectValue}>
-                        {model.unreadyStaticLetters.length
+                          : "None"
+                      }
+                    />
+                    <InsetDivider />
+                    <DetailRow
+                      label="Unready letters"
+                      value={
+                        model.unreadyStaticLetters.length
                           ? model.unreadyStaticLetters.join(", ")
-                          : "None"}
-                      </Text>
-                    </View>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Word labels</Text>
-                      <Text style={styles.inspectValue}>
-                        {model.activeStaticWordLabels.length
+                          : "None"
+                      }
+                    />
+                    <InsetDivider />
+                    <DetailRow
+                      label="Word labels"
+                      value={
+                        model.activeStaticWordLabels.length
                           ? model.activeStaticWordLabels.join(", ")
-                          : "None"}
-                      </Text>
-                    </View>
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Quota target</Text>
-                      <Text style={styles.inspectValue}>
-                        {String(
-                          model.quotasUsed?.min_approved_per_hand ??
-                            model.quotasUsed?.min_approved_samples_per_label ??
-                            "—"
-                        )}
-                      </Text>
-                    </View>
+                          : "None"
+                      }
+                    />
+                    <InsetDivider />
+                    <DetailRow
+                      label="Quota target"
+                      value={String(
+                        model.quotasUsed?.min_approved_per_hand ??
+                          model.quotasUsed?.min_approved_samples_per_label ??
+                          "—"
+                      )}
+                    />
                   </View>
 
                   {Object.keys(model.trainingSampleCounts).length ? (
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Sample counts</Text>
-                      <Text style={styles.inspectValue}>
-                        {Object.entries(model.trainingSampleCounts)
-                          .slice(0, 10)
-                          .map(([label, count]) => `${label}:${count}`)
-                          .join(" · ")}
-                      </Text>
-                    </View>
+                    <>
+                      <InsetDivider />
+                      <View style={styles.inspectSection}>
+                        <Text style={styles.inspectLabel}>Sample counts</Text>
+                        <Text style={styles.inspectValue}>
+                          {Object.entries(model.trainingSampleCounts)
+                            .slice(0, 10)
+                            .map(([label, count]) => `${label}:${count}`)
+                            .join(" · ")}
+                        </Text>
+                      </View>
+                    </>
                   ) : null}
 
                   {Object.keys(model.deficitsByLabel).length ? (
-                    <View style={styles.inspectBlock}>
-                      <Text style={styles.inspectLabel}>Deficits</Text>
-                      <Text style={styles.inspectValue}>
-                        {Object.entries(model.deficitsByLabel)
-                          .slice(0, 6)
-                          .map(([label, deficits]) => `${label} (${deficits.length})`)
-                          .join(" · ")}
-                      </Text>
-                    </View>
+                    <>
+                      <InsetDivider />
+                      <View style={styles.inspectSection}>
+                        <Text style={styles.inspectLabel}>Deficits</Text>
+                        <Text style={styles.inspectValue}>
+                          {Object.entries(model.deficitsByLabel)
+                            .slice(0, 6)
+                            .map(([label, deficits]) => `${label} (${deficits.length})`)
+                            .join(" · ")}
+                        </Text>
+                      </View>
+                    </>
                   ) : null}
                 </View>
               ) : null}
@@ -634,41 +674,35 @@ export function ModelsTabScreen({
 
                   {expanded ? (
                     <View style={styles.inspectPanel}>
-                      <View style={styles.inspectGrid}>
-                        <View style={styles.inspectBlock}>
-                          <Text style={styles.inspectLabel}>Version ID</Text>
-                          <Text style={styles.inspectValue}>{model.versionId}</Text>
-                        </View>
-                        <View style={styles.inspectBlock}>
-                          <Text style={styles.inspectLabel}>Accuracy</Text>
-                          <Text style={styles.inspectValue}>{formatAccuracy(model.accuracy)}</Text>
-                        </View>
-                        <View style={styles.inspectBlock}>
-                          <Text style={styles.inspectLabel}>Trained</Text>
-                          <Text style={styles.inspectValue}>{formatDate(model.trainedAt)}</Text>
-                        </View>
-                        <View style={styles.inspectBlock}>
-                          <Text style={styles.inspectLabel}>Archived</Text>
-                          <Text style={styles.inspectValue}>{formatDate(model.archivedAt)}</Text>
-                        </View>
+                      <View style={styles.inspectSection}>
+                        <DetailRow label="Version ID" value={model.versionId} />
+                        <InsetDivider />
+                        <DetailRow label="Accuracy" value={formatAccuracy(model.accuracy)} />
+                        <InsetDivider />
+                        <DetailRow label="Trained" value={formatDate(model.trainedAt)} />
+                        <InsetDivider />
+                        <DetailRow label="Archived" value={formatDate(model.archivedAt)} />
                       </View>
 
-                      {model.note ? (
-                        <View style={styles.inspectBlock}>
-                          <Text style={styles.inspectLabel}>Note</Text>
-                          <Text style={styles.inspectValue}>{model.note}</Text>
-                        </View>
-                      ) : null}
-
-                      <View style={styles.inspectBlock}>
-                        <Text style={styles.inspectLabel}>Ready letters</Text>
-                        <Text style={styles.inspectValue}>
-                          {model.readyStaticLetters.length
-                            ? model.readyStaticLetters.join(", ")
-                            : "None"}
-                        </Text>
+                      <InsetDivider />
+                      <View style={styles.inspectSection}>
+                        <Text style={styles.inspectLabel}>Note</Text>
+                        <Text style={styles.inspectValue}>{model.note?.trim() || "N/A"}</Text>
                       </View>
-                      <View style={styles.inspectBlock}>
+
+                      <InsetDivider />
+                      <View style={styles.inspectSection}>
+                        <DetailRow
+                          label="Ready letters"
+                          value={
+                            model.readyStaticLetters.length
+                              ? model.readyStaticLetters.join(", ")
+                              : "None"
+                          }
+                        />
+                      </View>
+                      <InsetDivider />
+                      <View style={styles.inspectSection}>
                         <Text style={styles.inspectLabel}>Sample counts</Text>
                         <Text style={styles.inspectValue}>
                           {Object.entries(model.trainingSampleCounts)
@@ -788,6 +822,9 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "700",
+  },
+  requiredAsterisk: {
+    color: DANGER,
   },
   trainingInput: {
     minHeight: 46,
@@ -984,6 +1021,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.SPACE_SM,
     paddingVertical: 10,
   },
+  menuItemDivider: {
+    borderTopWidth: 1,
+    borderTopColor: BORDER,
+    marginTop: 4,
+    paddingTop: 12,
+  },
   menuItemRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1012,39 +1055,33 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: BORDER,
   },
-  renameRow: {
+  inspectSection: {
+    gap: SPACING.SPACE_XS,
+  },
+  inspectRow: {
+    gap: 4,
+  },
+  inlineRenameTitleRow: {
     flexDirection: "row",
-    gap: SPACING.SPACE_SM,
+    gap: SPACING.SPACE_XS,
     alignItems: "center",
   },
-  renameInput: {
+  inlineRenameTitleInput: {
     flex: 1,
-    minHeight: 44,
-    borderRadius: RADIUS_MD,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: BG,
-    paddingHorizontal: SPACING.SPACE_SM,
+    minHeight: 32,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
     color: TEXT,
-    fontSize: TYPOGRAPHY.TEXT_SM,
-    fontWeight: "700",
-  },
-  renameButton: {
-    borderRadius: RADIUS_MD,
-    backgroundColor: ACCENT,
-    paddingHorizontal: SPACING.SPACE_MD,
-    paddingVertical: 12,
-  },
-  renameButtonDisabled: {
-    opacity: 0.7,
-  },
-  renameButtonText: {
-    color: "#FFFFFF",
-    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontSize: 15,
     fontWeight: "900",
+    borderBottomWidth: 1.5,
+    borderBottomColor: ACCENT,
   },
-  inspectGrid: {
-    gap: SPACING.SPACE_SM,
+  inlineRenameConfirm: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
   },
   inspectBlock: {
     borderRadius: RADIUS_MD,
