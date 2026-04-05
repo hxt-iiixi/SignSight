@@ -26,6 +26,8 @@ class PredictLandmarksReq(BaseModel):
 
 class TrainLandmarksReq(BaseModel):
     trainingMode: Optional[Literal["bootstrap", "full_reviewed"]] = None
+    label: str
+    note: str
 
 
 class ActivateLandmarkModelReq(BaseModel):

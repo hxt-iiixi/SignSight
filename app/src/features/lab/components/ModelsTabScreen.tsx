@@ -51,6 +51,7 @@ export type ModelManagementItem = {
   id: string;
   versionId: string;
   label: string;
+  note?: string | null;
   detail?: string;
   rawInfo?: any;
   trainedAt?: string | null;
@@ -155,6 +156,10 @@ export function ModelsTabScreen({
   onTrain,
   trainingState,
   trainingMessage,
+  trainingLabel,
+  onTrainingLabelChange,
+  trainingNote,
+  onTrainingNoteChange,
   showArchived,
   onToggleArchived,
   archivingModelId,
@@ -171,6 +176,10 @@ export function ModelsTabScreen({
   onTrain: () => void;
   trainingState: ActionState;
   trainingMessage: string | null;
+  trainingLabel: string;
+  onTrainingLabelChange: (value: string) => void;
+  trainingNote: string;
+  onTrainingNoteChange: (value: string) => void;
   showArchived: boolean;
   onToggleArchived: () => void;
   archivingModelId: string | null;
@@ -320,6 +329,36 @@ export function ModelsTabScreen({
             })}
           </View>
 
+          <View style={styles.trainingFields}>
+            <View style={styles.trainingInputGroup}>
+              <Text style={styles.trainingInputLabel}>Model label *</Text>
+              <TextInput
+                value={trainingLabel}
+                onChangeText={onTrainingLabelChange}
+                placeholder={
+                  trainingMode === "bootstrap"
+                    ? "Bootstrap SV1"
+                    : "SignSight FV1"
+                }
+                placeholderTextColor={TEXT_TERTIARY}
+                style={styles.trainingInput}
+              />
+            </View>
+
+            <View style={styles.trainingInputGroup}>
+              <Text style={styles.trainingInputLabel}>Model note *</Text>
+              <TextInput
+                value={trainingNote}
+                onChangeText={onTrainingNoteChange}
+                placeholder="What is this model intended for?"
+                placeholderTextColor={TEXT_TERTIARY}
+                style={[styles.trainingInput, styles.trainingNoteInput]}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+          </View>
+
           {trainingMessage ? (
             <Text
               style={[
@@ -334,10 +373,13 @@ export function ModelsTabScreen({
           <Pressable
             style={[
               styles.primaryButton,
-              trainingState === "running" && styles.primaryButtonDisabled,
+              (trainingState === "running" ||
+                !trainingLabel.trim() ||
+                !trainingNote.trim()) &&
+                styles.primaryButtonDisabled,
             ]}
             onPress={onTrain}
-            disabled={trainingState === "running"}
+            disabled={trainingState === "running" || !trainingLabel.trim() || !trainingNote.trim()}
           >
             <Text style={styles.primaryButtonText}>
               {trainingState === "running"
@@ -450,6 +492,13 @@ export function ModelsTabScreen({
                       <Text style={styles.inspectValue}>{formatDate(model.trainedAt)}</Text>
                     </View>
                   </View>
+
+                  {model.note ? (
+                    <View style={styles.inspectBlock}>
+                      <Text style={styles.inspectLabel}>Note</Text>
+                      <Text style={styles.inspectValue}>{model.note}</Text>
+                    </View>
+                  ) : null}
 
                   <View style={styles.renameRow}>
                     <TextInput
@@ -604,6 +653,13 @@ export function ModelsTabScreen({
                         </View>
                       </View>
 
+                      {model.note ? (
+                        <View style={styles.inspectBlock}>
+                          <Text style={styles.inspectLabel}>Note</Text>
+                          <Text style={styles.inspectValue}>{model.note}</Text>
+                        </View>
+                      ) : null}
+
                       <View style={styles.inspectBlock}>
                         <Text style={styles.inspectLabel}>Ready letters</Text>
                         <Text style={styles.inspectValue}>
@@ -721,6 +777,32 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
     fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "600",
+  },
+  trainingFields: {
+    gap: SPACING.SPACE_SM,
+  },
+  trainingInputGroup: {
+    gap: 6,
+  },
+  trainingInputLabel: {
+    color: TEXT_SECONDARY,
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "700",
+  },
+  trainingInput: {
+    minHeight: 46,
+    borderRadius: RADIUS_MD,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: BG_CARD,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: 12,
+    color: TEXT,
+    fontSize: TYPOGRAPHY.TEXT_MD,
+    fontWeight: "600",
+  },
+  trainingNoteInput: {
+    minHeight: 78,
   },
   modeIndicator: {
     width: 22,

@@ -411,6 +411,7 @@ def _version_entry(
         else [],
         "trained_at": metadata.get("trained_at"),
         "accuracy": metadata.get("accuracy"),
+        "note": metadata.get("note"),
         "source": source,
     }
 
@@ -1106,9 +1107,20 @@ def _evaluate_prediction_acceptance(
     return True, None
 
 
-def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict:
+def train_landmarks_model(
+    training_mode: object = DEFAULT_TRAINING_MODE,
+    *,
+    label: Optional[str] = None,
+    note: Optional[str] = None,
+) -> dict:
     global landmark_model, landmark_model_metadata, landmark_model_version_id
     normalized_mode = _normalize_training_mode(training_mode)
+    next_label = _clean_optional_string(label)
+    next_note = _clean_optional_string(note)
+    if not next_label:
+        return {"ok": False, "error": "label is required."}
+    if not next_note:
+        return {"ok": False, "error": "note is required."}
     requirements = _training_requirements(normalized_mode)
     summary = _dataset_summary()
     ready_static_letters, deficits_by_label = _quota_status(summary, normalized_mode)
@@ -1195,7 +1207,8 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
     joblib.dump(landmark_model, version_model_path)
     landmark_model_metadata = {
         "version_id": version_id,
-        "label": f"{normalized_mode.replace('_', ' ')} {trained_at}",
+        "label": next_label,
+        "note": next_note,
         "training_mode": normalized_mode,
         "accuracy": float(acc),
         "active_static_letters": sorted(
@@ -1239,6 +1252,8 @@ def train_landmarks_model(training_mode: object = DEFAULT_TRAINING_MODE) -> dict
         "accuracy": float(acc),
         "feature_dimensions": int(X.shape[1]),
         "active_version_id": version_id,
+        "label": landmark_model_metadata["label"],
+        "note": next_note,
         "available_versions": _available_landmark_model_versions(),
         "training_mode": normalized_mode,
         "requirements": requirements,

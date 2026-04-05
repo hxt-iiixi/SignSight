@@ -82,6 +82,7 @@ function normalizeModelsResponse(rawModels: any[]): ModelItem[] {
           typeof info.label === "string"
             ? info.label
             : model.path.split("/").pop()?.replace(".json", "") ?? versionId,
+        note: typeof info.note === "string" ? info.note : null,
         detail,
         rawInfo: info,
         trainedAt,
@@ -170,7 +171,7 @@ function CaptureTabScreen({
   setSaveFeedback: (state: SaveState, message: string | null) => void;
 }) {
   const navigation = useNavigation<any>();
-  const { showHandOverlay } = useAppSettings();
+  const { showHandOverlay, setShowHandOverlay } = useAppSettings();
   const { width } = useWindowDimensions();
   const isSmall = width < 360;
   const isTablet = width >= 768;
@@ -253,6 +254,12 @@ function CaptureTabScreen({
         onPress: () => setShowDebugTracking((current) => !current),
       },
       {
+        id: "overlay",
+        icon: "hand-right-outline" as const,
+        active: showHandOverlay,
+        onPress: () => setShowHandOverlay(!showHandOverlay),
+      },
+      {
         id: "session",
         icon: "construct-outline" as const,
         active: showDebugSession,
@@ -264,6 +271,8 @@ function CaptureTabScreen({
       showDebugQuality,
       showDebugSession,
       showDebugTracking,
+      showHandOverlay,
+      setShowHandOverlay,
     ]
   );
   const debugEntries = useMemo(() => {
@@ -506,6 +515,8 @@ export default function LabDeveloperScreen() {
   const [trainingMode, setTrainingMode] = useState<TrainingModeValue>("bootstrap");
   const [trainingState, setTrainingState] = useState<ActionState>("idle");
   const [trainingMessage, setTrainingMessage] = useState<string | null>(null);
+  const [trainingLabel, setTrainingLabel] = useState("");
+  const [trainingNote, setTrainingNote] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [archivingModelId, setArchivingModelId] = useState<string | null>(null);
   const [renamingModelId, setRenamingModelId] = useState<string | null>(null);
@@ -553,6 +564,19 @@ export default function LabDeveloperScreen() {
     void fetchModels();
   }, []);
 
+  useEffect(() => {
+    if (!saveMessage || saveState === "idle" || saveState === "saving") {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      setSaveState("idle");
+      setSaveMessage(null);
+    }, 2200);
+
+    return () => clearTimeout(timeout);
+  }, [saveMessage, saveState]);
+
   async function handleActivateModel(modelId: string) {
     const model = availableModels.find((item) => item.id === modelId);
     if (!model || model.id === selectedModel?.id) {
@@ -586,14 +610,23 @@ export default function LabDeveloperScreen() {
   }
 
   async function handleTrainModel() {
+    if (!trainingLabel.trim() || !trainingNote.trim()) {
+      setTrainingMessage("Model label and model note are required.");
+      return;
+    }
+
     try {
       setTrainingState("running");
-      setTrainingMessage("Retraining landmark model...");
+      setTrainingMessage("Training new landmark model...");
       setModelsError(null);
       const response = await fetch(`${API_BASE}/train_landmarks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trainingMode }),
+        body: JSON.stringify({
+          trainingMode,
+          label: trainingLabel.trim(),
+          note: trainingNote.trim(),
+        }),
       });
       const payload = await response.json().catch(() => null);
 
@@ -606,11 +639,21 @@ export default function LabDeveloperScreen() {
         typeof payload?.accuracy === "number"
           ? `${(payload.accuracy * 100).toFixed(1)}%`
           : "completed";
-      setTrainingMessage(`Retraining finished. Holdout accuracy ${accuracy}.`);
+      const trainedLabel =
+        typeof payload?.label === "string" && payload.label.trim()
+          ? payload.label.trim()
+          : trainingLabel.trim();
+      setTrainingMessage(
+        trainedLabel
+          ? `Trained ${trainedLabel}. Holdout accuracy ${accuracy}.`
+          : `Training finished. Holdout accuracy ${accuracy}.`
+      );
+      setTrainingLabel("");
+      setTrainingNote("");
       await fetchModels();
     } catch (error) {
       console.log("Failed to train model", error);
-      setTrainingMessage("Retraining failed.");
+      setTrainingMessage("Training failed.");
     } finally {
       setTrainingState("idle");
     }
@@ -758,6 +801,10 @@ export default function LabDeveloperScreen() {
               onTrain={handleTrainModel}
               trainingState={trainingState}
               trainingMessage={trainingMessage}
+              trainingLabel={trainingLabel}
+              onTrainingLabelChange={setTrainingLabel}
+              trainingNote={trainingNote}
+              onTrainingNoteChange={setTrainingNote}
               showArchived={showArchived}
               onToggleArchived={() => setShowArchived((current) => !current)}
               archivingModelId={archivingModelId}

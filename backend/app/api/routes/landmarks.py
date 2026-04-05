@@ -44,7 +44,7 @@ def upload_landmarks_route(req: UploadLandmarksReq):
 
 @router.post("/train_landmarks")
 def train_landmarks(req: TrainLandmarksReq):
-    return train_landmarks_model(req.trainingMode)
+    return train_landmarks_model(req.trainingMode, label=req.label, note=req.note)
 
 
 @router.post("/upload_static_word_landmarks")
