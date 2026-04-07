@@ -7,6 +7,10 @@ export class MajorityVoteSmoother {
     if (this.window.length > this.size) this.window.shift();
   }
 
+  reset() {
+    this.window = [];
+  }
+
   getStableLabel(): string {
     if (this.window.length === 0) return "?";
     const counts = new Map<string, number>();

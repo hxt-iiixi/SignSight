@@ -4,13 +4,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$ROOT_DIR/app"
-ADMIN_DIR="$APP_DIR/signsight-admin"
-SERVER_DIR="$APP_DIR/src/server"
+ADMIN_DIR="$ROOT_DIR/web-frontend"
+SERVER_DIR="$ROOT_DIR/backend"
 SERVER_ENV_FILE="$SERVER_DIR/.env"
 MOBILE_ENV_FILE="$APP_DIR/.env.local"
 ADMIN_ENV_FILE="$ADMIN_DIR/.env.local"
 
 PIDS=()
+PGIDS=()
 
 log() {
   printf '[run] %s\n' "$1"
@@ -111,9 +112,19 @@ PY
 cleanup() {
   local code=$?
 
-  if [[ ${#PIDS[@]} -gt 0 ]]; then
+  if [[ ${#PIDS[@]} -gt 0 || ${#PGIDS[@]} -gt 0 ]]; then
     log "Stopping services"
-    kill "${PIDS[@]}" >/dev/null 2>&1 || true
+
+    local pgid
+    for pgid in "${PGIDS[@]}"; do
+      [[ -n "$pgid" ]] || continue
+      kill -- "-$pgid" >/dev/null 2>&1 || true
+    done
+
+    if [[ ${#PIDS[@]} -gt 0 ]]; then
+      kill "${PIDS[@]}" >/dev/null 2>&1 || true
+    fi
+
     wait "${PIDS[@]}" >/dev/null 2>&1 || true
   fi
 
@@ -124,12 +135,38 @@ start_service() {
   local name="$1"
   local dir="$2"
   local cmd="$3"
+  local pgid_file
+  local service_pid=""
+
+  pgid_file="$(mktemp)"
 
   (
     cd "$dir"
-    bash -lc "$cmd" 2>&1 | sed -u "s/^/[$name] /"
+    setsid bash -lc "echo \$\$ > \"$pgid_file\"; $cmd" 2>&1 | sed -u "s/^/[$name] /"
   ) &
-  PIDS+=("$!")
+  service_pid="$!"
+  PIDS+=("$service_pid")
+
+  local pgid=""
+  local deadline=$((SECONDS + 5))
+  while [[ ! -s "$pgid_file" && $SECONDS -lt $deadline ]]; do
+    sleep 0.05
+  done
+
+  if [[ -s "$pgid_file" ]]; then
+    pgid="$(<"$pgid_file")"
+    PGIDS+=("$pgid")
+  fi
+
+  rm -f "$pgid_file"
+}
+
+run_foreground_service() {
+  local dir="$1"
+  local cmd="$2"
+
+  cd "$dir"
+  bash -lc "$cmd"
 }
 
 need_cmd bash "Install bash."
@@ -140,6 +177,7 @@ need_cmd python3 "Install Python 3.10 or newer."
 need_path "$APP_DIR/node_modules" "Expo dependencies are missing. Run ./init.sh first."
 need_path "$ADMIN_DIR/node_modules" "Admin dependencies are missing. Run ./init.sh first."
 need_path "$SERVER_DIR/.venv" "Backend virtual environment is missing. Run ./init.sh first."
+need_path "$SERVER_DIR/.venv/bin/python" "Backend Python virtual environment is incomplete. Run ./init.sh again."
 need_path "$SERVER_ENV_FILE" "Backend .env is missing. Run ./init.sh first."
 
 MOBILE_API_BASE_VALUE="$(detect_lan_ip)"
@@ -147,21 +185,22 @@ write_local_envs "$MOBILE_API_BASE_VALUE"
 
 trap cleanup INT TERM EXIT
 
-if ! mongo_status="$(check_mongo)"; then
-  fail "MongoDB is not reachable at ${mongo_status%%|*}. Start MongoDB and try again."
-fi
+# Temporarily disabled while the admin panel is not in use.
+# if ! mongo_status="$(check_mongo)"; then
+#   fail "MongoDB is not reachable at ${mongo_status%%|*}. Start MongoDB and try again."
+# fi
 
 log "Using mobile backend URL $MOBILE_API_BASE_VALUE"
-log "Admin dashboard will use http://127.0.0.1:8000"
+# log "Admin dashboard will use http://127.0.0.1:8000"
 printf '\n'
 printf 'Starting services:\n'
-printf '  Admin UI: http://localhost:3000\n'
+# printf '  Admin UI: http://localhost:3000\n'
 printf '  Backend:  http://127.0.0.1:8000\n'
 printf '  Mobile API: %s\n' "$MOBILE_API_BASE_VALUE"
 printf '\n'
 
-start_service "backend" "$SERVER_DIR" "source .venv/bin/activate && exec uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
-start_service "admin" "$ADMIN_DIR" "exec npm run dev"
-start_service "expo" "$APP_DIR" "exec npx expo start -c"
-
-wait -n "${PIDS[@]}"
+start_service "backend" "$SERVER_DIR" "exec .venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload"
+# Temporarily disabled while the admin panel is not in use.
+# start_service "admin" "$ADMIN_DIR" "exec npm run dev"
+log "Launching Expo in the foreground so the QR code and interactive controls stay visible"
+run_foreground_service "$APP_DIR" "exec npx expo start -c"

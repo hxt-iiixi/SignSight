@@ -9,26 +9,23 @@ import {
   ScrollView,
   useWindowDimensions,
   ImageBackground,
+  Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 
 const PRIMARY = "#E66E19";
-const BG = "#F8F7F6";
+const BG = "#F8F9FA";
 const CARD = "#FFFFFF";
-const TEXT = "#1B130E";
-const MUTED = "#976D4E";
-const BORDER = "#F3ECE7";
+const TEXT = "#191C1D";
+const MUTED = "#737373";
+const BORDER = "#F3F4F5";
 
 export default function DashboardScreen({
   onTranslate,
-  onTutorial,
-  onSettings,
-  onFeedback,
 }: {
   onTranslate: () => void;
-  onTutorial: () => void;
-  onSettings: () => void;
-  onFeedback: () => void;
 }) {
   const { width } = useWindowDimensions();
 
@@ -36,33 +33,29 @@ export default function DashboardScreen({
   const isTablet = width >= 768;
 
   const P = isTablet ? 28 : isSmall ? 14 : 18;
-  const heroTitleSize = isTablet ? 30 : isSmall ? 20 : 24;
+  const scrollBottomPadding = SPACING.SPACE_LG;
 
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView
-        contentContainerStyle={{ paddingBottom: 110 }}
+        contentContainerStyle={{ paddingBottom: scrollBottomPadding }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={[styles.header, { paddingHorizontal: P }]}>
-          <View style={styles.headerLeft}>
-            <View style={styles.logoWrap}>
-              <Ionicons name="hand-left-outline" size={22} color={PRIMARY} />
-            </View>
+        {/* Header and Page Title */}
+        <View style={[styles.pageHead, { paddingHorizontal: P }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: SPACING.SPACE_XXS }}>
+            <Image 
+              source={require("../../assets/logo.png")} 
+              style={{ width: 32, height: 32, resizeMode: "contain" }} 
+            />
+            <Text style={styles.pageTitle}>
+             SignSight
+            </Text>
           </View>
         </View>
 
-        {/* Page Title */}
-        <View style={[styles.pageHead, { paddingHorizontal: P }]}>
-          <Text style={[styles.pageTitle, { fontSize: heroTitleSize }]}>
-           SignSight
-          </Text>
-          <Text style={styles.pageSub}>Real-time sign language interpretation</Text>
-        </View>
-
         {/* Hero Card */}
-        <View style={{ paddingHorizontal: P, marginTop: 8 }}>
+        <View style={{ paddingHorizontal: P, marginTop: SPACING.SPACE_SM }}>
           <View style={styles.heroCard}>
             <ImageBackground
               source={{
@@ -83,7 +76,6 @@ export default function DashboardScreen({
                 Start real-time translation using your device&apos;s camera to
                 identify landmarks and signs.
               </Text>
-
               <Pressable style={styles.startBtn} onPress={onTranslate}>
                 <Ionicons name="videocam-outline" size={18} color="#fff" />
                 <Text style={styles.startBtnText}>Start Camera</Text>
@@ -92,27 +84,8 @@ export default function DashboardScreen({
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={[styles.sectionWrap, { paddingHorizontal: P }]}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-        </View>
-
-        <View style={[styles.actionsRow, { paddingHorizontal: P }]}>
-          <ActionCard
-            title="Tutorial"
-            icon="book-outline"
-            onPress={onTutorial}
-          />
-
-          <ActionCard
-            title="Feedback"
-            icon="create-outline"
-            onPress={onFeedback}
-          />
-        </View>
-
         {/* Tips */}
-        <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: 18 }]}>
+        <View style={[styles.sectionWrap, { paddingHorizontal: P, marginTop: SPACING.SPACE_LG }]}>
           <Text style={styles.sectionTitle}>Tips for Better Accuracy</Text>
         </View>
 
@@ -142,50 +115,7 @@ export default function DashboardScreen({
           </View>
         </View>
       </ScrollView>
-
-      {/* Bottom Nav UI only */}
-  
     </SafeAreaView>
-  );
-}
-
-function ActionCard({
-  title,
-  icon,
-  onPress,
-}: {
-  title: string;
-  icon: any;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable onPress={onPress} style={styles.actionCard}>
-      <View style={styles.actionIconCircle}>
-        <Ionicons name={icon} size={20} color={PRIMARY} />
-      </View>
-      <Text style={styles.actionText}>{title}</Text>
-    </Pressable>
-  );
-}
-
-function NavItem({
-  icon,
-  label,
-  active = false,
-}: {
-  icon: any;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Pressable style={styles.navItem}>
-      <Ionicons
-        name={icon}
-        size={22}
-        color={active ? PRIMARY : MUTED}
-      />
-      <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -205,6 +135,11 @@ const styles = StyleSheet.create({
     borderBottomColor: BORDER,
     backgroundColor: BG,
   },
+  dashboardLinks: {
+    marginTop: SPACING.SPACE_XXS,
+    flexDirection: "row",
+    gap: SPACING.SPACE_SM,
+  },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -219,7 +154,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(230,110,25,0.10)",
   },
   brandText: {
-    fontSize: 24,
+    fontSize: TYPOGRAPHY.TEXT_XL,
     fontWeight: "800",
     color: TEXT,
   },
@@ -233,19 +168,20 @@ const styles = StyleSheet.create({
   },
 
   pageHead: {
-    paddingTop: 18,
-    paddingBottom: 8,
+    paddingTop: SPACING.SPACE_2XL,
+    paddingBottom: SPACING.SPACE_XS,
   },
   pageTitle: {
+    fontSize: TYPOGRAPHY.TEXT_3XL,
     color: TEXT,
-    fontWeight: "800",
-    lineHeight: 32,
+    fontWeight: "900",
+    letterSpacing: -0.8,
   },
   pageSub: {
-    marginTop: 2,
+    marginTop: SPACING.SPACE_XXS,
     color: MUTED,
-    fontSize: 14,
-    fontWeight: "500",
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "700",
   },
 
   heroCard: {
@@ -279,97 +215,70 @@ const styles = StyleSheet.create({
   },
   liveBadge: {
     alignSelf: "flex-start",
-    marginLeft: 14,
-    marginBottom: 14,
+    marginLeft: SPACING.SPACE_MD,
+    marginBottom: SPACING.SPACE_MD,
     backgroundColor: PRIMARY,
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XXS,
   },
   liveBadgeText: {
     color: "#fff",
-    fontSize: 10,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "800",
     letterSpacing: 0.6,
   },
 
   heroBody: {
-    padding: 18,
+    padding: SPACING.SPACE_LG,
   },
   heroBodyTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_2XL,
+    fontWeight: "900",
     color: TEXT,
+    letterSpacing: -0.5,
   },
   heroBodySub: {
-    marginTop: 6,
+    marginTop: SPACING.SPACE_XS,
     color: MUTED,
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 22,
   },
 
   startBtn: {
-    marginTop: 16,
-    height: 48,
+    marginTop: SPACING.SPACE_LG,
+    height: 52,
     borderRadius: 999,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   startBtnText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
   },
 
   sectionWrap: {
-    paddingTop: 18,
-    paddingBottom: 8,
+    paddingTop: SPACING.SPACE_LG,
+    paddingBottom: SPACING.SPACE_XS,
   },
   sectionTitle: {
-    fontSize: 24,
-    fontWeight: "800",
+    fontSize: TYPOGRAPHY.TEXT_2XL,
+    fontWeight: "900",
     color: TEXT,
-  },
-
-  actionsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  actionCard: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 16,
-    borderRadius: 22,
-    backgroundColor: CARD,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  actionIconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(230,110,25,0.10)",
-    marginBottom: 10,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: MUTED,
+    letterSpacing: -0.5,
   },
 
   tipsList: {
-    gap: 12,
+    gap: SPACING.SPACE_MD,
   },
   tipCard: {
     flexDirection: "row",
-    gap: 14,
-    padding: 16,
+    gap: SPACING.SPACE_MD,
+    padding: SPACING.SPACE_MD,
     borderRadius: 18,
     backgroundColor: "rgba(243,236,231,0.70)",
   },
@@ -377,42 +286,16 @@ const styles = StyleSheet.create({
     paddingTop: 2,
   },
   tipTitle: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
     color: TEXT,
   },
   tipDesc: {
-    marginTop: 4,
-    fontSize: 12,
+    marginTop: SPACING.SPACE_XXS,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     lineHeight: 18,
     color: MUTED,
   },
 
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopWidth: 1,
-    borderTopColor: BORDER,
-    backgroundColor: "rgba(255,255,255,0.96)",
-    paddingTop: 10,
-    paddingBottom: 22,
-    paddingHorizontal: 18,
-    flexDirection: "row",
-    justifyContent: "space-around",
-  },
-  navItem: {
-    alignItems: "center",
-    gap: 3,
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: "600",
-    color: MUTED,
-  },
-  navLabelActive: {
-    color: PRIMARY,
-    fontWeight: "800",
-  },
+
 });

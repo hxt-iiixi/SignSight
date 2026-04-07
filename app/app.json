@@ -36,6 +36,10 @@
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.app"
     },
+    "androidNavigationBar": {
+      "backgroundColor": "#FFFFFF",
+      "barStyle": "dark-content"
+    },
     "web": {
       "favicon": "./assets/favicon.png"
     },

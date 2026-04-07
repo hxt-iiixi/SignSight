@@ -9,17 +9,20 @@ import {
   SafeAreaView,
   useWindowDimensions,
   Modal,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 const PRIMARY = "#E66E19";
-const BG = "#F8F7F6";
+const BG = "#F8F9FA";
 const CARD = "#FFFFFF";
-const BORDER = "#E7D9D0";
-const MUTED = "#976D4E";
-const TEXT = "#1B130E";
+const BORDER = "#F3F4F5";
+const MUTED = "#737373";
+const TEXT = "#191C1D";
 
 const ASL_IMAGES: Record<string, any> = {
   A: require("../../assets/asl/A.png"),
@@ -79,7 +82,7 @@ const LETTER_DESCRIPTIONS: Record<string, string> = {
   Z: "Draw the letter Z in the air with the index finger.",
 };
 
-export default function TutorialScreen({ onBack }: { onBack: () => void }) {
+export default function TutorialScreen() {
   const [selected, setSelected] = useState("A");
   const [showImageModal, setShowImageModal] = useState(false);
   const { width } = useWindowDimensions();
@@ -90,16 +93,11 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={22} color={TEXT} />
-        </Pressable>
 
-        <Text style={styles.headerTitle}>ASL Alphabet</Text>
-
-        <Pressable style={styles.iconBtn}>
-          <Ionicons name="information-circle-outline" size={22} color={TEXT} />
-        </Pressable>
+      {/* Page Title */}
+      <View style={styles.headBlock}>
+        <Text style={styles.pageTitle}>ASL Alphabet</Text>
+        {/* <Text style={styles.pageSub}>Learn and practice American Sign Language</Text> */}
       </View>
 
       {/* Sticky preview area */}
@@ -182,68 +180,53 @@ export default function TutorialScreen({ onBack }: { onBack: () => void }) {
         </View>
       </Modal>
 
-      <View style={styles.bottomNav}>
-        <NavItem icon="school-outline" label="Learn" active />
-        <NavItem icon="fitness-outline" label="Practice" />
-        <NavItem icon="trophy-outline" label="Challenges" />
-        <NavItem icon="person-outline" label="Profile" />
-      </View>
+
     </SafeAreaView>
   );
 }
 
-function NavItem({
-  icon,
-  label,
-  active = false,
-}: {
-  icon: any;
-  label: string;
-  active?: boolean;
-}) {
-  return (
-    <Pressable style={styles.navItem}>
-      <Ionicons name={icon} size={22} color={active ? PRIMARY : MUTED} />
-      <Text style={[styles.navText, active && styles.navTextActive]}>{label}</Text>
-    </Pressable>
-  );
-}
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG,
   },
-
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(231,217,208,0.55)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: BG,
+  headBlock: {
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingTop: SPACING.SPACE_2XL,
+    marginBottom: SPACING.SPACE_LG,
   },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
+  pageTitle: {
+    fontSize: TYPOGRAPHY.TEXT_3XL,
+    fontWeight: "900",
     color: TEXT,
+    letterSpacing: -0.8,
   },
-
+  pageSub: {
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "700",
+    color: MUTED,
+    marginTop: SPACING.SPACE_XXS,
+    lineHeight: 20,
+  },
   stickyPreviewWrap: {
-    padding: 16,
-    paddingBottom: 8,
+    paddingTop: SPACING.SPACE_XS,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingBottom: SPACING.SPACE_MD,
     backgroundColor: BG,
+    zIndex: 10,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
 
   previewCard: {
@@ -267,7 +250,7 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   previewBody: {
-    padding: 20,
+    padding: SPACING.SPACE_LG,
   },
   previewTopRow: {
     flexDirection: "row",
@@ -275,32 +258,32 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   previewTitle: {
-    fontSize: 18,
+    fontSize: TYPOGRAPHY.TEXT_LG,
     fontWeight: "800",
     color: PRIMARY,
   },
   levelBadge: {
     backgroundColor: "rgba(230,110,25,0.10)",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: SPACING.SPACE_SM,
+    paddingVertical: SPACING.SPACE_XXS,
     borderRadius: 999,
   },
   levelBadgeText: {
     color: PRIMARY,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.TEXT_XXS,
     fontWeight: "800",
     letterSpacing: 0.8,
   },
   previewDesc: {
-    marginTop: 14,
-    fontSize: 15,
+    marginTop: SPACING.SPACE_MD,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     lineHeight: 28,
     color: MUTED,
   },
   previewActions: {
-    marginTop: 18,
+    marginTop: SPACING.SPACE_LG,
     flexDirection: "row",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
     alignItems: "center",
   },
   watchBtn: {
@@ -311,11 +294,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   watchBtnText: {
     color: "#fff",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "800",
   },
   favoriteBtn: {
@@ -330,31 +313,31 @@ const styles = StyleSheet.create({
   },
 
   sectionHeader: {
-    marginTop: 22,
-    marginBottom: 10,
+    marginTop: SPACING.SPACE_LG,
+    marginBottom: SPACING.SPACE_SM,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
     color: TEXT,
   },
   sectionCount: {
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "700",
     color: MUTED,
   },
 
   grid: {
-    paddingHorizontal: 16,
-    paddingBottom: 110,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingBottom: SPACING.SPACE_LG,
   },
 
   columnWrap: {
     justifyContent: "space-between",
-    gap: 12,
+    gap: SPACING.SPACE_SM,
   },
 
   letterBtn: {
@@ -368,16 +351,16 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
-    gap: 10,
+    marginBottom: SPACING.SPACE_SM,
+    gap: SPACING.SPACE_XS,
   },
   letterBtnActive: {
     borderWidth: 2,
     borderColor: PRIMARY,
-    backgroundColor: "rgba(230,110,25,0.05)",
+    backgroundColor: "rgba(230, 110, 25, 0.15)",
   },
   letterText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
     color: TEXT,
   },
@@ -390,14 +373,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    padding: SPACING.SPACE_LG,
   },
   modalCard: {
     width: "100%",
     maxWidth: 420,
     borderRadius: 24,
     backgroundColor: "#fff",
-    padding: 16,
+    padding: SPACING.SPACE_MD,
     borderWidth: 1,
     borderColor: BORDER,
   },
@@ -406,8 +389,8 @@ const styles = StyleSheet.create({
     height: 360,
   },
   modalCloseBtn: {
-    marginTop: 12,
-    height: 46,
+    marginTop: SPACING.SPACE_SM,
+    height: 48,
     borderRadius: 999,
     backgroundColor: PRIMARY,
     alignItems: "center",
@@ -416,34 +399,8 @@ const styles = StyleSheet.create({
   modalCloseText: {
     color: "#fff",
     fontWeight: "800",
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
   },
 
-  bottomNav: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    flexDirection: "row",
-    borderTopWidth: 1,
-    borderTopColor: "rgba(231,217,208,0.55)",
-    backgroundColor: "rgba(255,255,255,0.96)",
-    paddingTop: 10,
-    paddingBottom: 24,
-    paddingHorizontal: 10,
-    justifyContent: "space-around",
-  },
-  navItem: {
-    alignItems: "center",
-    gap: 4,
-  },
-  navText: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: MUTED,
-  },
-  navTextActive: {
-    color: PRIMARY,
-    fontWeight: "800",
-  },
+
 });

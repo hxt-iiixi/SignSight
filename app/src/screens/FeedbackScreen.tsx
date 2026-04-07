@@ -11,21 +11,24 @@ import {
   ActivityIndicator,
   Image,
   ScrollView,
+  type DimensionValue,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { API_BASE } from "../config/api";
-
-const PRIMARY = "#E66E19";
-const BG = "#F8F7F6";
-const CARD = "#FFFFFF";
-const BORDER = "#E7D9D0";
-const MUTED = "#976D4E";
-const TEXT = "#1B130E";
+import { TYPOGRAPHY } from "../config/typography";
+import { SPACING } from "../config/spacing";
+import { 
+  ACCENT as PRIMARY,
+  BORDER, 
+  TEXT_SECONDARY as MUTED, 
+  TEXT, 
+  BG
+} from "../components/lab/shared/labColors";
 
 const CATEGORIES = ["general", "bug", "feature", "ui"] as const;
 type Category = (typeof CATEGORIES)[number];
 
-export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
+export default function FeedbackScreen() {
   const [message, setMessage] = useState("");
   const [category, setCategory] = useState<Category>("general");
   const [rating, setRating] = useState<number | null>(4);
@@ -142,21 +145,11 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Pressable onPress={onBack} style={styles.iconBtn}>
-          <Ionicons name="arrow-back" size={22} color={TEXT} />
-        </Pressable>
 
-        <Text style={styles.headerTitle}>Feedback</Text>
-        <View style={{ width: 40 }} />
-      </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headBlock}>
-          <Text style={styles.title}>Share your thoughts</Text>
-          <Text style={styles.subtitle}>
-            Your feedback helps us grow and improve our service.
-          </Text>
+          <Text style={styles.pageTitle}>Share your thoughts</Text>
         </View>
 
         {/* Category */}
@@ -272,7 +265,7 @@ export default function FeedbackScreen({ onBack }: { onBack: () => void }) {
         {/* Footer stats */}
         <View style={styles.footerStats}>
           <View style={styles.avgWrap}>
-            <Text style={styles.avgValue}>4.8</Text>
+            <Text style={styles.previewText}>4.8</Text>
             <View style={styles.avgStars}>
               <Ionicons name="star" size={14} color={PRIMARY} />
               <Ionicons name="star" size={14} color={PRIMARY} />
@@ -301,7 +294,7 @@ function StatBar({
 }: {
   label: string;
   value: string;
-  width: string;
+  width: DimensionValue;
 }) {
   return (
     <View style={styles.statRow}>
@@ -320,57 +313,37 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
   },
 
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(231,217,208,0.35)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: BG,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 18,
-    fontWeight: "800",
-    color: TEXT,
-  },
+
 
   content: {
-    padding: 16,
-    paddingBottom: 40,
+    padding: SPACING.SPACE_MD,
+    paddingTop: SPACING.SPACE_2XL,
+    paddingBottom: SPACING.SPACE_LG,
   },
 
   headBlock: {
-    marginBottom: 22,
+    marginBottom: SPACING.SPACE_LG,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "800",
+  pageTitle: {
+    fontSize: TYPOGRAPHY.TEXT_3XL,
+    fontWeight: "900",
     color: TEXT,
+    letterSpacing: -0.8,
   },
-  subtitle: {
-    marginTop: 6,
-    fontSize: 14,
-    lineHeight: 22,
+  pageSub: {
+    marginTop: SPACING.SPACE_XXS,
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "700",
     color: MUTED,
+    lineHeight: 20,
   },
 
   fieldWrap: {
-    marginBottom: 18,
+    marginBottom: SPACING.SPACE_LG,
   },
   label: {
-    marginBottom: 10,
-    fontSize: 16,
+    marginBottom: SPACING.SPACE_XS,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "700",
     color: TEXT,
   },
@@ -381,20 +354,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: BG,
-    paddingHorizontal: 16,
+    paddingHorizontal: SPACING.SPACE_MD,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   selectText: {
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     color: TEXT,
   },
   placeholderText: {
     color: MUTED,
   },
   dropdown: {
-    marginTop: 8,
+    marginTop: SPACING.SPACE_XS,
     borderRadius: 18,
     overflow: "hidden",
     borderWidth: 1,
@@ -402,13 +375,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   dropdownItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_MD,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(231,217,208,0.45)",
   },
   dropdownText: {
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "500",
     color: TEXT,
   },
 
@@ -417,20 +391,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(231,217,208,0.5)",
     backgroundColor: "#fff",
-    padding: 22,
-    marginBottom: 18,
+    padding: SPACING.SPACE_LG,
+    marginBottom: SPACING.SPACE_LG,
     alignItems: "center",
   },
   ratingTitle: {
-    fontSize: 14,
+    fontSize: TYPOGRAPHY.TEXT_SM,
     fontWeight: "800",
     color: MUTED,
     letterSpacing: 1.2,
   },
   starsRow: {
-    marginTop: 14,
+    marginTop: SPACING.SPACE_MD,
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
 
   messageInput: {
@@ -439,9 +413,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: BG,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    fontSize: 16,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_MD,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     color: TEXT,
     textAlignVertical: "top",
   },
@@ -455,20 +429,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
     backgroundColor: "transparent",
   },
   attachmentText: {
     color: MUTED,
-    fontSize: 15,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "600",
   },
 
   previewRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: SPACING.SPACE_XS,
     flexWrap: "wrap",
-    marginTop: 12,
+    marginTop: SPACING.SPACE_SM,
   },
   thumbWrap: {
     width: 62,
@@ -496,12 +470,12 @@ const styles = StyleSheet.create({
   },
 
   submitBtn: {
-    height: 52,
+    height: 56,
     borderRadius: 999,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
+    marginTop: SPACING.SPACE_XS,
     shadowColor: PRIMARY,
     shadowOpacity: 0.2,
     shadowRadius: 10,
@@ -511,27 +485,33 @@ const styles = StyleSheet.create({
   submitRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: SPACING.SPACE_XS,
   },
   submitText: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: TYPOGRAPHY.TEXT_MD,
     fontWeight: "800",
   },
 
   status: {
-    marginTop: 12,
+    marginTop: SPACING.SPACE_SM,
     textAlign: "center",
     color: TEXT,
     fontWeight: "700",
   },
 
+  previewText: {
+    color: TEXT,
+    fontWeight: "900",
+    fontSize: TYPOGRAPHY.TEXT_4XL,
+  },
+
   footerStats: {
-    marginTop: 32,
-    paddingTop: 22,
+    marginTop: SPACING.SPACE_XL,
+    paddingTop: SPACING.SPACE_LG,
     borderTopWidth: 1,
     borderTopColor: "rgba(231,217,208,0.35)",
-    gap: 20,
+    gap: SPACING.SPACE_LG,
   },
   avgWrap: {
     alignItems: "center",
@@ -542,29 +522,29 @@ const styles = StyleSheet.create({
     color: TEXT,
   },
   avgStars: {
-    marginTop: 4,
+    marginTop: SPACING.SPACE_XXS,
     flexDirection: "row",
     gap: 2,
   },
   avgLabel: {
-    marginTop: 4,
-    fontSize: 11,
+    marginTop: SPACING.SPACE_XXS,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "800",
     color: MUTED,
     letterSpacing: 1.4,
   },
 
   barsWrap: {
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   statRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: SPACING.SPACE_XS,
   },
   statLeft: {
     width: 12,
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "800",
     color: TEXT,
   },
@@ -583,7 +563,7 @@ const styles = StyleSheet.create({
   statRight: {
     width: 34,
     textAlign: "right",
-    fontSize: 12,
+    fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "600",
     color: MUTED,
   },

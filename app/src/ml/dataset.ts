@@ -1,8 +1,6 @@
 import * as FileSystem from "expo-file-system/legacy";
 import { ASL_LABELS } from "./labels";
 
-const FS = FileSystem as any;
-
 export const getDatasetRoot = () => {
   const base = FileSystem.cacheDirectory || FileSystem.documentDirectory;
   return base ? `${base}dataset` : "No base directory";

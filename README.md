@@ -25,7 +25,7 @@ Camera snapshot → Base64 → WebView (MediaPipe Hands) → 21 landmarks → Fa
 ```text
 src/
 ├─ screens/
-│  ├─ CameraScreen.tsx        # Camera, landmarks, detection UI
+│  ├─ CameraScreenVC.tsx      # Canonical camera recognition UI
 │  ├─ DashboardScreen.tsx     # Post-auth dashboard
 │  └─ VideoSplashScreen.tsx   # Video splash before biometrics
 │
@@ -39,6 +39,8 @@ src/
    ├─ dataset/                # Image dataset (A/B/C)
    └─ landmarks/              # Landmark jsonl + trained model
 ```
+
+Legacy recognition and auth prototypes are stored under `app/archive/`.
 
 ---
 

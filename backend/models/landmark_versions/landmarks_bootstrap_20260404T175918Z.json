@@ -1,0 +1,130 @@
+{
+  "version_id": "landmarks_bootstrap_20260404T175918Z",
+  "label": "Signsight S1.5",
+  "training_mode": "bootstrap",
+  "accuracy": 1.0,
+  "active_static_letters": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "I",
+    "M",
+    "N",
+    "O",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "Y"
+  ],
+  "active_static_word_labels": [
+    "I_LOVE_YOU"
+  ],
+  "ready_static_letters": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F",
+    "I",
+    "M",
+    "N",
+    "O",
+    "R",
+    "S",
+    "T",
+    "U",
+    "V",
+    "W",
+    "Y"
+  ],
+  "ready_static_word_labels": [
+    "I_LOVE_YOU"
+  ],
+  "unready_static_letters": [
+    "G",
+    "H",
+    "K",
+    "L",
+    "P",
+    "Q",
+    "X"
+  ],
+  "deficits_by_label": {
+    "G": [
+      "G: approved 0/40",
+      "G: Left hand 0/20",
+      "G: Right hand 0/20",
+      "G: signers 0/1"
+    ],
+    "H": [
+      "H: approved 0/40",
+      "H: Left hand 0/20",
+      "H: Right hand 0/20",
+      "H: signers 0/1"
+    ],
+    "K": [
+      "K: approved 0/40",
+      "K: Left hand 0/20",
+      "K: Right hand 0/20",
+      "K: signers 0/1"
+    ],
+    "L": [
+      "L: approved 0/40",
+      "L: Left hand 0/20",
+      "L: Right hand 0/20",
+      "L: signers 0/1"
+    ],
+    "P": [
+      "P: approved 0/40",
+      "P: Left hand 0/20",
+      "P: Right hand 0/20",
+      "P: signers 0/1"
+    ],
+    "Q": [
+      "Q: approved 0/40",
+      "Q: Left hand 0/20",
+      "Q: Right hand 0/20",
+      "Q: signers 0/1"
+    ],
+    "X": [
+      "X: approved 0/40",
+      "X: Left hand 0/20",
+      "X: Right hand 0/20",
+      "X: signers 0/1"
+    ]
+  },
+  "trained_at": "2026-04-04T17:59:18+00:00",
+  "training_sample_counts": {
+    "A": 189,
+    "B": 212,
+    "C": 239,
+    "D": 63,
+    "E": 147,
+    "F": 203,
+    "I": 176,
+    "M": 198,
+    "N": 332,
+    "O": 242,
+    "R": 194,
+    "S": 280,
+    "T": 265,
+    "U": 90,
+    "V": 207,
+    "W": 191,
+    "Y": 100,
+    "I_LOVE_YOU": 296
+  },
+  "quotas_used": {
+    "min_approved_samples_per_label": 40,
+    "min_approved_per_hand": 20,
+    "min_signers_per_label": 1,
+    "min_ready_static_letters": 3
+  }
+}
