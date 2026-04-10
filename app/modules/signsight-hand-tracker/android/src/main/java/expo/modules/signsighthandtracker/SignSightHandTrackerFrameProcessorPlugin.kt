@@ -11,6 +11,8 @@ import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
+import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import com.mrousavy.camera.frameprocessors.Frame
 import com.mrousavy.camera.frameprocessors.FrameProcessorPlugin
 import com.mrousavy.camera.frameprocessors.FrameProcessorPluginRegistry
@@ -56,12 +58,16 @@ internal class SignSightHandTrackerHandLandmarkerController(
   context: Context
 ) {
   private val handLandmarker: HandLandmarker
+  private val poseLandmarker: PoseLandmarker
   private val latestSnapshot = AtomicResultSnapshot()
   private val lastProcessTimestampMs = AtomicLong(0)
 
   init {
     handLandmarker = SignSightHandTrackerMediaPipeFactory.create(context) { result, timestampMs ->
-      latestSnapshot.update(result, timestampMs)
+      latestSnapshot.updateHand(result, timestampMs)
+    }
+    poseLandmarker = SignSightHandTrackerMediaPipeFactory.createPose(context) { result, timestampMs ->
+      latestSnapshot.updateUpperBody(result, timestampMs)
     }
   }
 
@@ -80,8 +86,10 @@ internal class SignSightHandTrackerHandLandmarkerController(
       val bitmap = imageProxyToBitmap(imageProxy)
       val rotatedBitmap = rotateBitmap(bitmap, imageProxy.imageInfo.rotationDegrees, frame.isMirrored)
       val inferenceBitmap = resizeBitmapForInference(rotatedBitmap)
-      val mpImage = BitmapImageBuilder(inferenceBitmap).build()
-      handLandmarker.detectAsync(mpImage, timestampMs)
+      val handMpImage = BitmapImageBuilder(inferenceBitmap).build()
+      val poseMpImage = BitmapImageBuilder(inferenceBitmap).build()
+      handLandmarker.detectAsync(handMpImage, timestampMs)
+      poseLandmarker.detectAsync(poseMpImage, timestampMs)
     } catch (_: Throwable) {
     }
   }
@@ -93,6 +101,7 @@ internal class SignSightHandTrackerHandLandmarkerController(
 
 private object SignSightHandTrackerMediaPipeFactory {
   private const val MODEL_ASSET_PATH = "hand_landmarker.task"
+  private const val POSE_MODEL_ASSET_PATH = "pose_landmarker_lite.task"
 
   fun create(
     context: Context,
@@ -117,17 +126,43 @@ private object SignSightHandTrackerMediaPipeFactory {
 
     return HandLandmarker.createFromOptions(context, options)
   }
+
+  fun createPose(
+    context: Context,
+    onResult: (PoseLandmarkerResult, Long) -> Unit
+  ): PoseLandmarker {
+    val baseOptions = com.google.mediapipe.tasks.core.BaseOptions.builder()
+      .setModelAssetPath(POSE_MODEL_ASSET_PATH)
+      .build()
+
+    val options = PoseLandmarker.PoseLandmarkerOptions.builder()
+      .setBaseOptions(baseOptions)
+      .setMinPoseDetectionConfidence(0.45f)
+      .setMinPosePresenceConfidence(0.45f)
+      .setMinTrackingConfidence(0.45f)
+      .setRunningMode(RunningMode.LIVE_STREAM)
+      .setResultListener { result, _ ->
+        val timestampMs = result.timestampMs()
+        onResult(result, timestampMs)
+      }
+      .build()
+
+    return PoseLandmarker.createFromOptions(context, options)
+  }
 }
 
 private class AtomicResultSnapshot {
   @Volatile
-  private var latest: HandTrackingResultSnapshot? = null
+  private var latestHand: HandTrackingResultSnapshot? = null
 
-  fun update(result: HandLandmarkerResult, timestampMs: Long) {
+  @Volatile
+  private var latestUpperBody: UpperBodyTrackingResultSnapshot? = null
+
+  fun updateHand(result: HandLandmarkerResult, timestampMs: Long) {
     val landmarks = result.landmarks().firstOrNull()
     val handedness = result.handedness().firstOrNull()?.firstOrNull()?.categoryName()
 
-    latest = HandTrackingResultSnapshot(
+    latestHand = HandTrackingResultSnapshot(
       landmarks = landmarks?.map(::landmarkToMap),
       handedness = handedness,
       timestampMs = timestampMs,
@@ -136,29 +171,45 @@ private class AtomicResultSnapshot {
     )
   }
 
+  fun updateUpperBody(result: PoseLandmarkerResult, timestampMs: Long) {
+    val landmarks = result.landmarks().firstOrNull()
+    latestUpperBody = UpperBodyTrackingResultSnapshot(
+      landmarks = landmarks?.let(::upperBodyLandmarksToMap),
+      timestampMs = timestampMs,
+      hasUpperBody = landmarks != null,
+      sequenceId = timestampMs
+    )
+  }
+
   fun toMap(maxResultAgeMs: Long): Map<String, Any?>? {
-    val snapshot = latest ?: return null
-    val ageMs = SystemClock.uptimeMillis() - snapshot.timestampMs
-    if (ageMs > maxResultAgeMs) {
-      return mapOf(
-        "landmarks" to null,
-        "handedness" to null,
-        "upperBody" to null,
-        "hasUpperBody" to false,
-        "timestampMs" to snapshot.timestampMs.toDouble(),
-        "hasHand" to false,
-        "sequenceId" to snapshot.sequenceId.toDouble()
-      )
+    val handSnapshot = latestHand
+    val upperBodySnapshot = latestUpperBody
+    if (handSnapshot == null && upperBodySnapshot == null) {
+      return null
     }
 
+    val now = SystemClock.uptimeMillis()
+    val handFresh = handSnapshot != null && now - handSnapshot.timestampMs <= maxResultAgeMs
+    val upperBodyFresh =
+      upperBodySnapshot != null && now - upperBodySnapshot.timestampMs <= maxResultAgeMs
+    val timestampMs = maxOf(
+      if (handFresh) handSnapshot?.timestampMs ?: 0L else 0L,
+      if (upperBodyFresh) upperBodySnapshot?.timestampMs ?: 0L else 0L,
+    ).takeIf { it > 0L }
+      ?: handSnapshot?.timestampMs
+      ?: upperBodySnapshot?.timestampMs
+      ?: now
+    val sequenceId =
+      handSnapshot?.sequenceId ?: upperBodySnapshot?.sequenceId ?: timestampMs
+
     return mapOf(
-      "landmarks" to snapshot.landmarks,
-      "handedness" to snapshot.handedness,
-      "upperBody" to null,
-      "hasUpperBody" to false,
-      "timestampMs" to snapshot.timestampMs.toDouble(),
-      "hasHand" to snapshot.hasHand,
-      "sequenceId" to snapshot.sequenceId.toDouble()
+      "landmarks" to if (handFresh) handSnapshot?.landmarks else null,
+      "handedness" to if (handFresh) handSnapshot?.handedness else null,
+      "upperBody" to if (upperBodyFresh) upperBodySnapshot?.landmarks else null,
+      "hasUpperBody" to (upperBodyFresh && upperBodySnapshot?.hasUpperBody == true),
+      "timestampMs" to timestampMs.toDouble(),
+      "hasHand" to (handFresh && handSnapshot?.hasHand == true),
+      "sequenceId" to sequenceId.toDouble()
     )
   }
 
@@ -169,6 +220,32 @@ private class AtomicResultSnapshot {
       "z" to landmark.z().toDouble()
     )
   }
+
+  private fun upperBodyLandmarksToMap(landmarks: List<NormalizedLandmark>): Map<String, Map<String, Double>> {
+    val mapping = linkedMapOf(
+      "nose" to 0,
+      "leftEar" to 7,
+      "rightEar" to 8,
+      "leftShoulder" to 11,
+      "rightShoulder" to 12,
+      "leftElbow" to 13,
+      "rightElbow" to 14,
+      "leftWrist" to 15,
+      "rightWrist" to 16,
+      "leftHip" to 23,
+      "rightHip" to 24,
+    )
+    return mapping.mapNotNull { (name, index) ->
+      landmarks.getOrNull(index)?.let { landmark ->
+        name to mapOf(
+          "x" to landmark.x().toDouble(),
+          "y" to landmark.y().toDouble(),
+          "z" to landmark.z().toDouble(),
+          "visibility" to landmark.visibility().orElse(0f).toDouble(),
+        )
+      }
+    }.toMap()
+  }
 }
 
 private data class HandTrackingResultSnapshot(
@@ -176,6 +253,13 @@ private data class HandTrackingResultSnapshot(
   val handedness: String?,
   val timestampMs: Long,
   val hasHand: Boolean,
+  val sequenceId: Long
+)
+
+private data class UpperBodyTrackingResultSnapshot(
+  val landmarks: Map<String, Map<String, Double>>?,
+  val timestampMs: Long,
+  val hasUpperBody: Boolean,
   val sequenceId: Long
 )
 

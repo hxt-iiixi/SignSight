@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 import { MajorityVoteSmoother } from "./smoother";
 import type {
   DetectMode,
+  GestureV2SampleFrame,
   HandTrackingFrameResult,
   StreamingRecognitionBuffers,
 } from "./streamTypes";
@@ -212,6 +213,19 @@ export async function saveStreamingStaticWordLandmarkSample(
   };
 }
 
+function toGestureV2Frame(hand: HandTrackingFrameResult): GestureV2SampleFrame {
+  return {
+    handLandmarks: hand.landmarks ?? null,
+    handedness: hand.handedness ?? null,
+    upperBody: hand.hasUpperBody ? hand.upperBody ?? null : null,
+    timestampMs: hand.timestampMs,
+  };
+}
+
+function hasUsableUpperBody(frame: GestureV2SampleFrame) {
+  return !!frame.upperBody && Object.keys(frame.upperBody).length > 0;
+}
+
 function handleNoHand(context: RecognitionContext) {
   const buffers = context.buffersRef.current;
 
@@ -241,6 +255,8 @@ function handleNoHand(context: RecognitionContext) {
     }
 
     buffers.liveWordFrames = [];
+    buffers.gestureV2LiveFrames = [];
+    buffers.gestureV2RecordingFrames = [];
     buffers.lastWordPredictionAtMs = 0;
     buffers.lastWordHandAtMs = 0;
     buffers.wordNoHandSinceMs = 0;
@@ -375,8 +391,12 @@ async function processWordFrame(
 
   if (context.isRecordingGesture) {
     buffers.recordingFrames.push({ landmarks: hand.landmarks! });
+    buffers.gestureV2RecordingFrames.push(toGestureV2Frame(hand));
     if (buffers.recordingFrames.length > GESTURE_FRAMES) {
       buffers.recordingFrames.shift();
+    }
+    if (buffers.gestureV2RecordingFrames.length > GESTURE_FRAMES) {
+      buffers.gestureV2RecordingFrames.shift();
     }
 
     if (context.isMountedRef.current) {
@@ -420,8 +440,12 @@ async function processWordFrame(
   } catch {}
 
   buffers.liveWordFrames.push({ landmarks: hand.landmarks! });
+  buffers.gestureV2LiveFrames.push(toGestureV2Frame(hand));
   if (buffers.liveWordFrames.length > GESTURE_FRAMES) {
     buffers.liveWordFrames.shift();
+  }
+  if (buffers.gestureV2LiveFrames.length > GESTURE_FRAMES) {
+    buffers.gestureV2LiveFrames.shift();
   }
 
   if (context.isMountedRef.current) {
@@ -443,16 +467,48 @@ async function processWordFrame(
   context.setLastGesturePredictionAtMs(now);
 
   context.onPredictionAttempt?.("gesture");
-  const res = await fetch(`${context.apiBase}/predict_gesture`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      frames: buffers.liveWordFrames.map((frame) => frame.landmarks),
-      handedness: hand.handedness ?? null,
-    }),
-  });
+  const v2Frames = buffers.gestureV2LiveFrames;
+  const v2FrameCount = v2Frames.filter(hasUsableUpperBody).length;
+  let json: any = null;
+  let usedV2 = false;
 
-  const json = await res.json();
+  if (v2FrameCount >= MIN_PREDICT_FRAMES) {
+    try {
+      const v2Res = await fetch(`${context.apiBase}/predict_gesture`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          frames: buffers.liveWordFrames.map((frame) => frame.landmarks),
+          handedness: hand.handedness ?? null,
+          framesV2: v2Frames,
+        }),
+      });
+      const v2Json = await v2Res.json();
+      const v2NotReady =
+        !v2Res.ok ||
+        v2Json?.ok === false ||
+        v2Json?.label === "GESTURE_V2_NOT_READY";
+
+      if (!v2NotReady) {
+        json = v2Json;
+        usedV2 = true;
+      }
+    } catch {}
+  }
+
+  if (!usedV2) {
+    const res = await fetch(`${context.apiBase}/predict_gesture`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        frames: buffers.liveWordFrames.map((frame) => frame.landmarks),
+        handedness: hand.handedness ?? null,
+      }),
+    });
+
+    json = await res.json();
+  }
+
   const word = String(json.label ?? "?");
   const conf = Number(json.confidence ?? 0);
 

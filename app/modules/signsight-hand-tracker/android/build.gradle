@@ -8,6 +8,7 @@ version = '1.0.0'
 
 def assetDir = new File(projectDir, 'src/main/assets')
 def handLandmarkerModel = new File(assetDir, 'hand_landmarker.task')
+def poseLandmarkerModel = new File(assetDir, 'pose_landmarker_lite.task')
 
 tasks.register('downloadHandLandmarkerModel') {
   outputs.file(handLandmarkerModel)
@@ -22,6 +23,24 @@ tasks.register('downloadHandLandmarkerModel') {
     ant.get(
       src: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
       dest: handLandmarkerModel,
+      verbose: true
+    )
+  }
+}
+
+tasks.register('downloadPoseLandmarkerModel') {
+  outputs.file(poseLandmarkerModel)
+
+  doLast {
+    assetDir.mkdirs()
+
+    if (poseLandmarkerModel.exists()) {
+      return
+    }
+
+    ant.get(
+      src: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      dest: poseLandmarkerModel,
       verbose: true
     )
   }
@@ -44,6 +63,7 @@ android {
 afterEvaluate {
   tasks.matching { it.name == "preBuild" }.configureEach {
     dependsOn(tasks.named("downloadHandLandmarkerModel"))
+    dependsOn(tasks.named("downloadPoseLandmarkerModel"))
   }
 }
 
