@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { API_BASE } from "../../../config/api";
 import {
@@ -121,6 +121,12 @@ export function useRecognitionRuntime({
     });
   }, [latestHandFrame, detectMode, isRecordingGesture]);
 
+  const resetGestureRecording = useCallback(() => {
+    buffersRef.current.recordingFrames = [];
+    buffersRef.current.gestureV2RecordingFrames = [];
+    setRecordingGestureFramesCount(0);
+  }, []);
+
   return {
     debugState,
     frameProcessor,
@@ -132,6 +138,7 @@ export function useRecognitionRuntime({
     latestHandFrame,
     prediction,
     recordingGestureFramesCount,
+    resetGestureRecording,
     wordGraceActive,
   };
 }

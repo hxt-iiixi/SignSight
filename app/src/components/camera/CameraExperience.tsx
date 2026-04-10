@@ -23,6 +23,13 @@ type TranslatorModelItem = {
   isArchived: boolean;
 };
 
+type GestureHealthResponse = {
+  ok?: boolean;
+  trained_gestures?: boolean;
+  trained_gestures_legacy?: boolean;
+  trained_gestures_v2?: boolean;
+};
+
 function normalizeTranslatorModels(rawModels: any[]): TranslatorModelItem[] {
   const registryInfo = rawModels.find(
     (model: any) => model.type === "json" && model.path === "landmark_model_registry.json"
@@ -77,6 +84,7 @@ export default function CameraExperience({
   const [availableModels, setAvailableModels] = useState<TranslatorModelItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<TranslatorModelItem | null>(null);
   const [modelStatusMessage, setModelStatusMessage] = useState<string | null>(null);
+  const [gestureHealth, setGestureHealth] = useState<GestureHealthResponse | null>(null);
 
   const cameraRuntime = useCameraRuntime();
   const recognitionRuntime = useRecognitionRuntime({
@@ -112,8 +120,24 @@ export default function CameraExperience({
     }
   }
 
+  async function fetchGestureHealth() {
+    try {
+      const response = await fetch(`${API_BASE}/health`);
+      const payload = (await response.json()) as GestureHealthResponse;
+      if (!response.ok || payload?.ok === false) {
+        setGestureHealth(null);
+        return;
+      }
+      setGestureHealth(payload);
+    } catch (error) {
+      console.log("Failed to fetch gesture health", error);
+      setGestureHealth(null);
+    }
+  }
+
   useEffect(() => {
     void fetchModels();
+    void fetchGestureHealth();
   }, []);
 
   useEffect(() => {
@@ -152,6 +176,28 @@ export default function CameraExperience({
     }
   }
 
+  const hasGestureModel = !!(
+    gestureHealth?.trained_gestures_v2 || gestureHealth?.trained_gestures_legacy
+  );
+  const gestureModelLabel = gestureHealth?.trained_gestures_v2
+    ? "Gesture V2"
+    : gestureHealth?.trained_gestures_legacy
+      ? "Gesture Legacy"
+      : "No gesture model";
+  const displayedModelLabel = mode === "words" ? gestureModelLabel : selectedModelLabel;
+  const displayedModelOptions =
+    mode === "words"
+      ? []
+      : availableModels.map((model, index) => ({
+          id: model.id,
+          label: model.label,
+          isLatest: index === 0,
+        }));
+  const modelEmptyStateMessage =
+    mode === "words" && !hasGestureModel
+      ? "No gesture model trained yet. Train one from the lab before using word translation."
+      : null;
+
   return (
     <CameraShell
       CameraComponent={cameraRuntime.Camera}
@@ -184,14 +230,12 @@ export default function CameraExperience({
         prediction={recognitionRuntime.prediction}
         mode={mode}
         onModeChange={setMode}
-        modelLabel={selectedModelLabel}
-        modelOptions={availableModels.map((model, index) => ({
-          id: model.id,
-          label: model.label,
-          isLatest: index === 0,
-        }))}
+        modelLabel={displayedModelLabel}
+        modelOptions={displayedModelOptions}
         onModelSelect={handleSelectModel}
         modelStatusMessage={modelStatusMessage}
+        modelSelectable={mode !== "words"}
+        modelEmptyStateMessage={modelEmptyStateMessage}
       />
     </CameraShell>
   );

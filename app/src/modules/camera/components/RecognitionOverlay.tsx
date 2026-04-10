@@ -1,5 +1,13 @@
-import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Animated,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import {
@@ -15,6 +23,32 @@ import type { PredictionViewModel } from "../../../shared/types/mobile";
 
 type SaveState = "idle" | "saving" | "success" | "error" | "info";
 
+function RecordingIndicator() {
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.35,
+          duration: 520,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 520,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
+  return <Animated.View style={[styles.recordingDot, { opacity: pulse }]} />;
+}
+
 export function RecognitionOverlay({
   prediction,
   bottomOffset = SPACING.SPACE_3XL,
@@ -29,9 +63,12 @@ export function RecognitionOverlay({
   modelLabel,
   modelOptions,
   onModelSelect,
+  modelSelectable = true,
+  modelEmptyStateMessage,
   quotaLabel,
   saveState = "idle",
   saveMessage,
+  recordingMessage,
   signerId,
   onSignerIdChange,
   variantTag,
@@ -50,9 +87,12 @@ export function RecognitionOverlay({
   modelLabel?: string;
   modelOptions?: Array<{ id: string; label: string }>;
   onModelSelect?: (id: string) => void;
+  modelSelectable?: boolean;
+  modelEmptyStateMessage?: string | null;
   quotaLabel?: string;
   saveState?: SaveState;
   saveMessage?: string | null;
+  recordingMessage?: string | null;
   signerId?: string;
   onSignerIdChange?: (value: string) => void;
   variantTag?: string;
@@ -79,6 +119,12 @@ export function RecognitionOverlay({
         <View style={styles.headerText}>
           <Text style={styles.label}>{prediction.hasHand ? prediction.label : "No hand"}</Text>
           <Text style={styles.meta}>{quotaLabel ? compactMeta : `${Math.round(prediction.confidence * 100)}% confidence`}</Text>
+          {recordingMessage ? (
+            <View style={styles.recordingRow}>
+              <RecordingIndicator />
+              <Text style={styles.recordingText}>{recordingMessage}</Text>
+            </View>
+          ) : null}
           {saveMessage ? (
             <Text
               style={[
@@ -199,6 +245,7 @@ export function RecognitionOverlay({
             style={styles.surfaceCard}
             onPress={(event) => {
               event.stopPropagation();
+              if (!modelSelectable) return;
               setOpenPicker((current) => (current === "model" ? null : "model"));
             }}
           >
@@ -209,11 +256,13 @@ export function RecognitionOverlay({
                   {modelLabel ?? "None"}
                 </Text>
               </View>
-              <Ionicons
-                name={openPicker === "model" ? "chevron-up" : "chevron-down"}
-                size={18}
-                color={TEXT_SECONDARY}
-              />
+              {modelSelectable ? (
+                <Ionicons
+                  name={openPicker === "model" ? "chevron-up" : "chevron-down"}
+                  size={18}
+                  color={TEXT_SECONDARY}
+                />
+              ) : null}
             </View>
 
             {openPicker === "model" && modelOptions?.length ? (
@@ -259,6 +308,10 @@ export function RecognitionOverlay({
                   );
                 })}
               </ScrollView>
+            ) : null}
+
+            {!modelSelectable && modelEmptyStateMessage ? (
+              <Text style={styles.modelEmptyText}>{modelEmptyStateMessage}</Text>
             ) : null}
           </Pressable>
         </View>
@@ -337,6 +390,24 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontSize: TYPOGRAPHY.TEXT_XS,
     fontWeight: "700",
+  },
+  recordingText: {
+    color: ACCENT,
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "800",
+    flex: 1,
+  },
+  recordingRow: {
+    marginTop: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  recordingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#FF4D4F",
   },
   statusSuccess: {
     color: "#8CE6A4",
@@ -477,6 +548,13 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textTransform: "uppercase",
     letterSpacing: 0.4,
+  },
+  modelEmptyText: {
+    marginTop: SPACING.SPACE_SM,
+    color: "rgba(255,255,255,0.62)",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    lineHeight: 18,
   },
   metadataRow: {
     marginTop: SPACING.SPACE_SM,
