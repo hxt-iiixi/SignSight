@@ -36,10 +36,22 @@ def load_gesture_dataset():
     return np.stack(X).astype(np.float32), np.array(y)
 
 
-def upload_gesture(label: str, frames: list, handedness: str | None) -> dict:
+def upload_gesture(
+    label: str,
+    frames: list,
+    handedness: str | None,
+    *,
+    frames_v2: list | None = None,
+) -> dict:
     normalized_label = label.strip().upper()
     if normalized_label not in GESTURE_LABELS:
         return {"ok": False, "error": f"Invalid label: {normalized_label}"}
+
+    if frames_v2:
+        return {
+            "ok": False,
+            "error": "Gesture V2 upload is not enabled yet. Upper-body tracking data is not being produced by the current tracker.",
+        }
 
     path = GESTURES_DIR / f"{normalized_label}.jsonl"
     with open(path, "a", encoding="utf-8") as handle:
@@ -84,8 +96,21 @@ def bootstrap_gesture_model() -> None:
         print("✅ Loaded gesture model from disk")
 
 
-def predict_gesture(frames: list, handedness: str | None) -> dict:
+def predict_gesture(
+    frames: list,
+    handedness: str | None,
+    *,
+    frames_v2: list | None = None,
+) -> dict:
     global gesture_model
+    if frames_v2:
+        return {
+            "label": "GESTURE_V2_NOT_READY",
+            "confidence": 0.0,
+            "ok": False,
+            "error": "Gesture V2 prediction is not enabled yet. Upper-body tracking is not available in the current build.",
+        }
+
     if gesture_model is None:
         if GESTURE_MODEL_PATH.exists():
             gesture_model = joblib.load(GESTURE_MODEL_PATH)

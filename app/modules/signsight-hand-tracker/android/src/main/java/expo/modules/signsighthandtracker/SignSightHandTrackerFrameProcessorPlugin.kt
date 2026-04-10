@@ -143,6 +143,8 @@ private class AtomicResultSnapshot {
       return mapOf(
         "landmarks" to null,
         "handedness" to null,
+        "upperBody" to null,
+        "hasUpperBody" to false,
         "timestampMs" to snapshot.timestampMs.toDouble(),
         "hasHand" to false,
         "sequenceId" to snapshot.sequenceId.toDouble()
@@ -152,6 +154,8 @@ private class AtomicResultSnapshot {
     return mapOf(
       "landmarks" to snapshot.landmarks,
       "handedness" to snapshot.handedness,
+      "upperBody" to null,
+      "hasUpperBody" to false,
       "timestampMs" to snapshot.timestampMs.toDouble(),
       "hasHand" to snapshot.hasHand,
       "sequenceId" to snapshot.sequenceId.toDouble()

@@ -55,6 +55,8 @@ export function createStreamingRecognitionBuffers(): StreamingRecognitionBuffers
     letterMotionFrames: [],
     recordingFrames: [],
     liveWordFrames: [],
+    gestureV2RecordingFrames: [],
+    gestureV2LiveFrames: [],
     lastLetterMotionAtMs: 0,
     lastWordPredictionAtMs: 0,
     lastWordHandAtMs: 0,

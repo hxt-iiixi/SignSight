@@ -19,5 +19,13 @@ class SignSightHandTrackerModule : Module() {
     Function("isSupported") {
       true
     }
+
+    Function("getTrackingCapabilities") {
+      mapOf(
+        "hands" to true,
+        "upperBody" to false,
+        "gestureV2" to false
+      )
+    }
   }
 }
