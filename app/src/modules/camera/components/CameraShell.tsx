@@ -5,7 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import HandLandmarkOverlay from "../../../components/HandLandmarkOverlay";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
-import type { HandTrackingFrameResult } from "../../../ml/streamTypes";
+import type { DetectMode, HandTrackingFrameResult } from "../../../ml/streamTypes";
 import { CameraTopBar } from "./CameraTopBar";
 
 const BG = "#F8F9FA";
@@ -30,6 +30,7 @@ export function CameraShell({
   onToggleTorch,
   orientedFrame,
   overlayVisible = false,
+  overlayMode = "LETTERS",
   ready,
   showHandOverlay,
   showFlipCamera = true,
@@ -65,6 +66,7 @@ export function CameraShell({
   onToggleTorch: () => void;
   orientedFrame: { width: number; height: number };
   overlayVisible?: boolean;
+  overlayMode?: DetectMode;
   ready: boolean;
   showHandOverlay: boolean;
   showFlipCamera?: boolean;
@@ -122,18 +124,24 @@ export function CameraShell({
 
         <HandLandmarkOverlay
           landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}
+          upperBody={latestHandFrame?.hasUpperBody ? latestHandFrame.upperBody : null}
           landmarkTimestampMs={latestHandFrame?.timestampMs ?? null}
           cameraPosition={cameraPosition}
           previewWidth={cameraLayout.width}
           previewHeight={cameraLayout.height}
           frameWidth={orientedFrame.width}
           frameHeight={orientedFrame.height}
+          overlayMode={overlayMode === "WORDS" ? "gesture" : "hand"}
           onSmoothingChange={() => {}}
           visible={
             showHandOverlay &&
             overlayVisible &&
-            !!latestHandFrame?.hasHand &&
-            (latestHandFrame?.landmarks?.length ?? 0) === 21
+            ((overlayMode === "WORDS" &&
+              (!!latestHandFrame?.hasUpperBody ||
+                (!!latestHandFrame?.hasHand &&
+                  (latestHandFrame?.landmarks?.length ?? 0) === 21))) ||
+              (!!latestHandFrame?.hasHand &&
+                (latestHandFrame?.landmarks?.length ?? 0) === 21))
           }
         />
 

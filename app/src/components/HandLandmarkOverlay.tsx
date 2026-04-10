@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import type { HandPoint } from "../ml/streamTypes";
+import type { HandPoint, UpperBodyLandmarks, UpperBodyKeypointName } from "../ml/streamTypes";
 
 type HandRegion = "palm" | "thumb" | "index" | "middle" | "ring" | "pinky";
+type UpperBodyRegion = "head" | "torso" | "arm";
 
 const HAND_REGION_COLORS: Record<HandRegion, string> = {
   palm: "#D0E7F7",
@@ -66,8 +67,34 @@ const LANDMARK_REGION_MAP: Record<number, HandRegion> = {
   20: "pinky",
 };
 
+const UPPER_BODY_REGION_COLORS: Record<UpperBodyRegion, string> = {
+  head: "#60A5FA",
+  torso: "#F97316",
+  arm: "#A78BFA",
+};
+
+const UPPER_BODY_CONNECTIONS: Array<{
+  start: UpperBodyKeypointName;
+  end: UpperBodyKeypointName;
+  region: UpperBodyRegion;
+}> = [
+  { start: "leftShoulder", end: "rightShoulder", region: "torso" },
+  { start: "leftShoulder", end: "leftHip", region: "torso" },
+  { start: "rightShoulder", end: "rightHip", region: "torso" },
+  { start: "leftHip", end: "rightHip", region: "torso" },
+  { start: "nose", end: "leftShoulder", region: "head" },
+  { start: "nose", end: "rightShoulder", region: "head" },
+  { start: "nose", end: "leftEar", region: "head" },
+  { start: "nose", end: "rightEar", region: "head" },
+  { start: "leftShoulder", end: "leftElbow", region: "arm" },
+  { start: "leftElbow", end: "leftWrist", region: "arm" },
+  { start: "rightShoulder", end: "rightElbow", region: "arm" },
+  { start: "rightElbow", end: "rightWrist", region: "arm" },
+];
+
 type HandLandmarkOverlayProps = {
   landmarks: HandPoint[] | null;
+  upperBody?: UpperBodyLandmarks | null;
   landmarkTimestampMs?: number | null;
   cameraPosition: "back" | "front";
   previewWidth: number;
@@ -75,6 +102,7 @@ type HandLandmarkOverlayProps = {
   frameWidth: number;
   frameHeight: number;
   visible: boolean;
+  overlayMode?: "hand" | "gesture";
   onSmoothingChange?: (isSmoothing: boolean) => void;
 };
 
@@ -115,6 +143,7 @@ function projectLandmarkToPreview(
 
 export function HandLandmarkOverlay({
   landmarks,
+  upperBody,
   landmarkTimestampMs,
   cameraPosition,
   previewWidth,
@@ -122,6 +151,7 @@ export function HandLandmarkOverlay({
   frameWidth,
   frameHeight,
   visible,
+  overlayMode = "hand",
   onSmoothingChange,
 }: HandLandmarkOverlayProps) {
   const [displayPoints, setDisplayPoints] = useState<ScreenPoint[] | null>(null);
@@ -170,6 +200,47 @@ export function HandLandmarkOverlay({
     landmarks,
     previewHeight,
     previewWidth,
+    visible,
+  ]);
+
+  const upperBodyPoints = useMemo(() => {
+    if (
+      !visible ||
+      overlayMode !== "gesture" ||
+      !upperBody ||
+      previewWidth <= 0 ||
+      previewHeight <= 0 ||
+      frameWidth <= 0 ||
+      frameHeight <= 0
+    ) {
+      return null;
+    }
+
+    const entries = Object.entries(upperBody)
+      .filter(([, point]) => point != null)
+      .map(([key, point]) => [
+        key as UpperBodyKeypointName,
+        projectLandmarkToPreview(
+          point as HandPoint,
+          previewWidth,
+          previewHeight,
+          frameWidth,
+          frameHeight,
+          cameraPosition
+        ),
+      ]);
+
+    return Object.fromEntries(entries) as Partial<
+      Record<UpperBodyKeypointName, ScreenPoint>
+    >;
+  }, [
+    cameraPosition,
+    frameHeight,
+    frameWidth,
+    overlayMode,
+    previewHeight,
+    previewWidth,
+    upperBody,
     visible,
   ]);
 
@@ -289,11 +360,14 @@ export function HandLandmarkOverlay({
     lastTimestampRef.current = nextTimestamp;
   }, [landmarkTimestampMs, targetPoints]);
 
-  if (
-    !targetPoints ||
-    !displayPoints ||
-    displayPoints.length !== 21
-  ) {
+  const hasHandPoints =
+    !!targetPoints && !!displayPoints && displayPoints.length === 21;
+  const hasUpperBodyPoints =
+    overlayMode === "gesture" &&
+    !!upperBodyPoints &&
+    Object.keys(upperBodyPoints).length > 0;
+
+  if (!hasHandPoints && !hasUpperBodyPoints) {
     return null;
   }
 
@@ -304,56 +378,115 @@ export function HandLandmarkOverlay({
       height={previewHeight}
       style={{ position: "absolute", top: 0, left: 0 }}
     >
-      {HAND_CONNECTIONS.map(({ start: startIndex, end: endIndex, region }) => {
-        const start = displayPoints[startIndex];
-        const end = displayPoints[endIndex];
-        const strokeColor = HAND_REGION_COLORS[region];
-        return (
-          <React.Fragment key={`${startIndex}-${endIndex}`}>
-            <Line
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              stroke={strokeColor}
-              strokeWidth={3}
-              strokeOpacity={0.95}
-            />
-            <Line
-              x1={start.x}
-              y1={start.y}
-              x2={end.x}
-              y2={end.y}
-              stroke="#0B0F14"
-              strokeWidth={1}
-              strokeOpacity={0.55}
-            />
-          </React.Fragment>
-        );
-      })}
+      {hasUpperBodyPoints
+        ? UPPER_BODY_CONNECTIONS.map(({ start: startKey, end: endKey, region }) => {
+            const start = upperBodyPoints?.[startKey];
+            const end = upperBodyPoints?.[endKey];
+            if (!start || !end) return null;
+            const strokeColor = UPPER_BODY_REGION_COLORS[region];
+            return (
+              <React.Fragment key={`${startKey}-${endKey}`}>
+                <Line
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke={strokeColor}
+                  strokeWidth={3.4}
+                  strokeOpacity={0.92}
+                />
+                <Line
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="#0B0F14"
+                  strokeWidth={1.1}
+                  strokeOpacity={0.42}
+                />
+              </React.Fragment>
+            );
+          })
+        : null}
 
-      {displayPoints.map((point, index) => {
-        const region = LANDMARK_REGION_MAP[index] ?? "palm";
-        const fillColor = HAND_REGION_COLORS[region];
-        return (
-        <React.Fragment key={index}>
-          <Circle
-            cx={point.x}
-            cy={point.y}
-            r={4.5}
-            fill={fillColor}
-            fillOpacity={0.95}
-          />
-          <Circle
-            cx={point.x}
-            cy={point.y}
-            r={2}
-            fill="#F8FAFC"
-            fillOpacity={0.95}
-          />
-        </React.Fragment>
-        );
-      })}
+      {hasUpperBodyPoints
+        ? Object.entries(upperBodyPoints ?? {}).map(([key, point]) => {
+            if (!point) return null;
+            return (
+              <React.Fragment key={key}>
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={5}
+                  fill="#F97316"
+                  fillOpacity={0.88}
+                />
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={2.1}
+                  fill="#FFF7ED"
+                  fillOpacity={0.96}
+                />
+              </React.Fragment>
+            );
+          })
+        : null}
+
+      {hasHandPoints
+        ? HAND_CONNECTIONS.map(({ start: startIndex, end: endIndex, region }) => {
+            const start = displayPoints![startIndex];
+            const end = displayPoints![endIndex];
+            const strokeColor = HAND_REGION_COLORS[region];
+            return (
+              <React.Fragment key={`${startIndex}-${endIndex}`}>
+                <Line
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke={strokeColor}
+                  strokeWidth={3}
+                  strokeOpacity={0.95}
+                />
+                <Line
+                  x1={start.x}
+                  y1={start.y}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke="#0B0F14"
+                  strokeWidth={1}
+                  strokeOpacity={0.55}
+                />
+              </React.Fragment>
+            );
+          })
+        : null}
+
+      {hasHandPoints
+        ? displayPoints!.map((point, index) => {
+            const region = LANDMARK_REGION_MAP[index] ?? "palm";
+            const fillColor = HAND_REGION_COLORS[region];
+            return (
+              <React.Fragment key={index}>
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={4.5}
+                  fill={fillColor}
+                  fillOpacity={0.95}
+                />
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={2}
+                  fill="#F8FAFC"
+                  fillOpacity={0.95}
+                />
+              </React.Fragment>
+            );
+          })
+        : null}
     </Svg>
   );
 }

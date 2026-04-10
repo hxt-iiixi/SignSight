@@ -595,6 +595,7 @@ function CaptureTabScreen({
       onFlipCamera={cameraRuntime.flipCamera}
       onToggleTorch={cameraRuntime.toggleTorch}
       orientedFrame={cameraRuntime.orientedFrame}
+      overlayMode={mode === "letters" ? "LETTERS" : "WORDS"}
       overlayVisible={true}
       ready={cameraRuntime.ready}
       showHandOverlay={showHandOverlay}

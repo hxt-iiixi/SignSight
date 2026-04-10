@@ -2,6 +2,7 @@ import type {
   HandPoint,
   HandTrackingFrameResult,
   Handedness,
+  UpperBodyKeypointName,
   UpperBodyLandmarks,
 } from "../../modules/signsight-hand-tracker";
 
@@ -9,6 +10,7 @@ export type {
   HandPoint,
   HandTrackingFrameResult,
   Handedness,
+  UpperBodyKeypointName,
   UpperBodyLandmarks,
 };
 
