@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { View, StyleSheet, Pressable } from "react-native";
+import { StyleSheet, Pressable } from "react-native";
 import { Video, ResizeMode } from "expo-av";
 
 export default function VideoSplashScreen({ onFinish }: { onFinish: () => void }) {

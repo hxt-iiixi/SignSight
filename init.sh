@@ -4,8 +4,8 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$ROOT_DIR/app"
-ADMIN_DIR="$APP_DIR/signsight-admin"
-SERVER_DIR="$APP_DIR/src/server"
+ADMIN_DIR="$ROOT_DIR/web-frontend"
+SERVER_DIR="$ROOT_DIR/backend"
 SERVER_ENV_FILE="$SERVER_DIR/.env"
 MOBILE_ENV_FILE="$APP_DIR/.env.local"
 ADMIN_ENV_FILE="$ADMIN_DIR/.env.local"
@@ -97,7 +97,7 @@ printf 'EXPO_PUBLIC_API_BASE=%s\n' "$MOBILE_API_BASE_VALUE" >"$MOBILE_ENV_FILE"
 log "Wrote app/.env.local with mobile API base $MOBILE_API_BASE_VALUE"
 
 printf 'NEXT_PUBLIC_API_BASE=%s\n' "${ADMIN_API_BASE_VALUE%/}" >"$ADMIN_ENV_FILE"
-log "Wrote app/signsight-admin/.env.local with admin API base ${ADMIN_API_BASE_VALUE%/}"
+log "Wrote web-frontend/.env.local with admin API base ${ADMIN_API_BASE_VALUE%/}"
 
 if ! command -v mongosh >/dev/null 2>&1 && ! command -v mongo >/dev/null 2>&1; then
   log "MongoDB shell not found. That is okay if the server is installed and running separately."
