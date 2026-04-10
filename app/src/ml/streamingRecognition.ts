@@ -281,6 +281,9 @@ function toGestureV2Frame(hand: HandTrackingFrameResult): GestureV2SampleFrame {
     upperBody: hand.hasUpperBody
       ? (hand.upperBody as GestureV2SampleFrame["upperBody"]) ?? null
       : null,
+    poseLandmarksFull: Array.isArray(hand.upperBody)
+      ? (hand.upperBody as GestureV2SampleFrame["poseLandmarksFull"])
+      : null,
     timestampMs: hand.timestampMs,
   };
 }

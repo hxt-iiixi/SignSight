@@ -4,6 +4,7 @@ import Svg, { Circle, Line } from "react-native-svg";
 import type {
   DetectedHand,
   HandPoint,
+  UpperBodyEntry,
   UpperBodyLandmarks,
   UpperBodyKeypointName,
 } from "../ml/streamTypes";
@@ -100,6 +101,7 @@ const UPPER_BODY_CONNECTIONS: Array<{
 type HandLandmarkOverlayProps = {
   landmarks: HandPoint[] | null;
   hands?: DetectedHand[] | null;
+  fullBody?: UpperBodyEntry[] | null;
   upperBody?: UpperBodyLandmarks | null;
   landmarkTimestampMs?: number | null;
   cameraPosition: "back" | "front";
@@ -109,6 +111,7 @@ type HandLandmarkOverlayProps = {
   frameHeight: number;
   visible: boolean;
   overlayMode?: "hand" | "gesture";
+  showFullBody?: boolean;
   onSmoothingChange?: (isSmoothing: boolean) => void;
 };
 
@@ -150,6 +153,7 @@ function projectLandmarkToPreview(
 export function HandLandmarkOverlay({
   landmarks,
   hands,
+  fullBody,
   upperBody,
   landmarkTimestampMs,
   cameraPosition,
@@ -159,6 +163,7 @@ export function HandLandmarkOverlay({
   frameHeight,
   visible,
   overlayMode = "hand",
+  showFullBody = false,
   onSmoothingChange,
 }: HandLandmarkOverlayProps) {
   const [displayPoints, setDisplayPoints] = useState<ScreenPoint[] | null>(null);
@@ -292,6 +297,47 @@ export function HandLandmarkOverlay({
     visible,
   ]);
 
+  const fullBodyPoints = useMemo(() => {
+    if (
+      !visible ||
+      overlayMode !== "gesture" ||
+      !showFullBody ||
+      !fullBody ||
+      previewWidth <= 0 ||
+      previewHeight <= 0 ||
+      frameWidth <= 0 ||
+      frameHeight <= 0
+    ) {
+      return null;
+    }
+
+    const entries = fullBody
+      .filter((entry) => entry?.name != null)
+      .map((entry) => [
+        entry.name,
+        projectLandmarkToPreview(
+          entry as HandPoint,
+          previewWidth,
+          previewHeight,
+          frameWidth,
+          frameHeight,
+          cameraPosition
+        ),
+      ]);
+
+    return Object.fromEntries(entries) as Record<string, ScreenPoint>;
+  }, [
+    cameraPosition,
+    frameHeight,
+    frameWidth,
+    fullBody,
+    overlayMode,
+    previewHeight,
+    previewWidth,
+    showFullBody,
+    visible,
+  ]);
+
   useEffect(() => {
     return () => {
       if (animationFrameRef.current != null) {
@@ -417,8 +463,13 @@ export function HandLandmarkOverlay({
     overlayMode === "gesture" &&
     !!upperBodyPoints &&
     Object.keys(upperBodyPoints).length > 0;
+  const hasFullBodyPoints =
+    overlayMode === "gesture" &&
+    showFullBody &&
+    !!fullBodyPoints &&
+    Object.keys(fullBodyPoints).length > 0;
 
-  if (!hasHandPoints && !hasUpperBodyPoints) {
+  if (!hasHandPoints && !hasUpperBodyPoints && !hasFullBodyPoints) {
     return null;
   }
 
@@ -429,7 +480,28 @@ export function HandLandmarkOverlay({
       height={previewHeight}
       style={{ position: "absolute", top: 0, left: 0 }}
     >
-      {hasUpperBodyPoints
+      {hasFullBodyPoints
+        ? Object.entries(fullBodyPoints ?? {}).map(([key, point]) => (
+            <React.Fragment key={`full-${key}`}>
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={3.5}
+                fill="#38BDF8"
+                fillOpacity={0.75}
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={1.5}
+                fill="#F8FAFC"
+                fillOpacity={0.85}
+              />
+            </React.Fragment>
+          ))
+        : null}
+
+      {hasUpperBodyPoints && !showFullBody
         ? UPPER_BODY_CONNECTIONS.map(({ start: startKey, end: endKey, region }) => {
             const start = upperBodyPoints?.[startKey];
             const end = upperBodyPoints?.[endKey];
@@ -460,7 +532,7 @@ export function HandLandmarkOverlay({
           })
         : null}
 
-      {hasUpperBodyPoints
+      {hasUpperBodyPoints && !showFullBody
         ? Object.entries(upperBodyPoints ?? {}).map(([key, point]) => {
             if (!point) return null;
             return (

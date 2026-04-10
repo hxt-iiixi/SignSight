@@ -280,6 +280,7 @@ function CaptureTabScreen({
   const [showDebugFps, setShowDebugFps] = useState(false);
   const [showDebugQuality, setShowDebugQuality] = useState(false);
   const [showDebugTracking, setShowDebugTracking] = useState(false);
+  const [showFullBodyOverlay, setShowFullBodyOverlay] = useState(false);
   const [showDebugSession, setShowDebugSession] = useState(false);
   const debugMenuItems = useMemo(
     () => [
@@ -308,6 +309,12 @@ function CaptureTabScreen({
         onPress: () => setShowHandOverlay(!showHandOverlay),
       },
       {
+        id: "overlay-full",
+        icon: "body-outline" as const,
+        active: showFullBodyOverlay,
+        onPress: () => setShowFullBodyOverlay((current) => !current),
+      },
+      {
         id: "session",
         icon: "construct-outline" as const,
         active: showDebugSession,
@@ -317,6 +324,7 @@ function CaptureTabScreen({
     [
       showDebugFps,
       showDebugQuality,
+      showFullBodyOverlay,
       showDebugSession,
       showDebugTracking,
       showHandOverlay,
@@ -405,6 +413,7 @@ function CaptureTabScreen({
     recognitionRuntime.debugState.lastTimestampMs,
     recognitionRuntime.debugState.upperBodyPointCount,
     recognitionRuntime.latestHandFrame?.upperBody,
+    showFullBodyOverlay,
     showDebugFps,
     showDebugQuality,
     showDebugSession,
@@ -613,6 +622,7 @@ function CaptureTabScreen({
       onToggleTorch={cameraRuntime.toggleTorch}
       orientedFrame={cameraRuntime.orientedFrame}
       overlayMode={mode === "letters" ? "LETTERS" : "WORDS"}
+      showFullBodyOverlay={showFullBodyOverlay}
       overlayVisible={true}
       ready={cameraRuntime.ready}
       showHandOverlay={showHandOverlay}

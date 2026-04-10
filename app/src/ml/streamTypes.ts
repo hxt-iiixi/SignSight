@@ -28,6 +28,7 @@ export type GestureV2SampleFrame = {
   handLandmarks: HandPoint[] | null;
   handedness: Handedness | null;
   upperBody: UpperBodyLandmarks | null;
+  poseLandmarksFull: UpperBodyEntry[] | null;
   timestampMs: number;
 };
 

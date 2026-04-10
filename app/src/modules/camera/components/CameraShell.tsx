@@ -31,6 +31,7 @@ export function CameraShell({
   orientedFrame,
   overlayVisible = false,
   overlayMode = "LETTERS",
+  showFullBodyOverlay = false,
   ready,
   showHandOverlay,
   showFlipCamera = true,
@@ -67,6 +68,7 @@ export function CameraShell({
   orientedFrame: { width: number; height: number };
   overlayVisible?: boolean;
   overlayMode?: DetectMode;
+  showFullBodyOverlay?: boolean;
   ready: boolean;
   showHandOverlay: boolean;
   showFlipCamera?: boolean;
@@ -126,6 +128,11 @@ export function CameraShell({
           landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}
           hands={latestHandFrame?.hasHand ? latestHandFrame.hands ?? null : null}
           upperBody={latestHandFrame?.hasUpperBody ? (latestHandFrame.upperBody as any) : null}
+          fullBody={
+            latestHandFrame?.hasUpperBody && Array.isArray(latestHandFrame.upperBody)
+              ? (latestHandFrame.upperBody as any)
+              : null
+          }
           landmarkTimestampMs={latestHandFrame?.timestampMs ?? null}
           cameraPosition={cameraPosition}
           previewWidth={cameraLayout.width}
@@ -133,6 +140,7 @@ export function CameraShell({
           frameWidth={orientedFrame.width}
           frameHeight={orientedFrame.height}
           overlayMode={overlayMode === "WORDS" ? "gesture" : "hand"}
+          showFullBody={showFullBodyOverlay}
           onSmoothingChange={() => {}}
           visible={
             showHandOverlay &&
