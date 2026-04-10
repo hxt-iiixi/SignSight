@@ -3,6 +3,40 @@ from typing import Literal, Optional
 from pydantic import BaseModel
 
 
+class LandmarkPointReq(BaseModel):
+    x: float
+    y: float
+    z: float
+
+
+class UpperBodyPointReq(BaseModel):
+    x: float
+    y: float
+    z: float
+    visibility: Optional[float] = None
+
+
+class UpperBodyLandmarksReq(BaseModel):
+    nose: Optional[UpperBodyPointReq] = None
+    leftEar: Optional[UpperBodyPointReq] = None
+    rightEar: Optional[UpperBodyPointReq] = None
+    leftShoulder: Optional[UpperBodyPointReq] = None
+    rightShoulder: Optional[UpperBodyPointReq] = None
+    leftElbow: Optional[UpperBodyPointReq] = None
+    rightElbow: Optional[UpperBodyPointReq] = None
+    leftWrist: Optional[UpperBodyPointReq] = None
+    rightWrist: Optional[UpperBodyPointReq] = None
+    leftHip: Optional[UpperBodyPointReq] = None
+    rightHip: Optional[UpperBodyPointReq] = None
+
+
+class GestureV2FrameReq(BaseModel):
+    handLandmarks: Optional[list[LandmarkPointReq]] = None
+    handedness: Optional[str] = None
+    upperBody: Optional[UpperBodyLandmarksReq] = None
+    timestampMs: float
+
+
 class UploadLandmarksReq(BaseModel):
     label: str
     landmarks: list
@@ -53,8 +87,10 @@ class UploadGestureReq(BaseModel):
     label: str
     frames: list
     handedness: Optional[str] = None
+    framesV2: Optional[list[GestureV2FrameReq]] = None
 
 
 class PredictGestureReq(BaseModel):
     frames: list
     handedness: Optional[str] = None
+    framesV2: Optional[list[GestureV2FrameReq]] = None

@@ -4,6 +4,7 @@ import { VisionCameraProxy, type Frame } from "react-native-vision-camera";
 import type {
   DetectHandsPluginOptions,
   HandTrackingFrameResult,
+  SignSightTrackingCapabilities,
   SignSightHandTrackerNativeModule,
 } from "./SignSightHandTracker.types";
 
@@ -17,6 +18,20 @@ const plugin = VisionCameraProxy.initFrameProcessorPlugin(pluginName, {});
 
 export function isHandTrackingSupported(): boolean {
   return nativeModule?.isSupported?.() === true && plugin != null;
+}
+
+export function getTrackingCapabilities(): SignSightTrackingCapabilities {
+  return (
+    nativeModule?.getTrackingCapabilities?.() ?? {
+      hands: isHandTrackingSupported(),
+      upperBody: false,
+      gestureV2: false,
+    }
+  );
+}
+
+export function isUpperBodyTrackingSupported(): boolean {
+  return getTrackingCapabilities().upperBody === true;
 }
 
 export function detectHands(
