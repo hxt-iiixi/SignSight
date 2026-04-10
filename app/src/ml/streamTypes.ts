@@ -1,15 +1,19 @@
 import type {
+  DetectedHand,
   HandPoint,
   HandTrackingFrameResult,
   Handedness,
+  UpperBodyEntry,
   UpperBodyKeypointName,
   UpperBodyLandmarks,
 } from "../../modules/signsight-hand-tracker";
 
 export type {
+  DetectedHand,
   HandPoint,
   HandTrackingFrameResult,
   Handedness,
+  UpperBodyEntry,
   UpperBodyKeypointName,
   UpperBodyLandmarks,
 };

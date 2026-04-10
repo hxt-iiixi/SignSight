@@ -124,7 +124,8 @@ export function CameraShell({
 
         <HandLandmarkOverlay
           landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}
-          upperBody={latestHandFrame?.hasUpperBody ? latestHandFrame.upperBody : null}
+          hands={latestHandFrame?.hasHand ? latestHandFrame.hands ?? null : null}
+          upperBody={latestHandFrame?.hasUpperBody ? (latestHandFrame.upperBody as any) : null}
           landmarkTimestampMs={latestHandFrame?.timestampMs ?? null}
           cameraPosition={cameraPosition}
           previewWidth={cameraLayout.width}

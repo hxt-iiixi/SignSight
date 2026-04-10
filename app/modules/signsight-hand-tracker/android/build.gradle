@@ -8,7 +8,7 @@ version = '1.0.0'
 
 def assetDir = new File(projectDir, 'src/main/assets')
 def handLandmarkerModel = new File(assetDir, 'hand_landmarker.task')
-def poseLandmarkerModel = new File(assetDir, 'pose_landmarker_lite.task')
+def poseLandmarkerModel = new File(assetDir, 'pose_landmarker_full.task')
 
 tasks.register('downloadHandLandmarkerModel') {
   outputs.file(handLandmarkerModel)
@@ -39,7 +39,7 @@ tasks.register('downloadPoseLandmarkerModel') {
     }
 
     ant.get(
-      src: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+      src: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
       dest: poseLandmarkerModel,
       verbose: true
     )

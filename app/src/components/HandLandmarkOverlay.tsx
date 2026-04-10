@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Svg, { Circle, Line } from "react-native-svg";
 
-import type { HandPoint, UpperBodyLandmarks, UpperBodyKeypointName } from "../ml/streamTypes";
+import type {
+  DetectedHand,
+  HandPoint,
+  UpperBodyLandmarks,
+  UpperBodyKeypointName,
+} from "../ml/streamTypes";
 
 type HandRegion = "palm" | "thumb" | "index" | "middle" | "ring" | "pinky";
 type UpperBodyRegion = "head" | "torso" | "arm";
@@ -94,6 +99,7 @@ const UPPER_BODY_CONNECTIONS: Array<{
 
 type HandLandmarkOverlayProps = {
   landmarks: HandPoint[] | null;
+  hands?: DetectedHand[] | null;
   upperBody?: UpperBodyLandmarks | null;
   landmarkTimestampMs?: number | null;
   cameraPosition: "back" | "front";
@@ -143,6 +149,7 @@ function projectLandmarkToPreview(
 
 export function HandLandmarkOverlay({
   landmarks,
+  hands,
   upperBody,
   landmarkTimestampMs,
   cameraPosition,
@@ -198,6 +205,47 @@ export function HandLandmarkOverlay({
     frameHeight,
     frameWidth,
     landmarks,
+    previewHeight,
+    previewWidth,
+    visible,
+  ]);
+
+  const multiHandPoints = useMemo(() => {
+    if (
+      !visible ||
+      !hands ||
+      hands.length === 0 ||
+      previewWidth <= 0 ||
+      previewHeight <= 0 ||
+      frameWidth <= 0 ||
+      frameHeight <= 0
+    ) {
+      return [];
+    }
+
+    return hands
+      .map((hand) => {
+        if (!hand.landmarks || hand.landmarks.length !== 21) {
+          return null;
+        }
+
+        return hand.landmarks.map((point) =>
+          projectLandmarkToPreview(
+            point,
+            previewWidth,
+            previewHeight,
+            frameWidth,
+            frameHeight,
+            cameraPosition
+          )
+        );
+      })
+      .filter((points): points is ScreenPoint[] => Array.isArray(points));
+  }, [
+    cameraPosition,
+    frameHeight,
+    frameWidth,
+    hands,
     previewHeight,
     previewWidth,
     visible,
@@ -360,8 +408,11 @@ export function HandLandmarkOverlay({
     lastTimestampRef.current = nextTimestamp;
   }, [landmarkTimestampMs, targetPoints]);
 
-  const hasHandPoints =
-    !!targetPoints && !!displayPoints && displayPoints.length === 21;
+  const primaryHandPoints =
+    !!targetPoints && !!displayPoints && displayPoints.length === 21 ? displayPoints : null;
+  const renderedHandSets =
+    multiHandPoints.length > 0 ? multiHandPoints : primaryHandPoints ? [primaryHandPoints] : [];
+  const hasHandPoints = renderedHandSets.length > 0;
   const hasUpperBodyPoints =
     overlayMode === "gesture" &&
     !!upperBodyPoints &&
@@ -434,58 +485,62 @@ export function HandLandmarkOverlay({
         : null}
 
       {hasHandPoints
-        ? HAND_CONNECTIONS.map(({ start: startIndex, end: endIndex, region }) => {
-            const start = displayPoints![startIndex];
-            const end = displayPoints![endIndex];
-            const strokeColor = HAND_REGION_COLORS[region];
-            return (
-              <React.Fragment key={`${startIndex}-${endIndex}`}>
-                <Line
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  stroke={strokeColor}
-                  strokeWidth={3}
-                  strokeOpacity={0.95}
-                />
-                <Line
-                  x1={start.x}
-                  y1={start.y}
-                  x2={end.x}
-                  y2={end.y}
-                  stroke="#0B0F14"
-                  strokeWidth={1}
-                  strokeOpacity={0.55}
-                />
-              </React.Fragment>
-            );
-          })
+        ? renderedHandSets.map((handPoints, handIndex) =>
+            HAND_CONNECTIONS.map(({ start: startIndex, end: endIndex, region }) => {
+              const start = handPoints[startIndex];
+              const end = handPoints[endIndex];
+              const strokeColor = HAND_REGION_COLORS[region];
+              return (
+                <React.Fragment key={`hand-${handIndex}-${startIndex}-${endIndex}`}>
+                  <Line
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke={strokeColor}
+                    strokeWidth={3}
+                    strokeOpacity={0.95}
+                  />
+                  <Line
+                    x1={start.x}
+                    y1={start.y}
+                    x2={end.x}
+                    y2={end.y}
+                    stroke="#0B0F14"
+                    strokeWidth={1}
+                    strokeOpacity={0.55}
+                  />
+                </React.Fragment>
+              );
+            })
+          )
         : null}
 
       {hasHandPoints
-        ? displayPoints!.map((point, index) => {
-            const region = LANDMARK_REGION_MAP[index] ?? "palm";
-            const fillColor = HAND_REGION_COLORS[region];
-            return (
-              <React.Fragment key={index}>
-                <Circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={4.5}
-                  fill={fillColor}
-                  fillOpacity={0.95}
-                />
-                <Circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={2}
-                  fill="#F8FAFC"
-                  fillOpacity={0.95}
-                />
-              </React.Fragment>
-            );
-          })
+        ? renderedHandSets.map((handPoints, handIndex) =>
+            handPoints.map((point, index) => {
+              const region = LANDMARK_REGION_MAP[index] ?? "palm";
+              const fillColor = HAND_REGION_COLORS[region];
+              return (
+                <React.Fragment key={`hand-${handIndex}-point-${index}`}>
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={4.5}
+                    fill={fillColor}
+                    fillOpacity={0.95}
+                  />
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={2}
+                    fill="#F8FAFC"
+                    fillOpacity={0.95}
+                  />
+                </React.Fragment>
+              );
+            })
+          )
         : null}
     </Svg>
   );

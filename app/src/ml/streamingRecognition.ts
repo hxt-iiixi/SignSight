@@ -278,7 +278,9 @@ function toGestureV2Frame(hand: HandTrackingFrameResult): GestureV2SampleFrame {
   return {
     handLandmarks: hand.landmarks ?? null,
     handedness: hand.handedness ?? null,
-    upperBody: hand.hasUpperBody ? hand.upperBody ?? null : null,
+    upperBody: hand.hasUpperBody
+      ? (hand.upperBody as GestureV2SampleFrame["upperBody"]) ?? null
+      : null,
     timestampMs: hand.timestampMs,
   };
 }

@@ -101,7 +101,7 @@ internal class SignSightHandTrackerHandLandmarkerController(
 
 private object SignSightHandTrackerMediaPipeFactory {
   private const val MODEL_ASSET_PATH = "hand_landmarker.task"
-  private const val POSE_MODEL_ASSET_PATH = "pose_landmarker_lite.task"
+  private const val POSE_MODEL_ASSET_PATH = "pose_landmarker_full.task"
 
   fun create(
     context: Context,
@@ -113,7 +113,7 @@ private object SignSightHandTrackerMediaPipeFactory {
 
     val options = HandLandmarker.HandLandmarkerOptions.builder()
       .setBaseOptions(baseOptions)
-      .setNumHands(1)
+      .setNumHands(2)
       .setMinHandDetectionConfidence(0.45f)
       .setMinHandPresenceConfidence(0.45f)
       .setMinTrackingConfidence(0.45f)
@@ -137,9 +137,9 @@ private object SignSightHandTrackerMediaPipeFactory {
 
     val options = PoseLandmarker.PoseLandmarkerOptions.builder()
       .setBaseOptions(baseOptions)
-      .setMinPoseDetectionConfidence(0.45f)
-      .setMinPosePresenceConfidence(0.45f)
-      .setMinTrackingConfidence(0.45f)
+      .setMinPoseDetectionConfidence(0.3f)
+      .setMinPosePresenceConfidence(0.3f)
+      .setMinTrackingConfidence(0.3f)
       .setRunningMode(RunningMode.LIVE_STREAM)
       .setResultListener { result, _ ->
         val timestampMs = result.timestampMs()
@@ -159,25 +159,58 @@ private class AtomicResultSnapshot {
   private var latestUpperBody: UpperBodyTrackingResultSnapshot? = null
 
   fun updateHand(result: HandLandmarkerResult, timestampMs: Long) {
-    val landmarks = result.landmarks().firstOrNull()
-    val handedness = result.handedness().firstOrNull()?.firstOrNull()?.categoryName()
+    val candidates = result.landmarks().mapIndexedNotNull { index, handLandmarks ->
+      if (handLandmarks.isEmpty()) {
+        return@mapIndexedNotNull null
+      }
+      val category = result.handedness().getOrNull(index)?.firstOrNull()
+      val handedness = category?.categoryName()
+      val score = category?.score()?.toDouble()
+      val area = estimateHandArea(handLandmarks)
+      HandCandidate(
+        landmarks = handLandmarks.map(::landmarkToMap),
+        handedness = handedness,
+        score = score,
+        area = area
+      )
+    }
+    val primary = candidates.maxWithOrNull(
+      compareBy<HandCandidate> { it.score ?: -1.0 }
+        .thenBy { it.area ?: 0.0 }
+    )
+    val hands = candidates.map { candidate ->
+      mapOf(
+        "landmarks" to candidate.landmarks,
+        "handedness" to candidate.handedness,
+        "score" to candidate.score,
+        "area" to candidate.area
+      )
+    }
+    val landmarks = primary?.landmarks
+    val handedness = primary?.handedness
 
     latestHand = HandTrackingResultSnapshot(
-      landmarks = landmarks?.map(::landmarkToMap),
+      hands = hands,
+      landmarks = landmarks,
       handedness = handedness,
       timestampMs = timestampMs,
-      hasHand = landmarks != null,
+      hasHand = hands.isNotEmpty(),
       sequenceId = timestampMs
     )
   }
 
   fun updateUpperBody(result: PoseLandmarkerResult, timestampMs: Long) {
     val landmarks = result.landmarks().firstOrNull()
+      ?.takeIf { it.isNotEmpty() }
+    val rawCount = landmarks?.size ?: 0
+    val mappedLandmarks =
+      landmarks?.let(::upperBodyLandmarksToList)?.takeIf { it.isNotEmpty() }
     latestUpperBody = UpperBodyTrackingResultSnapshot(
-      landmarks = landmarks?.let(::upperBodyLandmarksToMap),
+      landmarks = mappedLandmarks,
       timestampMs = timestampMs,
-      hasUpperBody = landmarks != null,
-      sequenceId = timestampMs
+      hasUpperBody = mappedLandmarks != null,
+      sequenceId = timestampMs,
+      pointCount = rawCount
     )
   }
 
@@ -205,8 +238,10 @@ private class AtomicResultSnapshot {
     return mapOf(
       "landmarks" to if (handFresh) handSnapshot?.landmarks else null,
       "handedness" to if (handFresh) handSnapshot?.handedness else null,
+      "hands" to if (handFresh) handSnapshot?.hands else null,
       "upperBody" to if (upperBodyFresh) upperBodySnapshot?.landmarks else null,
       "hasUpperBody" to (upperBodyFresh && upperBodySnapshot?.hasUpperBody == true),
+      "upperBodyCount" to if (upperBodyFresh) upperBodySnapshot?.pointCount else null,
       "timestampMs" to timestampMs.toDouble(),
       "hasHand" to (handFresh && handSnapshot?.hasHand == true),
       "sequenceId" to sequenceId.toDouble()
@@ -246,9 +281,39 @@ private class AtomicResultSnapshot {
       }
     }.toMap()
   }
+
+  private fun upperBodyLandmarksToList(
+    landmarks: List<NormalizedLandmark>
+  ): List<Map<String, Any>> {
+    val mapping = linkedMapOf(
+      "nose" to 0,
+      "leftEar" to 7,
+      "rightEar" to 8,
+      "leftShoulder" to 11,
+      "rightShoulder" to 12,
+      "leftElbow" to 13,
+      "rightElbow" to 14,
+      "leftWrist" to 15,
+      "rightWrist" to 16,
+      "leftHip" to 23,
+      "rightHip" to 24,
+    )
+    return mapping.mapNotNull { (name, index) ->
+      landmarks.getOrNull(index)?.let { landmark ->
+        mapOf(
+          "name" to name,
+          "x" to landmark.x().toDouble(),
+          "y" to landmark.y().toDouble(),
+          "z" to landmark.z().toDouble(),
+          "visibility" to landmark.visibility().orElse(0f).toDouble(),
+        )
+      }
+    }
+  }
 }
 
 private data class HandTrackingResultSnapshot(
+  val hands: List<Map<String, Any?>>?,
   val landmarks: List<Map<String, Double>>?,
   val handedness: String?,
   val timestampMs: Long,
@@ -257,11 +322,40 @@ private data class HandTrackingResultSnapshot(
 )
 
 private data class UpperBodyTrackingResultSnapshot(
-  val landmarks: Map<String, Map<String, Double>>?,
+  val landmarks: List<Map<String, Any>>?,
   val timestampMs: Long,
   val hasUpperBody: Boolean,
-  val sequenceId: Long
+  val sequenceId: Long,
+  val pointCount: Int
 )
+
+private data class HandCandidate(
+  val landmarks: List<Map<String, Double>>,
+  val handedness: String?,
+  val score: Double?,
+  val area: Double?
+)
+
+private fun estimateHandArea(landmarks: List<NormalizedLandmark>): Double {
+  if (landmarks.isEmpty()) {
+    return 0.0
+  }
+  var minX = 1.0
+  var maxX = 0.0
+  var minY = 1.0
+  var maxY = 0.0
+  for (landmark in landmarks) {
+    val x = landmark.x().toDouble()
+    val y = landmark.y().toDouble()
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  val width = (maxX - minX).coerceAtLeast(0.0)
+  val height = (maxY - minY).coerceAtLeast(0.0)
+  return width * height
+}
 
 private fun imageProxyToBitmap(imageProxy: ImageProxy): Bitmap {
   val plane = imageProxy.planes.firstOrNull()

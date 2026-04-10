@@ -362,6 +362,20 @@ function CaptureTabScreen({
     }
     if (showDebugTracking) {
       pushEntry("tracking-landmarks", "Landmarks", recognitionRuntime.debugState.landmarkCount);
+      pushEntry(
+        "tracking-upper-body",
+        "Upper body",
+        recognitionRuntime.debugState.hasUpperBody
+          ? `Yes (${recognitionRuntime.debugState.upperBodyPointCount})`
+          : "No"
+      );
+      pushEntry(
+        "tracking-upper-body-map",
+        "Upper body map",
+        recognitionRuntime.latestHandFrame?.upperBody
+          ? Object.values(recognitionRuntime.latestHandFrame.upperBody).filter(Boolean).length
+          : 0
+      );
       pushEntry("tracking-ts", "Timestamp", recognitionRuntime.debugState.lastTimestampMs);
       pushEntry("tracking-valid-ts", "Last valid", recognitionRuntime.debugState.lastValidTimestampMs);
       pushEntry("tracking-grace", "Grace ms", recognitionRuntime.debugState.handLossGraceMs);
@@ -385,9 +399,12 @@ function CaptureTabScreen({
     captureSessionId,
     recognitionRuntime.debugState.approxFps,
     recognitionRuntime.debugState.handLossGraceMs,
+    recognitionRuntime.debugState.hasUpperBody,
     recognitionRuntime.debugState.landmarkCount,
     recognitionRuntime.debugState.lastValidTimestampMs,
     recognitionRuntime.debugState.lastTimestampMs,
+    recognitionRuntime.debugState.upperBodyPointCount,
+    recognitionRuntime.latestHandFrame?.upperBody,
     showDebugFps,
     showDebugQuality,
     showDebugSession,
