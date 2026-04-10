@@ -1,7 +1,8 @@
 from fastapi import APIRouter
 
-from app.schemas.ml import PredictGestureReq, UploadGestureReq
+from app.schemas.ml import GestureLabelSummaryReq, PredictGestureReq, UploadGestureReq
 from app.services.gesture_classifier import (
+    gesture_label_summary,
     predict_gesture,
     train_gesture_model,
     upload_gesture,
@@ -18,6 +19,15 @@ def upload_gesture_route(req: UploadGestureReq):
         req.frames,
         req.handedness,
         frames_v2=[frame.model_dump() for frame in req.framesV2] if req.framesV2 else None,
+        signer_id=req.signer_id,
+        capture_session_id=req.capture_session_id,
+        device_id=req.device_id,
+        camera_position=req.camera_position,
+        accepted=req.accepted,
+        review_status=req.review_status,
+        review_notes=req.review_notes,
+        variant_tags=req.variant_tags,
+        captured_at=req.captured_at,
     )
 
 
@@ -32,4 +42,13 @@ def predict_gesture_route(req: PredictGestureReq):
         req.frames,
         req.handedness,
         frames_v2=[frame.model_dump() for frame in req.framesV2] if req.framesV2 else None,
+    )
+
+
+@router.post("/gesture_label_summary")
+def gesture_label_summary_route(req: GestureLabelSummaryReq):
+    return gesture_label_summary(
+        req.label,
+        capture_session_id=req.captureSessionId,
+        signer_id=req.signerId,
     )

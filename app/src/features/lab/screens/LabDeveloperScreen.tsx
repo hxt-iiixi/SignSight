@@ -9,7 +9,13 @@ import { PRIMARY_CONTAINER, PRIMARY_CONTAINER_CAPTURE_ICON } from "../../../comp
 import { API_BASE } from "../../../config/api";
 import { BG } from "../../../components/lab/shared/labColors";
 import { ASL_LABELS } from "../../../ml/labels";
-import { saveStreamingLandmarkSample } from "../../../ml/streamingRecognition";
+import {
+  hasUsableUpperBody,
+  MIN_PREDICT_FRAMES,
+  saveStreamingGestureSample,
+  saveStreamingLandmarkSample,
+  saveStreamingStaticWordLandmarkSample,
+} from "../../../ml/streamingRecognition";
 import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
@@ -184,6 +190,7 @@ function CaptureTabScreen({
       !!cameraRuntime.device &&
       !!cameraRuntime.format,
     detectMode: mode === "letters" ? "LETTERS" : "WORDS",
+    isRecordingGesture: mode === "words",
   });
 
   const statusBarInset =
@@ -224,6 +231,7 @@ function CaptureTabScreen({
     0;
   const quotaLabel =
     normalizedTarget === "None" || quotaTarget <= 0 ? "—" : `${sampleCount}/${quotaTarget}`;
+  const isStaticWordTarget = normalizedTarget === "I_LOVE_YOU";
   const canSaveLetterSample =
     mode === "letters" &&
     normalizedTarget !== "None" &&
@@ -231,6 +239,23 @@ function CaptureTabScreen({
     (recognitionRuntime.latestHandFrame?.landmarks?.length ?? 0) === 21 &&
     !!signerId.trim() &&
     !!captureSessionId;
+  const canSaveWordGestureSample =
+    mode === "words" &&
+    normalizedTarget !== "None" &&
+    !isStaticWordTarget &&
+    !!signerId.trim() &&
+    !!captureSessionId &&
+    recognitionRuntime.recordingGestureFramesCount >= MIN_PREDICT_FRAMES;
+  const canSaveStaticWordSample =
+    mode === "words" &&
+    isStaticWordTarget &&
+    !!signerId.trim() &&
+    !!captureSessionId &&
+    !!recognitionRuntime.latestHandFrame?.hasHand &&
+    (recognitionRuntime.latestHandFrame?.landmarks?.length ?? 0) === 21;
+  const canSaveCurrentSample =
+    saveState !== "saving" &&
+    (canSaveLetterSample || canSaveWordGestureSample || canSaveStaticWordSample);
   const [showDebugFps, setShowDebugFps] = useState(false);
   const [showDebugQuality, setShowDebugQuality] = useState(false);
   const [showDebugTracking, setShowDebugTracking] = useState(false);
@@ -326,7 +351,7 @@ function CaptureTabScreen({
       pushEntry("session-signer", "Signer", signerId.trim() || null);
       pushEntry("session-variant", "Variant", variantTag.trim() || null);
       pushEntry("session-id", "Session", captureSessionId);
-      pushEntry("session-save", "Save ready", canSaveLetterSample ? "Yes" : "No");
+      pushEntry("session-save", "Save ready", canSaveCurrentSample ? "Yes" : "No");
     }
     return entries;
   }, [
@@ -335,7 +360,7 @@ function CaptureTabScreen({
     cameraRuntime.cameraPosition,
     cameraRuntime.device,
     cameraRuntime.format,
-    canSaveLetterSample,
+    canSaveCurrentSample,
     captureSessionId,
     recognitionRuntime.debugState.approxFps,
     recognitionRuntime.debugState.handLossGraceMs,
@@ -353,11 +378,6 @@ function CaptureTabScreen({
   ]);
 
   async function handleCapturePress() {
-    if (mode === "words") {
-      setSaveFeedback("info", "Word dataset saving is not enabled yet.");
-      return;
-    }
-
     if (normalizedTarget === "None") {
       setSaveFeedback("error", "Select a target before saving.");
       return;
@@ -368,33 +388,107 @@ function CaptureTabScreen({
       return;
     }
 
-    if (!recognitionRuntime.latestHandFrame?.hasHand || (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21) {
-      setSaveFeedback("error", "No valid hand detected to save.");
+    if (mode === "letters") {
+      if (
+        !recognitionRuntime.latestHandFrame?.hasHand ||
+        (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21
+      ) {
+        setSaveFeedback("error", "No valid hand detected to save.");
+        return;
+      }
+
+      setSaveFeedback("saving", "Saving sample...");
+
+      const result = await saveStreamingLandmarkSample(
+        recognitionRuntime.latestHandFrame,
+        API_BASE,
+        normalizedTarget,
+        {
+          signerId: signerId.trim(),
+          captureSessionId,
+          cameraPosition: cameraRuntime.cameraPosition,
+          deviceId: cameraRuntime.device?.id ?? undefined,
+          variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+        }
+      );
+
+      if (!result.ok) {
+        setSaveFeedback("error", result.error ?? "Failed to save sample.");
+        return;
+      }
+
+      setSaveFeedback("success", `Saved ${normalizedTarget}.`);
+      await onRefreshModels();
       return;
     }
 
-    setSaveFeedback("saving", "Saving sample...");
-
-    const result = await saveStreamingLandmarkSample(
-      recognitionRuntime.latestHandFrame,
-      API_BASE,
-      normalizedTarget,
-      {
-        signerId: signerId.trim(),
-        captureSessionId,
-        cameraPosition: cameraRuntime.cameraPosition,
-        deviceId: cameraRuntime.device?.id ?? undefined,
-        variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+    if (isStaticWordTarget) {
+      if (
+        !recognitionRuntime.latestHandFrame?.hasHand ||
+        (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21
+      ) {
+        setSaveFeedback("error", "No valid hand detected to save.");
+        return;
       }
-    );
+
+      setSaveFeedback("saving", "Saving static word...");
+
+      const result = await saveStreamingStaticWordLandmarkSample(
+        recognitionRuntime.latestHandFrame,
+        API_BASE,
+        normalizedTarget,
+        {
+          signerId: signerId.trim(),
+          captureSessionId,
+          cameraPosition: cameraRuntime.cameraPosition,
+          deviceId: cameraRuntime.device?.id ?? undefined,
+          variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+        }
+      );
+
+      if (!result.ok) {
+        setSaveFeedback("error", result.error ?? "Failed to save sample.");
+        return;
+      }
+
+      setSaveFeedback("success", `Saved ${normalizedTarget}.`);
+      await onRefreshModels();
+      return;
+    }
+
+    const framesV2 = recognitionRuntime.getGestureRecordingFramesV2();
+    const usableUpperBodyFrameCount = framesV2.filter(hasUsableUpperBody).length;
+    if (framesV2.length < MIN_PREDICT_FRAMES) {
+      setSaveFeedback("error", "Record a few more gesture frames before saving.");
+      return;
+    }
+    if (usableUpperBodyFrameCount < MIN_PREDICT_FRAMES) {
+      setSaveFeedback("error", "Upper-body tracking is not stable enough to save this word yet.");
+      return;
+    }
+
+    setSaveFeedback("saving", "Saving gesture sample...");
+
+    const result = await saveStreamingGestureSample(API_BASE, normalizedTarget, {
+      frames: recognitionRuntime.getGestureRecordingFrames(),
+      framesV2,
+      handedness:
+        framesV2.find((frame) => frame.handedness)?.handedness ??
+        recognitionRuntime.latestHandFrame?.handedness ??
+        null,
+      signerId: signerId.trim(),
+      captureSessionId,
+      cameraPosition: cameraRuntime.cameraPosition,
+      deviceId: cameraRuntime.device?.id ?? undefined,
+      variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+    });
 
     if (!result.ok) {
-      setSaveFeedback("error", result.error ?? "Failed to save sample.");
+      setSaveFeedback("error", result.error ?? "Failed to save gesture sample.");
       return;
     }
 
-    setSaveFeedback("success", `Saved ${normalizedTarget}.`);
-    await onRefreshModels();
+    setSaveFeedback("success", `Saved ${normalizedTarget} (${result.frameCount}f).`);
   }
 
   return (
@@ -467,7 +561,7 @@ function CaptureTabScreen({
         <Pressable
           style={[
             styles.captureActionButton,
-            (!canSaveLetterSample || saveState === "saving") && styles.captureActionButtonDisabled,
+            !canSaveCurrentSample && styles.captureActionButtonDisabled,
           ]}
           onPress={handleCapturePress}
         >

@@ -27,6 +27,12 @@ export function useRecognitionRuntime({
     handedness: null,
     hasHand: false,
   });
+  const [liveGestureFramesCount, setLiveGestureFramesCount] = useState(0);
+  const [recordingGestureFramesCount, setRecordingGestureFramesCount] = useState(0);
+  const [wordGraceActive, setWordGraceActive] = useState(false);
+  const [lastGesturePredictionAtMs, setLastGesturePredictionAtMs] = useState<number | null>(
+    null
+  );
 
   const buffersRef = useRef(createStreamingRecognitionBuffers());
   const smootherRef = useRef(new MajorityVoteSmoother(3));
@@ -48,18 +54,37 @@ export function useRecognitionRuntime({
 
   useEffect(() => {
     resetStreamingRecognitionState(buffersRef, smootherRef, {
-      setLiveGestureFramesCount: () => {},
-      setRecordingGestureFramesCount: () => {},
-      setWordGraceActive: () => {},
+      setLiveGestureFramesCount,
+      setRecordingGestureFramesCount,
+      setWordGraceActive,
       setLastConf: (confidence: number) =>
         setPrediction((current) => ({ ...current, confidence })),
-      setLastGesturePredictionAtMs: () => {},
+      setLastGesturePredictionAtMs,
+      setLastLabel: (label: string) =>
+        setPrediction((current) => ({ ...current, label })),
+      setRawLabel: (rawLabel: string) =>
+      setPrediction((current) => ({ ...current, rawLabel })),
+    });
+  }, [detectMode]);
+
+  useEffect(() => {
+    if (enabled) {
+      return;
+    }
+
+    resetStreamingRecognitionState(buffersRef, smootherRef, {
+      setLiveGestureFramesCount,
+      setRecordingGestureFramesCount,
+      setWordGraceActive,
+      setLastConf: (confidence: number) =>
+        setPrediction((current) => ({ ...current, confidence })),
+      setLastGesturePredictionAtMs,
       setLastLabel: (label: string) =>
         setPrediction((current) => ({ ...current, label })),
       setRawLabel: (rawLabel: string) =>
         setPrediction((current) => ({ ...current, rawLabel })),
     });
-  }, [detectMode]);
+  }, [enabled]);
 
   useEffect(() => {
     setPrediction((current) => ({
@@ -76,12 +101,12 @@ export function useRecognitionRuntime({
       isMountedRef,
       isProcessingRef,
       isRecordingGesture,
-      setLiveGestureFramesCount: () => {},
-      setRecordingGestureFramesCount: () => {},
-      setWordGraceActive: () => {},
+      setLiveGestureFramesCount,
+      setRecordingGestureFramesCount,
+      setWordGraceActive,
       setLastConf: (confidence: number) =>
         setPrediction((current) => ({ ...current, confidence })),
-      setLastGesturePredictionAtMs: () => {},
+      setLastGesturePredictionAtMs,
       setLastHandedness: (handedness: string | null) =>
         setPrediction((current) => ({
           ...current,
@@ -99,8 +124,14 @@ export function useRecognitionRuntime({
   return {
     debugState,
     frameProcessor,
+    getGestureRecordingFrames: () => [...buffersRef.current.recordingFrames],
+    getGestureRecordingFramesV2: () => [...buffersRef.current.gestureV2RecordingFrames],
     isSupported,
+    lastGesturePredictionAtMs,
+    liveGestureFramesCount,
     latestHandFrame,
     prediction,
+    recordingGestureFramesCount,
+    wordGraceActive,
   };
 }

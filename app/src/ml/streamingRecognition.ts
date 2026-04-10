@@ -3,6 +3,7 @@ import type { MutableRefObject } from "react";
 import { MajorityVoteSmoother } from "./smoother";
 import type {
   DetectMode,
+  LandmarkSampleFrame,
   GestureV2SampleFrame,
   HandTrackingFrameResult,
   StreamingRecognitionBuffers,
@@ -213,6 +214,66 @@ export async function saveStreamingStaticWordLandmarkSample(
   };
 }
 
+export async function saveStreamingGestureSample(
+  apiBase: string,
+  label: string,
+  payload: {
+    frames: LandmarkSampleFrame[];
+    framesV2: GestureV2SampleFrame[];
+    handedness?: string | null;
+    signerId: string;
+    captureSessionId: string;
+    cameraPosition: "front" | "back";
+    deviceId?: string;
+    variantTags?: string[];
+  }
+) {
+  const validFramesV2 = payload.framesV2.filter(
+    (frame) => Array.isArray(frame.handLandmarks) || hasUsableUpperBody(frame)
+  );
+
+  if (validFramesV2.length < MIN_PREDICT_FRAMES) {
+    return { ok: false, error: "Not enough gesture frames recorded yet." };
+  }
+
+  const reviewedUpperBodyFrames = validFramesV2.filter(hasUsableUpperBody);
+  if (reviewedUpperBodyFrames.length < MIN_PREDICT_FRAMES) {
+    return { ok: false, error: "Upper-body tracking is not stable enough to save this word yet." };
+  }
+
+  const res = await fetch(`${apiBase}/upload_gesture`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      label,
+      frames: payload.frames.map((frame) => frame.landmarks),
+      handedness: payload.handedness ?? null,
+      framesV2: validFramesV2,
+      signer_id: payload.signerId,
+      capture_session_id: payload.captureSessionId,
+      device_id: payload.deviceId ?? null,
+      camera_position: payload.cameraPosition,
+      accepted: true,
+      review_status: "approved",
+      review_notes: "Approved Gesture V2 capture from developer lab.",
+      variant_tags: payload.variantTags ?? [],
+      captured_at: new Date().toISOString(),
+    }),
+  });
+
+  const json = await res.json();
+  if (!res.ok || json.ok === false) {
+    return { ok: false, error: json.error ?? "unknown" };
+  }
+
+  return {
+    ok: true,
+    reviewStatus: String(json.review_status ?? "approved"),
+    frameCount: validFramesV2.length,
+    upperBodyFrameCount: reviewedUpperBodyFrames.length,
+  };
+}
+
 function toGestureV2Frame(hand: HandTrackingFrameResult): GestureV2SampleFrame {
   return {
     handLandmarks: hand.landmarks ?? null,
@@ -222,7 +283,7 @@ function toGestureV2Frame(hand: HandTrackingFrameResult): GestureV2SampleFrame {
   };
 }
 
-function hasUsableUpperBody(frame: GestureV2SampleFrame) {
+export function hasUsableUpperBody(frame: GestureV2SampleFrame) {
   return !!frame.upperBody && Object.keys(frame.upperBody).length > 0;
 }
 
