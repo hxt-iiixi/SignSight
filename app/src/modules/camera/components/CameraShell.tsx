@@ -2,7 +2,7 @@ import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
-import HandLandmarkOverlay from "../../../components/HandLandmarkOverlay";
+import TrackingOverlay from "../../../components/TrackingOverlay";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
 import type { DetectMode, HandTrackingFrameResult } from "../../../ml/streamTypes";
@@ -124,7 +124,7 @@ export function CameraShell({
           />
         )}
 
-        <HandLandmarkOverlay
+        <TrackingOverlay
           landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}
           hands={latestHandFrame?.hasHand ? latestHandFrame.hands ?? null : null}
           upperBody={latestHandFrame?.hasUpperBody ? (latestHandFrame.upperBody as any) : null}

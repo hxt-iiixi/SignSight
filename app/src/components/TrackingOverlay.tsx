@@ -98,7 +98,7 @@ const UPPER_BODY_CONNECTIONS: Array<{
   { start: "rightElbow", end: "rightWrist", region: "arm" },
 ];
 
-type HandLandmarkOverlayProps = {
+type TrackingOverlayProps = {
   landmarks: HandPoint[] | null;
   hands?: DetectedHand[] | null;
   fullBody?: UpperBodyEntry[] | null;
@@ -150,7 +150,7 @@ function projectLandmarkToPreview(
   };
 }
 
-export function HandLandmarkOverlay({
+export function TrackingOverlay({
   landmarks,
   hands,
   fullBody,
@@ -165,7 +165,7 @@ export function HandLandmarkOverlay({
   overlayMode = "hand",
   showFullBody = false,
   onSmoothingChange,
-}: HandLandmarkOverlayProps) {
+}: TrackingOverlayProps) {
   const [displayPoints, setDisplayPoints] = useState<ScreenPoint[] | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const displayPointsRef = useRef<ScreenPoint[] | null>(null);
@@ -618,4 +618,4 @@ export function HandLandmarkOverlay({
   );
 }
 
-export default React.memo(HandLandmarkOverlay);
+export default React.memo(TrackingOverlay);
