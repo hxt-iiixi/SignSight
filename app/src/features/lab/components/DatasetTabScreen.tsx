@@ -50,11 +50,20 @@ type LabelStats = {
   signer_count: number;
 };
 
+type GestureLabelStats = LabelStats & {
+  v2_sequences?: number;
+};
+
 type DatasetHealthResponse = {
   ok?: boolean;
   landmark_total?: number;
   landmark_counts?: Record<string, LabelStats>;
   static_word_landmark_counts?: Record<string, LabelStats>;
+  gesture_total?: number;
+  gesture_v2_total?: number;
+  gesture_counts?: Record<string, GestureLabelStats>;
+  gesture_unique_signers?: number;
+  gesture_labels?: string[];
   current_landmark_training_mode?: "bootstrap" | "full_reviewed";
   ready_static_letters?: string[];
   unready_static_letters?: string[];
@@ -80,6 +89,24 @@ type LabelSummaryResponse = {
   session_rejected?: number;
 };
 
+type GestureLabelSummaryResponse = {
+  ok?: boolean;
+  error?: string;
+  label?: string;
+  approved?: number;
+  pending?: number;
+  rejected?: number;
+  legacy?: number;
+  by_hand?: HandCounts;
+  session_total?: number;
+  session_by_hand?: HandCounts;
+  session_pending?: number;
+  session_approved?: number;
+  session_rejected?: number;
+  session_legacy?: number;
+  v2_sequences?: number;
+};
+
 type LabelHealthItem = {
   label: string;
   approved: number;
@@ -87,6 +114,17 @@ type LabelHealthItem = {
   byHand: HandCounts;
   deficits: string[];
   isReady: boolean;
+};
+
+type GestureHealthItem = {
+  label: string;
+  approved: number;
+  signerCount: number;
+  byHand: HandCounts;
+  pending: number;
+  rejected: number;
+  legacy: number;
+  v2Sequences: number;
 };
 
 function InsetDivider() {
@@ -174,6 +212,13 @@ export function DatasetTabScreen({
   const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
   const [labelSummaries, setLabelSummaries] = useState<Record<string, LabelSummaryResponse>>({});
   const [summaryLoadingLabel, setSummaryLoadingLabel] = useState<string | null>(null);
+  const [expandedGestureLabel, setExpandedGestureLabel] = useState<string | null>(null);
+  const [gestureSummaries, setGestureSummaries] = useState<
+    Record<string, GestureLabelSummaryResponse>
+  >({});
+  const [summaryLoadingGestureLabel, setSummaryLoadingGestureLabel] = useState<string | null>(
+    null
+  );
 
   const fetchHealth = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -232,6 +277,29 @@ export function DatasetTabScreen({
       });
   }, [health]);
 
+  const gestureItems = useMemo<GestureHealthItem[]>(() => {
+    const counts = health?.gesture_counts || {};
+    return Object.entries(counts)
+      .map(([label, stats]) => ({
+        label,
+        approved: Number(stats.approved || 0),
+        signerCount: Number(stats.signer_count || 0),
+        byHand: {
+          Left: Number(stats.by_hand?.Left || 0),
+          Right: Number(stats.by_hand?.Right || 0),
+        },
+        pending: Number(stats.pending || 0),
+        rejected: Number(stats.rejected || 0),
+        legacy: Number(stats.legacy || 0),
+        v2Sequences: Number(stats.v2_sequences || 0),
+      }))
+      .sort((a, b) => {
+        if (a.approved !== b.approved) return a.approved - b.approved;
+        if (a.v2Sequences !== b.v2Sequences) return a.v2Sequences - b.v2Sequences;
+        return a.label.localeCompare(b.label);
+      });
+  }, [health?.gesture_counts]);
+
   const letterByHand = useMemo(
     () => aggregateByHand(health?.landmark_counts),
     [health?.landmark_counts]
@@ -240,10 +308,15 @@ export function DatasetTabScreen({
     () => aggregateByHand(health?.static_word_landmark_counts),
     [health?.static_word_landmark_counts]
   );
+  const gestureByHand = useMemo(
+    () => aggregateByHand(health?.gesture_counts),
+    [health?.gesture_counts]
+  );
 
   const snapshot = useMemo(() => {
     const landmarkApproved = totalApproved(health?.landmark_counts);
     const wordApproved = totalApproved(health?.static_word_landmark_counts);
+    const gestureApproved = totalApproved(health?.gesture_counts);
     const signerCount =
       Number(health?.dataset_unique_signers || 0) ||
       Number(health?.landmark_unique_signers || 0) ||
@@ -251,6 +324,8 @@ export function DatasetTabScreen({
     return {
       landmarkApproved,
       wordApproved,
+      gestureApproved,
+      gestureSignerCount: Number(health?.gesture_unique_signers || 0),
       signerCount,
       modeLabel: formatModeLabel(health?.current_landmark_training_mode),
     };
@@ -282,6 +357,32 @@ export function DatasetTabScreen({
     }
   }
 
+  async function ensureGestureSummary(label: string) {
+    if (gestureSummaries[label]) return;
+    try {
+      setSummaryLoadingGestureLabel(label);
+      const response = await fetch(`${API_BASE}/gesture_label_summary`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          label,
+          captureSessionId: captureSessionId || undefined,
+          signerId: signerId?.trim() || undefined,
+        }),
+      });
+      const payload = (await response.json()) as GestureLabelSummaryResponse;
+      setGestureSummaries((current) => ({ ...current, [label]: payload }));
+    } catch (summaryError) {
+      console.log("Failed to load gesture summary", summaryError);
+      setGestureSummaries((current) => ({
+        ...current,
+        [label]: { ok: false, error: "Failed to load gesture details." },
+      }));
+    } finally {
+      setSummaryLoadingGestureLabel((current) => (current === label ? null : current));
+    }
+  }
+
   function handleToggleLabel(label: string) {
     if (expandedLabel === label) {
       setExpandedLabel(null);
@@ -289,6 +390,15 @@ export function DatasetTabScreen({
     }
     setExpandedLabel(label);
     void ensureLabelSummary(label);
+  }
+
+  function handleToggleGestureLabel(label: string) {
+    if (expandedGestureLabel === label) {
+      setExpandedGestureLabel(null);
+      return;
+    }
+    setExpandedGestureLabel(label);
+    void ensureGestureSummary(label);
   }
 
   return (
@@ -332,7 +442,16 @@ export function DatasetTabScreen({
               <View style={styles.sectionBody}>
                 <View style={styles.metricsGrid}>
                   <DatasetMetric label="Letter samples" value={String(snapshot.landmarkApproved)} />
-                  <DatasetMetric label="Word samples" value={String(snapshot.wordApproved)} />
+                  <DatasetMetric label="Static words" value={String(snapshot.wordApproved)} />
+                  <DatasetMetric
+                    label="Gesture words"
+                    value={String(snapshot.gestureApproved)}
+                    sublabel={
+                      snapshot.gestureSignerCount > 0
+                        ? `${snapshot.gestureSignerCount} signers`
+                        : undefined
+                    }
+                  />
                   <DatasetMetric label="Signers" value={String(snapshot.signerCount)} />
                   <DatasetMetric
                     label="Training mode"
@@ -360,10 +479,19 @@ export function DatasetTabScreen({
                 </View>
                 <View style={styles.balanceRow}>
                   <View style={styles.balanceMeta}>
-                    <Text style={styles.balanceTitle}>Words</Text>
+                    <Text style={styles.balanceTitle}>Static words</Text>
                     <Text style={styles.balanceSubtitle}>{formatBalanceLabel(wordByHand.Left, wordByHand.Right)}</Text>
                   </View>
                   <Text style={styles.balanceValue}>{formatHandSplit(wordByHand)}</Text>
+                </View>
+                <View style={styles.balanceRow}>
+                  <View style={styles.balanceMeta}>
+                    <Text style={styles.balanceTitle}>Gesture words</Text>
+                    <Text style={styles.balanceSubtitle}>
+                      {formatBalanceLabel(gestureByHand.Left, gestureByHand.Right)}
+                    </Text>
+                  </View>
+                  <Text style={styles.balanceValue}>{formatHandSplit(gestureByHand)}</Text>
                 </View>
               </View>
             </View>
@@ -434,6 +562,83 @@ export function DatasetTabScreen({
                     </View>
                   );
                 })}
+              </View>
+            </View>
+
+            <InsetDivider />
+
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="git-branch-outline" size={16} color={ACCENT} />
+                <Text style={styles.sectionTitle}>Word Sequences</Text>
+              </View>
+              <View style={styles.sectionBody}>
+                {gestureItems.length === 0 ? (
+                  <Text style={styles.emptyHint}>No reviewed word-sequence captures yet.</Text>
+                ) : (
+                  gestureItems.map((item, index) => {
+                    const summary = gestureSummaries[item.label];
+                    const isExpanded = expandedGestureLabel === item.label;
+                    return (
+                      <View key={item.label}>
+                        {index > 0 ? <InsetDivider /> : null}
+                        <Pressable
+                          onPress={() => handleToggleGestureLabel(item.label)}
+                          style={styles.labelRow}
+                        >
+                          <View style={styles.labelPrimary}>
+                            <View style={styles.labelTopRow}>
+                              <Text style={styles.labelName}>{item.label}</Text>
+                              <Text style={[styles.labelState, styles.labelStateSequence]}>
+                                {item.v2Sequences > 0 ? "V2" : "Legacy"}
+                              </Text>
+                            </View>
+                            <Text style={styles.labelMeta}>
+                              {item.approved} approved · {item.signerCount} signers · {formatHandSplit(item.byHand)}
+                            </Text>
+                          </View>
+                          <Ionicons
+                            name={isExpanded ? "chevron-up" : "chevron-down"}
+                            size={18}
+                            color={TEXT_TERTIARY}
+                          />
+                        </Pressable>
+
+                        {isExpanded ? (
+                          <View style={styles.labelDetail}>
+                            {summaryLoadingGestureLabel === item.label && !summary ? (
+                              <ActivityIndicator size="small" color={ACCENT} />
+                            ) : summary?.ok === false ? (
+                              <Text style={styles.errorText}>
+                                {summary.error || "Failed to load gesture details."}
+                              </Text>
+                            ) : summary ? (
+                              <>
+                                <View style={styles.detailStatsGrid}>
+                                  <DetailStat label="Approved" value={String(summary.approved || 0)} />
+                                  <DetailStat label="Pending" value={String(summary.pending || 0)} />
+                                  <DetailStat label="Rejected" value={String(summary.rejected || 0)} />
+                                  <DetailStat label="Legacy" value={String(summary.legacy || 0)} />
+                                  <DetailStat label="V2 sequences" value={String(summary.v2_sequences || 0)} />
+                                  <DetailStat label="Hand split" value={formatHandSplit(summary.by_hand || { Left: 0, Right: 0 })} />
+                                </View>
+                                <InsetDivider />
+                                <View style={styles.sessionRow}>
+                                  <Text style={styles.sessionTitle}>Current session</Text>
+                                  <Text style={styles.sessionValue}>
+                                    {(summary.session_total || 0) > 0
+                                      ? `${summary.session_total || 0} total · ${summary.session_approved || 0} approved · ${formatHandSplit(summary.session_by_hand || { Left: 0, Right: 0 })}`
+                                      : "No matching session sequences"}
+                                  </Text>
+                                </View>
+                              </>
+                            ) : null}
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })
+                )}
               </View>
             </View>
           </>
@@ -620,6 +825,9 @@ const styles = StyleSheet.create({
   },
   labelStateWeak: {
     color: WARNING,
+  },
+  labelStateSequence: {
+    color: INFO,
   },
   labelMeta: {
     color: TEXT_SECONDARY,

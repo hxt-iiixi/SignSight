@@ -9,7 +9,13 @@ import { PRIMARY_CONTAINER, PRIMARY_CONTAINER_CAPTURE_ICON } from "../../../comp
 import { API_BASE } from "../../../config/api";
 import { BG } from "../../../components/lab/shared/labColors";
 import { ASL_LABELS } from "../../../ml/labels";
-import { saveStreamingLandmarkSample } from "../../../ml/streamingRecognition";
+import {
+  hasUsableUpperBody,
+  MIN_PREDICT_FRAMES,
+  saveStreamingGestureSample,
+  saveStreamingLandmarkSample,
+  saveStreamingStaticWordLandmarkSample,
+} from "../../../ml/streamingRecognition";
 import { RecognitionOverlay } from "../../../modules/camera/components/RecognitionOverlay";
 import { CameraShell } from "../../../modules/camera/components/CameraShell";
 import { useCameraRuntime } from "../../../modules/camera/hooks/useCameraRuntime";
@@ -37,6 +43,12 @@ type LabTabParamList = {
 
 type SaveState = "idle" | "saving" | "success" | "error" | "info";
 type ActionState = "idle" | "running";
+type GestureHealthResponse = {
+  ok?: boolean;
+  trained_gestures?: boolean;
+  trained_gestures_legacy?: boolean;
+  trained_gestures_v2?: boolean;
+};
 
 function normalizeModelsResponse(rawModels: any[]): ModelItem[] {
   const registryInfo = rawModels.find(
@@ -137,6 +149,7 @@ function CaptureTabScreen({
   availableModels,
   selectedModel,
   activeModelLabel,
+  gestureHealth,
   selectedLabel,
   onSelectLabel,
   onModeChange,
@@ -156,6 +169,7 @@ function CaptureTabScreen({
   availableModels: ModelItem[];
   selectedModel: ModelItem | null;
   activeModelLabel: string;
+  gestureHealth: GestureHealthResponse | null;
   selectedLabel: string;
   onSelectLabel: (value: string) => void;
   onModeChange: (value: Mode) => void;
@@ -176,6 +190,7 @@ function CaptureTabScreen({
   const { width } = useWindowDimensions();
   const isSmall = width < 360;
   const isTablet = width >= 768;
+  const [isWordRecording, setIsWordRecording] = useState(false);
   const cameraRuntime = useCameraRuntime();
   const recognitionRuntime = useRecognitionRuntime({
     enabled:
@@ -184,6 +199,7 @@ function CaptureTabScreen({
       !!cameraRuntime.device &&
       !!cameraRuntime.format,
     detectMode: mode === "letters" ? "LETTERS" : "WORDS",
+    isRecordingGesture: mode === "words" && isWordRecording,
   });
 
   const statusBarInset =
@@ -195,6 +211,19 @@ function CaptureTabScreen({
   const topFadeHeight = topStrongHeight + topMidHeight + 14;
   const topBarTop = topStrongHeight + 2;
   const selectedModelLabel = activeModelLabel || selectedModel?.label || "None";
+  const hasGestureModel = !!(
+    gestureHealth?.trained_gestures_v2 || gestureHealth?.trained_gestures_legacy
+  );
+  const gestureModelLabel = gestureHealth?.trained_gestures_v2
+    ? "Gesture V2"
+    : gestureHealth?.trained_gestures_legacy
+      ? "Gesture Legacy"
+      : "No gesture model";
+  const displayModelLabel = mode === "words" ? gestureModelLabel : selectedModelLabel;
+  const modelEmptyStateMessage =
+    mode === "words" && !hasGestureModel
+      ? "No gesture model trained yet. Train one from the Models page to enable word prediction."
+      : null;
   const resultCardTop = topBarTop + 56;
   const actionButtonBottom = Math.max(2, bottomOffset - 110);
   const normalizedTarget = selectedLabel === "N/A" ? "None" : selectedLabel;
@@ -224,6 +253,7 @@ function CaptureTabScreen({
     0;
   const quotaLabel =
     normalizedTarget === "None" || quotaTarget <= 0 ? "—" : `${sampleCount}/${quotaTarget}`;
+  const isStaticWordTarget = normalizedTarget === "I_LOVE_YOU";
   const canSaveLetterSample =
     mode === "letters" &&
     normalizedTarget !== "None" &&
@@ -231,9 +261,26 @@ function CaptureTabScreen({
     (recognitionRuntime.latestHandFrame?.landmarks?.length ?? 0) === 21 &&
     !!signerId.trim() &&
     !!captureSessionId;
+  const canStartWordRecording =
+    mode === "words" &&
+    normalizedTarget !== "None" &&
+    !!signerId.trim() &&
+    !!captureSessionId &&
+    (isStaticWordTarget || hasGestureModel);
+  const canSaveCurrentSample =
+    saveState !== "saving" &&
+    (canSaveLetterSample || canStartWordRecording || isWordRecording);
+  const [recordingElapsedMs, setRecordingElapsedMs] = useState(0);
+  const recordingFrameCount = recognitionRuntime.recordingGestureFramesCount;
+  const hasEnoughRecordedFrames = recordingFrameCount >= MIN_PREDICT_FRAMES;
+  const recordingMessage =
+    mode === "words" && isWordRecording
+      ? `Recording ${normalizedTarget} · ${(recordingElapsedMs / 1000).toFixed(1)}s · ${recordingFrameCount}f${hasEnoughRecordedFrames ? " · ready" : ""}`
+      : null;
   const [showDebugFps, setShowDebugFps] = useState(false);
   const [showDebugQuality, setShowDebugQuality] = useState(false);
   const [showDebugTracking, setShowDebugTracking] = useState(false);
+  const [showFullBodyOverlay, setShowFullBodyOverlay] = useState(false);
   const [showDebugSession, setShowDebugSession] = useState(false);
   const debugMenuItems = useMemo(
     () => [
@@ -262,6 +309,12 @@ function CaptureTabScreen({
         onPress: () => setShowHandOverlay(!showHandOverlay),
       },
       {
+        id: "overlay-full",
+        icon: "body-outline" as const,
+        active: showFullBodyOverlay,
+        onPress: () => setShowFullBodyOverlay((current) => !current),
+      },
+      {
         id: "session",
         icon: "construct-outline" as const,
         active: showDebugSession,
@@ -271,6 +324,7 @@ function CaptureTabScreen({
     [
       showDebugFps,
       showDebugQuality,
+      showFullBodyOverlay,
       showDebugSession,
       showDebugTracking,
       showHandOverlay,
@@ -316,6 +370,20 @@ function CaptureTabScreen({
     }
     if (showDebugTracking) {
       pushEntry("tracking-landmarks", "Landmarks", recognitionRuntime.debugState.landmarkCount);
+      pushEntry(
+        "tracking-upper-body",
+        "Upper body",
+        recognitionRuntime.debugState.hasUpperBody
+          ? `Yes (${recognitionRuntime.debugState.upperBodyPointCount})`
+          : "No"
+      );
+      pushEntry(
+        "tracking-upper-body-map",
+        "Upper body map",
+        recognitionRuntime.latestHandFrame?.upperBody
+          ? Object.values(recognitionRuntime.latestHandFrame.upperBody).filter(Boolean).length
+          : 0
+      );
       pushEntry("tracking-ts", "Timestamp", recognitionRuntime.debugState.lastTimestampMs);
       pushEntry("tracking-valid-ts", "Last valid", recognitionRuntime.debugState.lastValidTimestampMs);
       pushEntry("tracking-grace", "Grace ms", recognitionRuntime.debugState.handLossGraceMs);
@@ -326,7 +394,7 @@ function CaptureTabScreen({
       pushEntry("session-signer", "Signer", signerId.trim() || null);
       pushEntry("session-variant", "Variant", variantTag.trim() || null);
       pushEntry("session-id", "Session", captureSessionId);
-      pushEntry("session-save", "Save ready", canSaveLetterSample ? "Yes" : "No");
+      pushEntry("session-save", "Save ready", canSaveCurrentSample ? "Yes" : "No");
     }
     return entries;
   }, [
@@ -335,13 +403,17 @@ function CaptureTabScreen({
     cameraRuntime.cameraPosition,
     cameraRuntime.device,
     cameraRuntime.format,
-    canSaveLetterSample,
+    canSaveCurrentSample,
     captureSessionId,
     recognitionRuntime.debugState.approxFps,
     recognitionRuntime.debugState.handLossGraceMs,
+    recognitionRuntime.debugState.hasUpperBody,
     recognitionRuntime.debugState.landmarkCount,
     recognitionRuntime.debugState.lastValidTimestampMs,
     recognitionRuntime.debugState.lastTimestampMs,
+    recognitionRuntime.debugState.upperBodyPointCount,
+    recognitionRuntime.latestHandFrame?.upperBody,
+    showFullBodyOverlay,
     showDebugFps,
     showDebugQuality,
     showDebugSession,
@@ -352,12 +424,51 @@ function CaptureTabScreen({
     variantTag,
   ]);
 
-  async function handleCapturePress() {
+  useEffect(() => {
     if (mode === "words") {
-      setSaveFeedback("info", "Word dataset saving is not enabled yet.");
       return;
     }
 
+    setIsWordRecording(false);
+    setRecordingElapsedMs(0);
+    recognitionRuntime.resetGestureRecording();
+  }, [mode, recognitionRuntime.resetGestureRecording]);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setIsWordRecording(false);
+      setRecordingElapsedMs(0);
+      recognitionRuntime.resetGestureRecording();
+    }
+  }, [isFocused, recognitionRuntime.resetGestureRecording]);
+
+  useEffect(() => {
+    if (mode !== "words") {
+      return;
+    }
+
+    setIsWordRecording(false);
+    setRecordingElapsedMs(0);
+    recognitionRuntime.resetGestureRecording();
+  }, [mode, normalizedTarget, recognitionRuntime.resetGestureRecording]);
+
+  useEffect(() => {
+    if (!isWordRecording) {
+      setRecordingElapsedMs(0);
+      return;
+    }
+
+    const startedAt = Date.now();
+    setRecordingElapsedMs(0);
+
+    const interval = setInterval(() => {
+      setRecordingElapsedMs(Date.now() - startedAt);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isWordRecording]);
+
+  async function handleCapturePress() {
     if (normalizedTarget === "None") {
       setSaveFeedback("error", "Select a target before saving.");
       return;
@@ -368,33 +479,129 @@ function CaptureTabScreen({
       return;
     }
 
-    if (!recognitionRuntime.latestHandFrame?.hasHand || (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21) {
-      setSaveFeedback("error", "No valid hand detected to save.");
+    if (mode === "letters") {
+      if (
+        !recognitionRuntime.latestHandFrame?.hasHand ||
+        (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21
+      ) {
+        setSaveFeedback("error", "No valid hand detected to save.");
+        return;
+      }
+
+      setSaveFeedback("saving", "Saving sample...");
+
+      const result = await saveStreamingLandmarkSample(
+        recognitionRuntime.latestHandFrame,
+        API_BASE,
+        normalizedTarget,
+        {
+          signerId: signerId.trim(),
+          captureSessionId,
+          cameraPosition: cameraRuntime.cameraPosition,
+          deviceId: cameraRuntime.device?.id ?? undefined,
+          variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+        }
+      );
+
+      if (!result.ok) {
+        setSaveFeedback("error", result.error ?? "Failed to save sample.");
+        return;
+      }
+
+      setSaveFeedback("success", `Saved ${normalizedTarget}.`);
+      await onRefreshModels();
       return;
     }
 
-    setSaveFeedback("saving", "Saving sample...");
+    if (!isWordRecording) {
+      recognitionRuntime.resetGestureRecording();
+      setSaveFeedback("idle", null);
+      setRecordingElapsedMs(0);
+      setIsWordRecording(true);
+      return;
+    }
 
-    const result = await saveStreamingLandmarkSample(
-      recognitionRuntime.latestHandFrame,
-      API_BASE,
-      normalizedTarget,
-      {
-        signerId: signerId.trim(),
-        captureSessionId,
-        cameraPosition: cameraRuntime.cameraPosition,
-        deviceId: cameraRuntime.device?.id ?? undefined,
-        variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+    setIsWordRecording(false);
+
+    if (isStaticWordTarget) {
+      if (
+        !recognitionRuntime.latestHandFrame?.hasHand ||
+        (recognitionRuntime.latestHandFrame.landmarks?.length ?? 0) !== 21
+      ) {
+        setSaveFeedback("error", "No valid hand detected to save.");
+        return;
       }
-    );
+
+      setSaveFeedback("saving", "Saving static word...");
+
+      const result = await saveStreamingStaticWordLandmarkSample(
+        recognitionRuntime.latestHandFrame,
+        API_BASE,
+        normalizedTarget,
+        {
+          signerId: signerId.trim(),
+          captureSessionId,
+          cameraPosition: cameraRuntime.cameraPosition,
+          deviceId: cameraRuntime.device?.id ?? undefined,
+          variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+        }
+      );
+
+      if (!result.ok) {
+        setSaveFeedback("error", result.error ?? "Failed to save sample.");
+        setRecordingElapsedMs(0);
+        recognitionRuntime.resetGestureRecording();
+        return;
+      }
+
+      setSaveFeedback("success", `Saved ${normalizedTarget}.`);
+      setRecordingElapsedMs(0);
+      recognitionRuntime.resetGestureRecording();
+      await onRefreshModels();
+      return;
+    }
+
+    const framesV2 = recognitionRuntime.getGestureRecordingFramesV2();
+    const usableUpperBodyFrameCount = framesV2.filter(hasUsableUpperBody).length;
+    if (framesV2.length < MIN_PREDICT_FRAMES) {
+      setSaveFeedback("error", "Record a few more gesture frames before saving.");
+      setRecordingElapsedMs(0);
+      recognitionRuntime.resetGestureRecording();
+      return;
+    }
+    if (usableUpperBodyFrameCount < MIN_PREDICT_FRAMES) {
+      setSaveFeedback("error", "Upper-body tracking is not stable enough to save this word yet.");
+      setRecordingElapsedMs(0);
+      recognitionRuntime.resetGestureRecording();
+      return;
+    }
+
+    setSaveFeedback("saving", "Saving gesture sample...");
+
+    const result = await saveStreamingGestureSample(API_BASE, normalizedTarget, {
+      frames: recognitionRuntime.getGestureRecordingFrames(),
+      framesV2,
+      handedness:
+        framesV2.find((frame) => frame.handedness)?.handedness ??
+        recognitionRuntime.latestHandFrame?.handedness ??
+        null,
+      signerId: signerId.trim(),
+      captureSessionId,
+      cameraPosition: cameraRuntime.cameraPosition,
+      deviceId: cameraRuntime.device?.id ?? undefined,
+      variantTags: variantTag.trim() ? [variantTag.trim()] : [],
+    });
 
     if (!result.ok) {
-      setSaveFeedback("error", result.error ?? "Failed to save sample.");
+      setSaveFeedback("error", result.error ?? "Failed to save gesture sample.");
+      setRecordingElapsedMs(0);
+      recognitionRuntime.resetGestureRecording();
       return;
     }
 
-    setSaveFeedback("success", `Saved ${normalizedTarget}.`);
-    await onRefreshModels();
+    setSaveFeedback("success", `Saved ${normalizedTarget} (${result.frameCount}f).`);
+    setRecordingElapsedMs(0);
+    recognitionRuntime.resetGestureRecording();
   }
 
   return (
@@ -414,6 +621,8 @@ function CaptureTabScreen({
       onFlipCamera={cameraRuntime.flipCamera}
       onToggleTorch={cameraRuntime.toggleTorch}
       orientedFrame={cameraRuntime.orientedFrame}
+      overlayMode={mode === "letters" ? "LETTERS" : "WORDS"}
+      showFullBodyOverlay={showFullBodyOverlay}
       overlayVisible={true}
       ready={cameraRuntime.ready}
       showHandOverlay={showHandOverlay}
@@ -452,9 +661,11 @@ function CaptureTabScreen({
         onTargetSelect={onSelectLabel}
         modeValue={mode}
         onModeChange={onModeChange}
-        modelLabel={selectedModelLabel}
-        modelOptions={availableModels}
+        modelLabel={displayModelLabel}
+        modelOptions={mode === "words" ? [] : availableModels}
         onModelSelect={onSelectModel}
+        modelSelectable={mode !== "words"}
+        modelEmptyStateMessage={modelEmptyStateMessage}
         quotaLabel={quotaLabel}
         signerId={signerId}
         onSignerIdChange={onSignerIdChange}
@@ -462,17 +673,24 @@ function CaptureTabScreen({
         onVariantTagChange={onVariantTagChange}
         saveState={saveState}
         saveMessage={saveMessage}
+        recordingMessage={recordingMessage}
       />
       <View style={[styles.captureActionWrap, { bottom: actionButtonBottom }]}>
         <Pressable
           style={[
             styles.captureActionButton,
-            (!canSaveLetterSample || saveState === "saving") && styles.captureActionButtonDisabled,
+            !canSaveCurrentSample && styles.captureActionButtonDisabled,
           ]}
           onPress={handleCapturePress}
         >
           <Ionicons
-            name={mode === "letters" ? "camera" : "videocam"}
+            name={
+              mode === "letters"
+                ? "camera"
+                : isWordRecording
+                  ? "stop"
+                  : "radio-button-on"
+            }
             size={24}
             color="#FFFFFF"
           />
@@ -496,6 +714,7 @@ export default function LabDeveloperScreen() {
   const [availableModels, setAvailableModels] = useState<ModelItem[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelItem | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState<string>("None");
+  const [gestureHealth, setGestureHealth] = useState<GestureHealthResponse | null>(null);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [trainingMode, setTrainingMode] = useState<TrainingModeValue>("bootstrap");
@@ -546,8 +765,24 @@ export default function LabDeveloperScreen() {
     }
   }
 
+  async function fetchGestureHealth() {
+    try {
+      const response = await fetch(`${API_BASE}/health`);
+      const payload = (await response.json()) as GestureHealthResponse;
+      if (!response.ok || payload?.ok === false) {
+        setGestureHealth(null);
+        return;
+      }
+      setGestureHealth(payload);
+    } catch (error) {
+      console.log("Failed to fetch gesture health", error);
+      setGestureHealth(null);
+    }
+  }
+
   useEffect(() => {
     void fetchModels();
+    void fetchGestureHealth();
   }, []);
 
   useEffect(() => {
@@ -744,6 +979,7 @@ export default function LabDeveloperScreen() {
               availableModels={availableModels.filter((model) => !model.isArchived)}
               selectedModel={selectedModel}
               activeModelLabel={activeModelLabel}
+              gestureHealth={gestureHealth}
               selectedLabel={selectedLabel}
               onSelectLabel={setSelectedLabel}
               onModeChange={(nextMode) => {

@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { API_BASE } from "../../../config/api";
 
 import {
   ACCENT,
@@ -71,6 +72,28 @@ export type ModelManagementItem = {
 };
 
 type ActionState = "idle" | "running";
+
+type GestureHealthResponse = {
+  ok?: boolean;
+  trained_gestures?: boolean;
+  trained_gestures_legacy?: boolean;
+  trained_gestures_v2?: boolean;
+  gesture_labels?: string[];
+  gesture_total?: number;
+  gesture_v2_total?: number;
+  gesture_unique_signers?: number;
+  gesture_counts?: Record<
+    string,
+    {
+      approved?: number;
+      pending?: number;
+      rejected?: number;
+      legacy?: number;
+      signer_count?: number;
+      v2_sequences?: number;
+    }
+  >;
+};
 
 function formatDate(value?: string | null) {
   if (!value) return "Unknown date";
@@ -205,6 +228,10 @@ export function ModelsTabScreen({
   const [menuModelId, setMenuModelId] = useState<string | null>(null);
   const [inlineRenameModelId, setInlineRenameModelId] = useState<string | null>(null);
   const [showReadinessInfo, setShowReadinessInfo] = useState(false);
+  const [gestureHealth, setGestureHealth] = useState<GestureHealthResponse | null>(null);
+  const [gestureLoading, setGestureLoading] = useState(false);
+  const [gestureMessage, setGestureMessage] = useState<string | null>(null);
+  const [gestureTrainingState, setGestureTrainingState] = useState<ActionState>("idle");
 
   const activeModels = useMemo(() => models.filter((model) => !model.isArchived), [models]);
   const archivedModels = useMemo(() => models.filter((model) => model.isArchived), [models]);
@@ -217,6 +244,80 @@ export function ModelsTabScreen({
       (count) => Number(count || 0) > 0
     );
   }, [activeModel, readiness.body]);
+  const gestureCoverage = useMemo(() => {
+    const counts = gestureHealth?.gesture_counts || {};
+    const labels = Object.entries(counts)
+      .map(([label, stats]) => ({
+        label,
+        approved: Number(stats.approved || 0),
+        v2Sequences: Number(stats.v2_sequences || 0),
+      }))
+      .filter((item) => item.approved > 0 || item.v2Sequences > 0)
+      .sort((a, b) => {
+        if (a.approved !== b.approved) return b.approved - a.approved;
+        if (a.v2Sequences !== b.v2Sequences) return b.v2Sequences - a.v2Sequences;
+        return a.label.localeCompare(b.label);
+      });
+
+    return {
+      labels,
+      topSummary: labels
+        .slice(0, 6)
+        .map((item) => `${item.label}:${item.approved}`)
+        .join(" · "),
+    };
+  }, [gestureHealth]);
+
+  async function fetchGestureHealth() {
+    try {
+      setGestureLoading(true);
+      const response = await fetch(`${API_BASE}/health`);
+      const payload = (await response.json()) as GestureHealthResponse;
+      if (!response.ok || payload?.ok === false) {
+        setGestureMessage("Failed to load gesture model status.");
+        return;
+      }
+      setGestureHealth(payload);
+      setGestureMessage(null);
+    } catch (error) {
+      console.log("Failed to load gesture health", error);
+      setGestureMessage("Failed to load gesture model status.");
+    } finally {
+      setGestureLoading(false);
+    }
+  }
+
+  async function handleTrainGestureModel() {
+    try {
+      setGestureTrainingState("running");
+      setGestureMessage("Training gesture model...");
+      const response = await fetch(`${API_BASE}/train_gestures`, {
+        method: "POST",
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || payload?.ok === false) {
+        setGestureMessage(payload?.error ?? "Gesture training failed.");
+        return;
+      }
+      const schemaLabel =
+        payload?.schema === "gesture_v2"
+          ? "Gesture V2"
+          : payload?.schema === "legacy"
+            ? "Legacy gesture"
+            : "Gesture";
+      const accuracy =
+        typeof payload?.accuracy === "number"
+          ? `${(payload.accuracy * 100).toFixed(1)}%`
+          : "completed";
+      setGestureMessage(`${schemaLabel} training finished. Holdout accuracy ${accuracy}.`);
+      await fetchGestureHealth();
+    } catch (error) {
+      console.log("Failed to train gesture model", error);
+      setGestureMessage("Gesture training failed.");
+    } finally {
+      setGestureTrainingState("idle");
+    }
+  }
 
   useEffect(() => {
     if (!showReadinessInfo || !hasReadinessInfo) {
@@ -233,6 +334,10 @@ export function ModelsTabScreen({
       setShowReadinessInfo(false);
     }
   }, [hasReadinessInfo, showReadinessInfo]);
+
+  useEffect(() => {
+    void fetchGestureHealth();
+  }, []);
 
   return (
     <View style={styles.screen}>
@@ -253,7 +358,7 @@ export function ModelsTabScreen({
         <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
             <Ionicons name="hardware-chip-outline" size={15} color={ACCENT} />
-            <Text style={styles.sectionTitle}>Training Center</Text>
+            <Text style={styles.sectionTitle}>Landmark Training</Text>
           </View>
           <View style={styles.headerUtilities}>
             {hasReadinessInfo ? (
@@ -412,10 +517,89 @@ export function ModelsTabScreen({
       <InsetDivider />
 
       <View style={styles.section}>
-        <View style={[styles.sectionHeader, styles.sectionHeaderStack]}>
+        <View style={styles.sectionHeader}>
           <View style={styles.sectionTitleRow}>
-            <Ionicons name="layers-outline" size={15} color={ACCENT} />
-            <Text style={styles.sectionTitle}>Model Versions</Text>
+            <Ionicons name="git-branch-outline" size={15} color={ACCENT} />
+            <Text style={styles.sectionTitle}>Gesture</Text>
+          </View>
+          {gestureLoading ? <ActivityIndicator size="small" color={ACCENT} /> : null}
+        </View>
+
+        <View style={styles.sectionBody}>
+          <View style={styles.gestureSummaryGrid}>
+            <View style={styles.gestureMetric}>
+              <Text style={styles.gestureMetricLabel}>Model</Text>
+              <Text style={styles.gestureMetricValue}>
+                {gestureHealth?.trained_gestures_v2
+                  ? "Gesture V2"
+                  : gestureHealth?.trained_gestures_legacy
+                    ? "Legacy"
+                    : "Not trained"}
+              </Text>
+            </View>
+            <View style={styles.gestureMetric}>
+              <Text style={styles.gestureMetricLabel}>Reviewed sequences</Text>
+              <Text style={styles.gestureMetricValue}>
+                {String(gestureHealth?.gesture_total ?? 0)}
+              </Text>
+            </View>
+            <View style={styles.gestureMetric}>
+              <Text style={styles.gestureMetricLabel}>V2 sequences</Text>
+              <Text style={styles.gestureMetricValue}>
+                {String(gestureHealth?.gesture_v2_total ?? 0)}
+              </Text>
+            </View>
+            <View style={styles.gestureMetric}>
+              <Text style={styles.gestureMetricLabel}>Signers</Text>
+              <Text style={styles.gestureMetricValue}>
+                {String(gestureHealth?.gesture_unique_signers ?? 0)}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.gestureInfoBlock}>
+            <Text style={styles.gestureInfoTitle}>Gesture coverage</Text>
+            <Text style={styles.gestureInfoBody}>
+              {gestureCoverage.topSummary || "No reviewed gesture labels yet."}
+            </Text>
+          </View>
+
+          {gestureMessage ? (
+            <Text
+              style={[
+                styles.feedbackText,
+                gestureTrainingState === "running" ? styles.feedbackInfo : styles.feedbackNeutral,
+              ]}
+            >
+              {gestureMessage}
+            </Text>
+          ) : null}
+
+          <Pressable
+            style={[
+              styles.primaryButton,
+              (gestureTrainingState === "running" || (gestureHealth?.gesture_total ?? 0) <= 0) &&
+                styles.primaryButtonDisabled,
+            ]}
+            onPress={() => {
+              void handleTrainGestureModel();
+            }}
+            disabled={gestureTrainingState === "running" || (gestureHealth?.gesture_total ?? 0) <= 0}
+          >
+            <Text style={styles.primaryButtonText}>
+              {gestureTrainingState === "running" ? "Training Gesture..." : "Train Gesture Model"}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <InsetDivider />
+
+      <View style={styles.section}>
+          <View style={[styles.sectionHeader, styles.sectionHeaderStack]}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="layers-outline" size={15} color={ACCENT} />
+            <Text style={styles.sectionTitle}>Landmark Versions</Text>
           </View>
           <Pressable style={styles.archivedToggleInline} onPress={onToggleArchived}>
             <Ionicons
@@ -953,6 +1137,52 @@ const styles = StyleSheet.create({
   },
   feedbackNeutral: {
     color: TEXT_SECONDARY,
+  },
+  gestureSummaryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.SPACE_SM,
+  },
+  gestureMetric: {
+    minWidth: "47%",
+    flexGrow: 1,
+    backgroundColor: BG_CARD,
+    borderWidth: 1,
+    borderColor: BORDER_LIGHT,
+    borderRadius: RADIUS_MD,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_SM,
+    gap: 4,
+  },
+  gestureMetricLabel: {
+    color: TEXT_SECONDARY,
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  gestureMetricValue: {
+    color: TEXT,
+    fontSize: TYPOGRAPHY.TEXT_MD,
+    fontWeight: "900",
+  },
+  gestureInfoBlock: {
+    backgroundColor: BG_MUTED,
+    borderRadius: RADIUS_MD,
+    paddingHorizontal: SPACING.SPACE_MD,
+    paddingVertical: SPACING.SPACE_SM,
+    gap: 4,
+  },
+  gestureInfoTitle: {
+    color: TEXT,
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "800",
+  },
+  gestureInfoBody: {
+    color: TEXT_SECONDARY,
+    fontSize: TYPOGRAPHY.TEXT_SM,
+    fontWeight: "600",
+    lineHeight: 20,
   },
   primaryButton: {
     borderRadius: RADIUS_MD,
