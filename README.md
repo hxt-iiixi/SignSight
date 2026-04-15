@@ -141,7 +141,3 @@ The project currently emphasizes:
 - landmark and gesture model separation
 - reviewed dataset capture
 - iterative model improvement inside the app
-
-## License
-
-Add your project license here if or when you publish one.
