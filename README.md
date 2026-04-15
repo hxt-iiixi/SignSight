@@ -33,9 +33,9 @@ At a product level, SignSight currently supports:
 
 SignSight has two main runtime surfaces:
 
-- [`app/`](/home/fkrul3s47/Documents/Projects/SignSight/app)
+- [`app/`](./app)
   Expo and React Native mobile application
-- [`backend/`](/home/fkrul3s47/Documents/Projects/SignSight/backend)
+- [`backend/`](./backend)
   FastAPI backend for inference, training, dataset summaries, and model operations
 
 The mobile app handles:
@@ -104,20 +104,20 @@ npx expo start --dev-client
 
 ## Documentation
 
-The main docs hub lives in [docs/README.md](/home/fkrul3s47/Documents/Projects/SignSight/docs/README.md).
+The main docs hub lives in [docs/README.md](./docs/README.md).
 
 Audience-based entry points:
 
-- [Normal User Guide](/home/fkrul3s47/Documents/Projects/SignSight/docs/users/getting-started.md)
-- [Open Source Guide](/home/fkrul3s47/Documents/Projects/SignSight/docs/open-source/README.md)
-- [Scouting Guide](/home/fkrul3s47/Documents/Projects/SignSight/docs/scouting/README.md)
-- [Enterprise Guide](/home/fkrul3s47/Documents/Projects/SignSight/docs/enterprise/README.md)
+- [Normal User Guide](./docs/users/getting-started.md)
+- [Open Source Guide](./docs/open-source/README.md)
+- [Scouting Guide](./docs/scouting/README.md)
+- [Enterprise Guide](./docs/enterprise/README.md)
 
 Shared technical references:
 
-- [Architecture Reference](/home/fkrul3s47/Documents/Projects/SignSight/docs/references/architecture.md)
-- [ML Pipelines Reference](/home/fkrul3s47/Documents/Projects/SignSight/docs/references/ml-pipelines.md)
-- [Repository Map](/home/fkrul3s47/Documents/Projects/SignSight/docs/references/repository-map.md)
+- [Architecture Reference](./docs/references/architecture.md)
+- [ML Pipelines Reference](./docs/references/ml-pipelines.md)
+- [Repository Map](./docs/references/repository-map.md)
 
 ## Project Scope
 
