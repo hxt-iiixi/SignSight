@@ -2,10 +2,10 @@ import React from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
-import HandLandmarkOverlay from "../../../components/HandLandmarkOverlay";
+import TrackingOverlay from "../../../components/TrackingOverlay";
 import { SPACING } from "../../../config/spacing";
 import { TYPOGRAPHY } from "../../../config/typography";
-import type { HandTrackingFrameResult } from "../../../ml/streamTypes";
+import type { DetectMode, HandTrackingFrameResult } from "../../../ml/streamTypes";
 import { CameraTopBar } from "./CameraTopBar";
 
 const BG = "#F8F9FA";
@@ -30,6 +30,8 @@ export function CameraShell({
   onToggleTorch,
   orientedFrame,
   overlayVisible = false,
+  overlayMode = "LETTERS",
+  showFullBodyOverlay = false,
   ready,
   showHandOverlay,
   showFlipCamera = true,
@@ -65,6 +67,8 @@ export function CameraShell({
   onToggleTorch: () => void;
   orientedFrame: { width: number; height: number };
   overlayVisible?: boolean;
+  overlayMode?: DetectMode;
+  showFullBodyOverlay?: boolean;
   ready: boolean;
   showHandOverlay: boolean;
   showFlipCamera?: boolean;
@@ -120,20 +124,33 @@ export function CameraShell({
           />
         )}
 
-        <HandLandmarkOverlay
+        <TrackingOverlay
           landmarks={latestHandFrame?.hasHand ? latestHandFrame.landmarks : null}
+          hands={latestHandFrame?.hasHand ? latestHandFrame.hands ?? null : null}
+          upperBody={latestHandFrame?.hasUpperBody ? (latestHandFrame.upperBody as any) : null}
+          fullBody={
+            latestHandFrame?.hasUpperBody && Array.isArray(latestHandFrame.upperBody)
+              ? (latestHandFrame.upperBody as any)
+              : null
+          }
           landmarkTimestampMs={latestHandFrame?.timestampMs ?? null}
           cameraPosition={cameraPosition}
           previewWidth={cameraLayout.width}
           previewHeight={cameraLayout.height}
           frameWidth={orientedFrame.width}
           frameHeight={orientedFrame.height}
+          overlayMode={overlayMode === "WORDS" ? "gesture" : "hand"}
+          showFullBody={showFullBodyOverlay}
           onSmoothingChange={() => {}}
           visible={
             showHandOverlay &&
             overlayVisible &&
-            !!latestHandFrame?.hasHand &&
-            (latestHandFrame?.landmarks?.length ?? 0) === 21
+            ((overlayMode === "WORDS" &&
+              (!!latestHandFrame?.hasUpperBody ||
+                (!!latestHandFrame?.hasHand &&
+                  (latestHandFrame?.landmarks?.length ?? 0) === 21))) ||
+              (!!latestHandFrame?.hasHand &&
+                (latestHandFrame?.landmarks?.length ?? 0) === 21))
           }
         />
 

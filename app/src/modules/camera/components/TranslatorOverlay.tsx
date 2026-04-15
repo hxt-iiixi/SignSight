@@ -23,6 +23,8 @@ export function TranslatorOverlay({
   modelOptions,
   onModelSelect,
   modelStatusMessage,
+  modelSelectable = true,
+  modelEmptyStateMessage,
 }: {
   prediction: PredictionViewModel;
   mode: TranslatorMode;
@@ -31,6 +33,8 @@ export function TranslatorOverlay({
   modelOptions: Array<{ id: string; label: string; isLatest?: boolean }>;
   onModelSelect: (id: string) => void;
   modelStatusMessage?: string | null;
+  modelSelectable?: boolean;
+  modelEmptyStateMessage?: string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [modelPickerOpen, setModelPickerOpen] = useState(false);
@@ -95,6 +99,7 @@ export function TranslatorOverlay({
                 style={styles.modelSurface}
                 onPress={(event) => {
                   event.stopPropagation();
+                  if (!modelSelectable) return;
                   setModelPickerOpen((current) => !current);
                 }}
               >
@@ -104,11 +109,13 @@ export function TranslatorOverlay({
                       {modelLabel || "None"}
                     </Text>
                   </View>
-                  <Ionicons
-                    name={modelPickerOpen ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color={TEXT_SECONDARY}
-                  />
+                  {modelSelectable ? (
+                    <Ionicons
+                      name={modelPickerOpen ? "chevron-up" : "chevron-down"}
+                      size={18}
+                      color={TEXT_SECONDARY}
+                    />
+                  ) : null}
                 </View>
 
                 {modelPickerOpen && modelOptions.length ? (
@@ -153,6 +160,10 @@ export function TranslatorOverlay({
                       );
                     })}
                   </ScrollView>
+                ) : null}
+
+                {!modelSelectable && modelEmptyStateMessage ? (
+                  <Text style={styles.modelEmptyText}>{modelEmptyStateMessage}</Text>
                 ) : null}
               </Pressable>
             </View>
@@ -317,5 +328,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.4,
     marginLeft: 2,
+  },
+  modelEmptyText: {
+    color: "rgba(255,255,255,0.62)",
+    fontSize: TYPOGRAPHY.TEXT_XS,
+    fontWeight: "700",
+    lineHeight: 18,
   },
 });

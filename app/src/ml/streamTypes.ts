@@ -1,14 +1,20 @@
 import type {
+  DetectedHand,
   HandPoint,
   HandTrackingFrameResult,
   Handedness,
+  UpperBodyEntry,
+  UpperBodyKeypointName,
   UpperBodyLandmarks,
 } from "../../modules/signsight-hand-tracker";
 
 export type {
+  DetectedHand,
   HandPoint,
   HandTrackingFrameResult,
   Handedness,
+  UpperBodyEntry,
+  UpperBodyKeypointName,
   UpperBodyLandmarks,
 };
 
@@ -22,6 +28,7 @@ export type GestureV2SampleFrame = {
   handLandmarks: HandPoint[] | null;
   handedness: Handedness | null;
   upperBody: UpperBodyLandmarks | null;
+  poseLandmarksFull: UpperBodyEntry[] | null;
   timestampMs: number;
 };
 

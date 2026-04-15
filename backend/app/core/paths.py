@@ -18,6 +18,7 @@ LANDMARKS_MODEL_VERSIONS_DIR = MODELS_DIR / "landmark_versions"
 LANDMARKS_ARCHIVED_MODEL_VERSIONS_DIR = MODELS_DIR / "archived_models"
 LANDMARKS_MODEL_REGISTRY_PATH = MODELS_DIR / "landmark_model_registry.json"
 GESTURE_MODEL_PATH = MODELS_DIR / "asl_gesture_model.joblib"
+GESTURE_MODEL_V2_PATH = MODELS_DIR / "asl_gesture_model_v2.joblib"
 
 for path in (
     LANDMARKS_DIR,

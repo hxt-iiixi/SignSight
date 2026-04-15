@@ -23,7 +23,7 @@ class SignSightHandTrackerModule : Module() {
     Function("getTrackingCapabilities") {
       mapOf(
         "hands" to true,
-        "upperBody" to false,
+        "upperBody" to true,
         "gestureV2" to false
       )
     }
