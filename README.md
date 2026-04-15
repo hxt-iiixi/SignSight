@@ -1,161 +1,147 @@
-# SignSight (ASL Recognition App)
+# SignSight
 
-SignSight is an Expo + React Native app that recognizes ASL letters using **hand landmarks (21 points)** extracted by **MediaPipe Hands** running inside a hidden WebView.
+SignSight is a mobile-first sign recognition platform built for real-time camera-based translation, dataset iteration, and model improvement.
 
-**Pipeline:**  
-Camera snapshot → Base64 → WebView (MediaPipe Hands) → 21 landmarks → FastAPI backend → ML prediction
+It combines:
 
-> “Live” tracking (optional) is implemented via rapid snapshots (~5 FPS), not true video.
+- live `Letters` and `Words` recognition
+- on-device hand and pose tracking
+- trainable backend model pipelines
+- an in-app developer lab for capture, datasets, and model workflows
 
----
+This repository focuses on SignSight’s core product surface and technical capabilities.
 
-## Tech Stack
+## What SignSight Does
 
-- **Frontend:** Expo + React Native
-- **Camera:** `expo-camera`
-- **Hand landmarks:** `react-native-webview` + MediaPipe Hands (CDN)
-- **Video splash (optional):** `expo-av`
-- **Icons (dashboard):** `@expo/vector-icons`
-- **Backend:** FastAPI + scikit-learn (KNN / SVC), joblib
+SignSight is designed around two complementary recognition paths:
 
----
+- `Landmark` recognition
+  For static signs such as alphabet letters and other single-frame classes.
+- `Gesture` recognition
+  For dynamic word and motion-based signs using sequence data over time.
 
-## Project Structure
+At a product level, SignSight currently supports:
 
-```text
-src/
-├─ screens/
-│  ├─ CameraScreenVC.tsx      # Canonical camera recognition UI
-│  ├─ DashboardScreen.tsx     # Post-auth dashboard
-│  └─ VideoSplashScreen.tsx   # Video splash before biometrics
-│
-├─ ml/
-│  ├─ labels.ts
-│  ├─ smoother.ts
-│  └─ dataset.ts
-│
-└─ server/
-   ├─ server.py               # FastAPI backend
-   ├─ dataset/                # Image dataset (A/B/C)
-   └─ landmarks/              # Landmark jsonl + trained model
-```
+- live translator experience through the mobile camera
+- prediction result and confidence display
+- `Letters` and `Words` modes
+- landmark and gesture model awareness in the app
+- mobile dataset capture for reviewed samples
+- dataset inspection and model training through the built-in lab
 
-Legacy recognition and auth prototypes are stored under `app/archive/`.
+## Architecture At A Glance
 
----
+SignSight has two main runtime surfaces:
 
-## Requirements
+- [`app/`](./app)
+  Expo and React Native mobile application
+- [`backend/`](./backend)
+  FastAPI backend for inference, training, dataset summaries, and model operations
 
-### Frontend (Expo)
-- Node.js (LTS recommended)
-- npm or yarn
-- Expo CLI (via `npx expo`)
+The mobile app handles:
 
-### Backend (FastAPI)
-- Python **3.10+**
-- pip
-- virtual environment (`venv`)
+- camera and tracking
+- translator UX
+- tutorial, feedback, and settings flows
+- developer lab workflows
 
----
+The backend handles:
+
+- landmark prediction and training
+- gesture prediction and training
+- model lifecycle endpoints
+- dataset health and summary endpoints
 
 ## Quick Start
 
-Install local prerequisites first:
-- Node.js 20 LTS+
-- npm
-- Python 3.10+
-- MongoDB running locally
+### Fast Path
 
-From the repo root:
+From the repository root:
 
 ```bash
 ./init.sh
 ./run.sh
 ```
 
-`./init.sh` installs the Expo app, the admin app, and the backend virtualenv. It also writes local env files for:
-- mobile app API base in `app/.env.local`
-- admin API base in `app/signsight-admin/.env.local`
+### Manual Setup
 
-`./run.sh` starts:
-- FastAPI backend on `http://127.0.0.1:8000`
-- Next admin app on `http://localhost:3000`
-- Expo dev server for the mobile app
-
-If MongoDB is not already running, `./run.sh` will stop and tell you to start it first.
-
----
-
-## Required Frontend Packages
+Install mobile dependencies:
 
 ```bash
-npx expo install expo-camera
-npx expo install expo-av
-npx expo install react-native-webview
-npx expo install react-native-svg
-npx expo install @expo/vector-icons
-npx expo install expo-local-authentication
+cd app
+npm ci
 ```
 
----
+Install backend dependencies:
 
-## Important: Mobile Backend URL
-
-The mobile app reads `EXPO_PUBLIC_API_BASE` from `app/.env.local`, which `./init.sh` and `./run.sh` generate automatically using your current LAN IP.
-
-Phone and PC still need to be on the same Wi-Fi network for the mobile app to reach the backend.
-
----
-
-## API Endpoints
-
-### Landmarks Workflow
-
-- **POST `/upload_landmarks`**  
-  Saves landmarks to:
-  ```
-  src/server/landmarks/<LABEL>.jsonl
-  ```
-
-- **POST `/predict_landmarks`**  
-  Returns:
-  ```json
-  { "label": "A", "confidence": 0.97 }
-  ```
-
-- **POST `/train_landmarks`**  
-  Trains landmarks model and saves `asl_landmarks_model.joblib`
-
----
-
-## Common Issues
-
-### Phone can’t reach backend
-- Use LAN IP, not `localhost`
-- Same Wi-Fi network
-- Allow port 8000 through firewall
-
-### Android SVG crash
 ```bash
-npx expo install react-native-svg
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+```
+
+Start the backend:
+
+```bash
+cd backend
+.venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+Start the app:
+
+```bash
+cd app
+npx expo start -c
+```
+
+For Android native tracking changes, use a development build:
+
+```bash
+cd app
 npx expo run:android
+npx expo start --dev-client
 ```
 
-### Video splash not playing
-- Convert `.MOV` → `.mp4`
-- Keep video inside `assets/`
-- Load via `require(...)`
+## Documentation
 
----
+The main docs hub lives in [docs/README.md](./docs/README.md).
 
-## Notes
+Audience-based entry points:
 
-- MediaPipe runs fully inside WebView
-- Backend learns from **landmarks**, not pixels
-- “Live” mode uses snapshot polling, not video
+- [Normal User Guide](./docs/users/getting-started.md)
+- [Open Source Guide](./docs/open-source/README.md)
+- [Scouting Guide](./docs/scouting/README.md)
+- [Enterprise Guide](./docs/enterprise/README.md)
 
----
+Shared technical references:
+
+- [Architecture Reference](./docs/references/architecture.md)
+- [ML Pipelines Reference](./docs/references/ml-pipelines.md)
+- [Repository Map](./docs/references/repository-map.md)
+
+## Project Scope
+
+SignSight should be understood as:
+
+- a sign recognition product
+- a dataset collection and review workflow
+- a model iteration platform for static and dynamic sign recognition
+
+It should not be oversold as:
+
+- full sentence-level sign language translation
+- a general-purpose multimodal language model
+- a complete back-office or administration platform
+
+## Status
+
+The project currently emphasizes:
+
+- mobile-first translation workflows
+- landmark and gesture model separation
+- reviewed dataset capture
+- iterative model improvement inside the app
 
 ## License
 
-For academic / project use.
+Add your project license here if or when you publish one.
