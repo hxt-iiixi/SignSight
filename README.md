@@ -2,6 +2,8 @@
 
 SignSight is a mobile-first sign language recognition platform built with Expo, React Native, VisionCamera, and FastAPI. It combines real-time camera-based inference, on-device landmark and pose tracking, and trainable backend models for both static hand signs and dynamic gesture recognition.
 
+Project documentation now lives in [docs/README.md](/home/fkrul3s47/Documents/Projects/SignSight/docs/README.md), with separate guides for normal users, open-source contributors, evaluators, and enterprise readers.
+
 ## Overview
 
 SignSight is designed around two complementary recognition paths:
