@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrameProcessor } from "react-native-vision-camera";
-import { Worklets } from "react-native-worklets-core";
+import { Worklets, useSharedValue } from "react-native-worklets-core";
 
 import {
   detectHands,
@@ -73,6 +73,7 @@ export function useStreamingHandTracking({
   );
   const lastTimestampRef = useRef<number>(-1);
   const lastValidHandRef = useRef<HandTrackingFrameResult | null>(null);
+  const emptyFrames = useSharedValue(0);
 
   const onFrameTickJS = useMemo(
     () => (onFrameTick ? Worklets.createRunOnJS(onFrameTick) : null),
@@ -190,6 +191,7 @@ export function useStreamingHandTracking({
       return;
     }
 
+    emptyFrames.value = 0;
     lastTimestampRef.current = -1;
     lastValidHandRef.current = null;
     setLatestHandFrame(null);
@@ -215,16 +217,25 @@ export function useStreamingHandTracking({
 
       onFrameTickJS?.();
 
+      // Adaptive frame interval logic
+      // ~33 FPS during active use, ~10 FPS when idle
+      const intervalMs = emptyFrames.value > 15 ? 100 : 30;
+
       const result = detectHands(frame, {
-        minProcessIntervalMs: 20,
+        minProcessIntervalMs: intervalMs,
         maxResultAgeMs: 450,
       });
 
       if (result) {
+        if (result.hasHand || result.hasUpperBody) {
+          emptyFrames.value = 0;
+        } else {
+          emptyFrames.value = emptyFrames.value + 1;
+        }
         onNativeResultJS(result);
       }
     },
-    [enabled, onFrameTickJS, onNativeResultJS]
+    [enabled, onFrameTickJS, onNativeResultJS, emptyFrames]
   );
 
   return {
