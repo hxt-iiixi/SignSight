@@ -29,8 +29,9 @@ internal class SignSightHandTrackerFrameProcessorPlugin(
   override fun callback(frame: Frame, params: MutableMap<String, Any>?): Any? {
     val minProcessIntervalMs = (params?.get("minProcessIntervalMs") as? Number)?.toLong() ?: 30L
     val maxResultAgeMs = (params?.get("maxResultAgeMs") as? Number)?.toLong() ?: 500L
+    val runPoseLandmarker = (params?.get("runPoseLandmarker") as? Boolean) ?: true
 
-    controller.maybeProcessFrame(frame, minProcessIntervalMs)
+    controller.maybeProcessFrame(frame, minProcessIntervalMs, runPoseLandmarker)
     return controller.getLatestResult(maxResultAgeMs)
   }
 
@@ -71,7 +72,7 @@ internal class SignSightHandTrackerHandLandmarkerController(
     }
   }
 
-  fun maybeProcessFrame(frame: Frame, minProcessIntervalMs: Long) {
+  fun maybeProcessFrame(frame: Frame, minProcessIntervalMs: Long, runPoseLandmarker: Boolean) {
     val imageProxy = frame.imageProxy ?: return
     val timestampMs = SystemClock.uptimeMillis()
     val previous = lastProcessTimestampMs.get()
@@ -87,9 +88,12 @@ internal class SignSightHandTrackerHandLandmarkerController(
       val rotatedBitmap = rotateBitmap(bitmap, imageProxy.imageInfo.rotationDegrees, frame.isMirrored)
       val inferenceBitmap = resizeBitmapForInference(rotatedBitmap)
       val handMpImage = BitmapImageBuilder(inferenceBitmap).build()
-      val poseMpImage = BitmapImageBuilder(inferenceBitmap).build()
       handLandmarker.detectAsync(handMpImage, timestampMs)
-      poseLandmarker.detectAsync(poseMpImage, timestampMs)
+
+      if (runPoseLandmarker) {
+        val poseMpImage = BitmapImageBuilder(inferenceBitmap).build()
+        poseLandmarker.detectAsync(poseMpImage, timestampMs)
+      }
     } catch (_: Throwable) {
     }
   }
