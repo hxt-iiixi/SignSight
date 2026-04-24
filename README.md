@@ -20,7 +20,7 @@ SignSight has two main runtime surfaces:
 
 ## Quick Start
 
-### Fast Path
+### Fast Path (Automated)
 
 From the repository root:
 
@@ -29,7 +29,7 @@ From the repository root:
 ./run.sh
 ```
 
-### Manual Setup
+### Manual Setup (Recommended)
 
 Install mobile dependencies:
 
