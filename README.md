@@ -9,26 +9,6 @@ It combines:
 - trainable backend model pipelines
 - an in-app developer lab for capture, datasets, and model workflows
 
-This repository focuses on SignSight’s core product surface and technical capabilities.
-
-## What SignSight Does
-
-SignSight is designed around two complementary recognition paths:
-
-- `Landmark` recognition
-  For static signs such as alphabet letters and other single-frame classes.
-- `Gesture` recognition
-  For dynamic word and motion-based signs using sequence data over time.
-
-At a product level, SignSight currently supports:
-
-- live translator experience through the mobile camera
-- prediction result and confidence display
-- `Letters` and `Words` modes
-- landmark and gesture model awareness in the app
-- mobile dataset capture for reviewed samples
-- dataset inspection and model training through the built-in lab
-
 ## Architecture At A Glance
 
 SignSight has two main runtime surfaces:
@@ -37,20 +17,6 @@ SignSight has two main runtime surfaces:
   Expo and React Native mobile application
 - [`backend/`](./backend)
   FastAPI backend for inference, training, dataset summaries, and model operations
-
-The mobile app handles:
-
-- camera and tracking
-- translator UX
-- tutorial, feedback, and settings flows
-- developer lab workflows
-
-The backend handles:
-
-- landmark prediction and training
-- gesture prediction and training
-- model lifecycle endpoints
-- dataset health and summary endpoints
 
 ## Quick Start
 
