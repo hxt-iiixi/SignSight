@@ -68,6 +68,10 @@ write_file() {
   log "Created $(realpath --relative-to="$ROOT_DIR" "$path" 2>/dev/null || printf '%s' "$path")"
 }
 
+generate_secure_token() {
+  python3 -c 'import secrets; print(secrets.token_urlsafe(48))'
+}
+
 need_cmd node "Install Node.js 20 LTS or newer."
 need_cmd npm "Install npm with Node.js."
 need_cmd python3 "Install Python 3.10 or newer."
@@ -91,7 +95,10 @@ fi
 log "Installing backend dependencies"
 (cd "$SERVER_DIR" && .venv/bin/pip install -r requirements.txt)
 
-write_file "$SERVER_ENV_FILE" $'MONGO_URI=mongodb://127.0.0.1:27017\nMONGO_DB=signsight\n\nJWT_SECRET=change_me_now\nADMIN_USER=admin\nADMIN_PASS=admin123\n'
+DEFAULT_JWT_SECRET="$(generate_secure_token)"
+DEFAULT_ADMIN_PASS="$(generate_secure_token)"
+
+write_file "$SERVER_ENV_FILE" "$(printf 'MONGO_URI=mongodb://127.0.0.1:27017\nMONGO_DB=signsight\n\nJWT_SECRET=%s\nADMIN_USER=admin\nADMIN_PASS=%s\n' "$DEFAULT_JWT_SECRET" "$DEFAULT_ADMIN_PASS")"
 
 printf 'EXPO_PUBLIC_API_BASE=%s\n' "$MOBILE_API_BASE_VALUE" >"$MOBILE_ENV_FILE"
 log "Wrote app/.env.local with mobile API base $MOBILE_API_BASE_VALUE"

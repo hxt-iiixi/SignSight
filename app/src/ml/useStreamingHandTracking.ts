@@ -9,8 +9,11 @@ import {
 } from "../../modules/signsight-hand-tracker";
 import type { UpperBodyLandmarks } from "./streamTypes";
 
+import type { DetectMode } from "./streamTypes";
+
 type UseStreamingHandTrackingOptions = {
   enabled: boolean;
+  detectMode?: DetectMode;
   onFrameTick?: () => void;
 };
 
@@ -55,6 +58,7 @@ export type StreamingHandTrackingDebugState = {
 
 export function useStreamingHandTracking({
   enabled,
+  detectMode,
   onFrameTick,
 }: UseStreamingHandTrackingOptions) {
   const [latestHandFrame, setLatestHandFrame] =
@@ -224,6 +228,7 @@ export function useStreamingHandTracking({
       const result = detectHands(frame, {
         minProcessIntervalMs: intervalMs,
         maxResultAgeMs: 450,
+        runPoseLandmarker: detectMode === "WORDS",
       });
 
       if (result) {
@@ -235,7 +240,7 @@ export function useStreamingHandTracking({
         onNativeResultJS(result);
       }
     },
-    [enabled, onFrameTickJS, onNativeResultJS, emptyFrames]
+    [enabled, detectMode, onFrameTickJS, onNativeResultJS, emptyFrames]
   );
 
   return {

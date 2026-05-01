@@ -66,6 +66,7 @@ export type HandTrackingFrameResult = {
 export type DetectHandsPluginOptions = {
   minProcessIntervalMs?: number;
   maxResultAgeMs?: number;
+  runPoseLandmarker?: boolean;
 };
 
 export type SignSightHandTrackerNativeModule = {
