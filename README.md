@@ -18,14 +18,14 @@ SignSight has two main runtime surfaces:
 
 ## Quick Start
 
-### Fast Path (runs both app & backend)
+### Fast Run (App & Backend)
 Exception: Web Client
 
 ```bash
 make dev
 ```
 
-### Manual Setup
+### Setup
 
 Install mobile dependencies:
 
