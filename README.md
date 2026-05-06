@@ -113,11 +113,10 @@ SignSight should be understood as:
 - a dataset collection and review workflow
 - a model iteration platform for static and dynamic sign recognition
 
-It should not be oversold as:
+It should not be oversold yet as:
 
 - full sentence-level sign language translation
 - a general-purpose multimodal language model
-- a complete back-office or administration platform
 
 ## Status
 
