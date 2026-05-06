@@ -9,8 +9,6 @@ It combines:
 - trainable backend model pipelines
 - an in-app developer lab for capture, datasets, and model workflows
 
-## Architecture At A Glance
-
 SignSight has two main runtime surfaces:
 
 - [`app/`](./app)
@@ -20,16 +18,24 @@ SignSight has two main runtime surfaces:
 
 ## Quick Start
 
-### Fast Path (Automated)
+### Fast Path (Recommended)
 
 From the repository root:
 
 ```bash
-./init.sh
-./run.sh
+make init
+make run
 ```
 
-### Manual Setup (Recommended)
+The `make run` target refreshes the local mobile and admin API env files, starts the FastAPI backend, and then launches Expo in the foreground.
+
+You can inspect the available root-level commands at any time with:
+
+```bash
+make help
+```
+
+### Manual Setup
 
 Install mobile dependencies:
 
@@ -60,12 +66,26 @@ cd app
 npx expo start -c
 ```
 
+Or, from the repository root:
+
+```bash
+make backend
+make app
+```
+
 For Android native tracking changes, use a development build:
 
 ```bash
 cd app
 npx expo run:android
 npx expo start --dev-client
+```
+
+Or, from the repository root:
+
+```bash
+make android
+make dev-client
 ```
 
 ## Documentation
@@ -93,11 +113,10 @@ SignSight should be understood as:
 - a dataset collection and review workflow
 - a model iteration platform for static and dynamic sign recognition
 
-It should not be oversold as:
+It should not be oversold yet as:
 
 - full sentence-level sign language translation
 - a general-purpose multimodal language model
-- a complete back-office or administration platform
 
 ## Status
 
