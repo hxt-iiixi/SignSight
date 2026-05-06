@@ -18,21 +18,10 @@ SignSight has two main runtime surfaces:
 
 ## Quick Start
 
-### Fast Path (Recommended)
-
-From the repository root:
+### Fast Path
 
 ```bash
-make init
-make run
-```
-
-The `make run` target refreshes the local mobile and admin API env files, starts the FastAPI backend, and then launches Expo in the foreground.
-
-You can inspect the available root-level commands at any time with:
-
-```bash
-make help
+make dev
 ```
 
 ### Manual Setup
@@ -80,30 +69,6 @@ cd app
 npx expo run:android
 npx expo start --dev-client
 ```
-
-Or, from the repository root:
-
-```bash
-make android
-make dev-client
-```
-
-## Documentation
-
-The main docs hub lives in [docs/README.md](./docs/README.md).
-
-Audience-based entry points:
-
-- [Normal User Guide](./docs/users/getting-started.md)
-- [Open Source Guide](./docs/open-source/README.md)
-- [Scouting Guide](./docs/scouting/README.md)
-- [Enterprise Guide](./docs/enterprise/README.md)
-
-Shared technical references:
-
-- [Architecture Reference](./docs/references/architecture.md)
-- [ML Pipelines Reference](./docs/references/ml-pipelines.md)
-- [Repository Map](./docs/references/repository-map.md)
 
 ## Project Scope
 
