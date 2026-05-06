@@ -1,35 +1,72 @@
 # SignSight Documentation
 
-This folder is the main documentation hub for SignSight.
+SignSight is a mobile-first sign recognition platform for real-time camera-based ASL recognition, dataset capture, and iterative model improvement.
 
-It is organized by audience so different readers can find the right level of detail quickly:
+This documentation describes the current project architecture, local development workflow, API surface, mobile runtime, backend model pipeline, and operational risks.
 
-- [Normal User Guide](./users/getting-started.md)
-  For people who want to use the app, understand `Letters` vs `Words`, and know what SignSight currently supports.
-- [Open Source Guide](./open-source/README.md)
-  For contributors, maintainers, and developers who want to run the project locally or understand the repo layout.
-- [Scouting Guide](./scouting/README.md)
-  For evaluators, technical scouts, hackathon judges, accelerators, or product reviewers who want a fast but credible overview.
-- [Enterprise Guide](./enterprise/README.md)
-  For teams assessing SignSight’s architecture, deployment model, data flow, model lifecycle, and operational boundaries.
+## Documentation Map
 
-Shared technical references live here:
+- [Project Overview](./project-overview.md)
+- [Local Setup and Development](./local-development.md)
+- [System Architecture](./architecture.md)
+- [Backend Service](./backend.md)
+- [API Reference](./api-reference.md)
+- [Mobile App](./mobile-app.md)
+- [Data and Model Workflow](./data-and-model-workflow.md)
+- [Web Admin and Landing Site](./web-admin.md)
+- [Operations and Maintenance](./operations.md)
+- [Known Issues and Technical Debt](./known-issues.md)
 
-- [Architecture Reference](./references/architecture.md)
-- [ML Pipelines Reference](./references/ml-pipelines.md)
-- [Repository Map](./references/repository-map.md)
+## Runtime Surfaces
 
-Historical internal analysis is archived here:
+SignSight currently contains three main surfaces:
 
-- [Initial System Context Report](./archive/system-context-initialization-report.md)
+| Surface | Path | Purpose |
+| --- | --- | --- |
+| Mobile app | `app/` | Expo and React Native app for translation, feedback, tutorials, settings, and the developer lab. |
+| Backend API | `backend/` | FastAPI service for prediction, training, dataset summaries, model versions, feedback, audit, and uploads. |
+| Web frontend | `web-frontend/` | Next.js admin dashboard and public landing/download pages. |
 
-## What These Docs Cover
+## Quick Start
 
-These docs focus on the current SignSight product surface:
+From the repository root:
 
-- mobile translation experience
-- landmark and gesture recognition
-- dataset capture and inspection in the developer lab
-- model training and model lifecycle for SignSight itself
+```bash
+make dev
+```
 
-They intentionally do not center the admin panel or unrelated back-office workflows.
+Manual startup:
+
+```bash
+cd backend
+.venv/bin/python -m uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+```
+
+```bash
+cd app
+npx expo start -c
+```
+
+```bash
+cd web-frontend
+npm run dev
+```
+
+## Current Verification Snapshot
+
+The following commands were run during the documentation pass:
+
+```bash
+python3 -m compileall -q backend/app backend/scripts
+cd app && npx tsc --noEmit
+cd web-frontend && npx tsc --noEmit
+cd web-frontend && npm run lint
+```
+
+Results:
+
+- Backend Python compile check passed.
+- Mobile TypeScript check passed.
+- Web TypeScript check passed.
+- Web lint currently fails. See [Known Issues and Technical Debt](./known-issues.md).
+

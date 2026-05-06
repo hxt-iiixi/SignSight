@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import gestures, health, landmarks, uploads, models
+from app.api.routes import admin, feedback, gestures, health, landmarks, models, uploads
 from app.core.config import settings
 from app.services.gesture_classifier import bootstrap_gesture_model
 from app.services.landmark_classifier import bootstrap_landmark_model
@@ -23,6 +23,8 @@ def create_app() -> FastAPI:
     app.include_router(gestures.router)
     app.include_router(health.router)
     app.include_router(models.router)
+    app.include_router(feedback.router)
+    app.include_router(admin.router)
 
     @app.on_event("startup")
     async def on_startup() -> None:
