@@ -75,8 +75,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-# Agent-facing project docs live in agents/*.md.
-# Keep other local agent state ignored.
-agents/*
-!agents/
-!agents/*.md
